@@ -3,7 +3,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
-
 opencv_Mat opencv_createMat(int width, int height, int type) {
     return new cv::Mat(width, height, type);
 }
@@ -18,7 +17,7 @@ opencv_Mat opencv_imdecode(const opencv_Mat buf, int iscolor, opencv_Mat dst) {
     return new cv::Mat(cv::imdecode(*mat, cv::IMREAD_COLOR, matDst));
 }
 
-bool opencv_imencode(const char *ext, const opencv_Mat image, void *dst, size_t dst_len, const int *params, size_t params_len, int *new_len) {
+bool opencv_imencode(const char *ext, const opencv_Mat image, void *dst, size_t dst_len, const int32_t *params, size_t params_len, int *new_len) {
     std::vector<int> vParams;
     if (params) {
         vParams.assign(params, params+params_len);
