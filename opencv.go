@@ -35,7 +35,7 @@ func (f *Framebuffer) Decode(encoded []byte) error {
 }
 
 func (f *Framebuffer) ResizeTo(dst *Framebuffer, width, height int) {
-	C.opencv_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_BICUBIC)
+	C.opencv_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_CUBIC)
 }
 
 func (f *Framebuffer) Encode(Extension string, dst []byte, opt []int32) []byte {
