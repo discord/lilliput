@@ -39,14 +39,33 @@ type Framebuffer struct {
 	pixelType PixelType
 }
 
+type ImageHeader struct {
+	width     int
+	height    int
+	pixelType PixelType
+}
+
 type Decoder struct {
-	decoder C.opencv_Decoder
+	decoder       C.opencv_Decoder
+	hasReadHeader bool
 }
 
 type Encoder struct {
 	encoder C.opencv_Encoder
 	vec     C.vec
 	buf     []byte
+}
+
+func (h *ImageHeader) Width() int {
+	return h.width
+}
+
+func (h *ImageHeader) Height() int {
+	return h.height
+}
+
+func (h *ImageHeader) PixelType() PixelType {
+	return h.pixelType
 }
 
 func NewDecoder(buf []byte) (*Decoder, error) {
@@ -75,28 +94,24 @@ func NewDecoder(buf []byte) (*Decoder, error) {
 	}, nil
 }
 
-func (d *Decoder) ReadHeader() error {
-	if !C.opencv_decoder_read_header(d.decoder) {
-		return ErrInvalidImage
+func (d *Decoder) Header() (*ImageHeader, error) {
+	if !d.hasReadHeader {
+		if !C.opencv_decoder_read_header(d.decoder) {
+			return nil, ErrInvalidImage
+		}
 	}
 
-	return nil
+	d.hasReadHeader = true
+
+	return &ImageHeader{
+		width:     int(C.opencv_decoder_get_width(d.decoder)),
+		height:    int(C.opencv_decoder_get_height(d.decoder)),
+		pixelType: PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
+	}, nil
 }
 
 func (d *Decoder) Close() {
 	C.opencv_decoder_release(d.decoder)
-}
-
-func (d *Decoder) Width() int {
-	return int(C.opencv_decoder_get_width(d.decoder))
-}
-
-func (d *Decoder) Height() int {
-	return int(C.opencv_decoder_get_height(d.decoder))
-}
-
-func (d *Decoder) PixelType() PixelType {
-	return PixelType(C.opencv_decoder_get_pixel_type(d.decoder))
 }
 
 func (d *Decoder) Description() string {
@@ -104,7 +119,11 @@ func (d *Decoder) Description() string {
 }
 
 func (d *Decoder) DecodeTo(f *Framebuffer) error {
-	err := f.resizeMat(d.Width(), d.Height(), d.PixelType())
+	h, err := d.Header()
+	if err != nil {
+		return err
+	}
+	err = f.resizeMat(h.Width(), h.Height(), h.PixelType())
 	if err != nil {
 		return err
 	}
@@ -172,6 +191,10 @@ func (f *Framebuffer) Close() {
 		C.opencv_mat_release(f.mat)
 		f.mat = nil
 	}
+}
+
+func (f *Framebuffer) Clear() {
+	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
 }
 
 func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
