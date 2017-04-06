@@ -47,6 +47,7 @@ type ImageHeader struct {
 
 type Decoder struct {
 	decoder       C.opencv_Decoder
+	mat           C.opencv_Mat
 	hasReadHeader bool
 }
 
@@ -69,27 +70,27 @@ func (h *ImageHeader) PixelType() PixelType {
 }
 
 func NewDecoder(buf []byte) (*Decoder, error) {
-	encoded := C.opencv_createMatFromData(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	mat := C.opencv_createMatFromData(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	// this next check is sort of silly since this array is 1-dimensional
 	// but if the create ever changes and we goof up, could catch a
 	// buffer overwrite
-	if encoded == nil {
+	if mat == nil {
 		return nil, ErrBufTooSmall
 	}
-	defer C.opencv_mat_release(encoded)
 
-	decoder := C.opencv_createDecoder(encoded)
+	decoder := C.opencv_createDecoder(mat)
 	if decoder == nil {
 		return nil, ErrInvalidImage
 	}
 
-	if !C.opencv_decoder_set_source(decoder, encoded) {
+	if !C.opencv_decoder_set_source(decoder, mat) {
 		C.opencv_decoder_release(decoder)
 		return nil, ErrInvalidImage
 	}
 
 	return &Decoder{
+		mat:     mat,
 		decoder: decoder,
 	}, nil
 }
@@ -112,6 +113,7 @@ func (d *Decoder) Header() (*ImageHeader, error) {
 
 func (d *Decoder) Close() {
 	C.opencv_decoder_release(d.decoder)
+	C.opencv_mat_release(d.mat)
 }
 
 func (d *Decoder) Description() string {
@@ -218,7 +220,7 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 	if err != nil {
 		return err
 	}
-	C.opencv_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_CUBIC)
+	C.opencv_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_LANCZOS4)
 	return nil
 }
 
@@ -255,10 +257,14 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	}
 
 	newMat := C.opencv_crop(f.mat, C.int(left), C.int(top), C.int(widthPostCrop), C.int(heightPostCrop))
-	C.opencv_mat_release(f.mat)
-	f.mat = newMat
+	defer C.opencv_mat_release(newMat)
 
-	return f.ResizeTo(width, height, dst)
+	err := dst.resizeMat(width, height, f.pixelType)
+	if err != nil {
+		return err
+	}
+	C.opencv_resize(newMat, dst.mat, C.int(width), C.int(height), C.CV_INTER_LANCZOS4)
+	return nil
 }
 
 func (f *Framebuffer) Width() int {
