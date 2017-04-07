@@ -52,8 +52,8 @@ int opencv_type_channels(int type) {
 }
 
 opencv_Decoder opencv_createDecoder(const opencv_Mat buf) {
-    cv::Mat mat = *static_cast<const cv::Mat *>(buf);
-    cv::Ptr<cv::ImageDecoder> d_ptr = cv::findDecoder(mat);
+    const cv::Mat *mat = static_cast<const cv::Mat *>(buf);
+    cv::Ptr<cv::ImageDecoder> d_ptr = cv::findDecoder(*mat);
     if (!d_ptr) {
         return NULL;
     }
@@ -80,25 +80,30 @@ bool opencv_decoder_read_header(opencv_Decoder d) {
     return d_ptr->readHeader();
 }
 
-int opencv_decoder_get_width(opencv_Decoder d) {
+int opencv_decoder_get_width(const opencv_Decoder d) {
     cv::Ptr<cv::ImageDecoder> d_ptr = *static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
     return d_ptr->width();
 }
 
-int opencv_decoder_get_height(opencv_Decoder d) {
+int opencv_decoder_get_height(const opencv_Decoder d) {
     cv::Ptr<cv::ImageDecoder> d_ptr = *static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
     return d_ptr->height();
 }
 
-int opencv_decoder_get_pixel_type(opencv_Decoder d) {
+int opencv_decoder_get_pixel_type(const opencv_Decoder d) {
     cv::Ptr<cv::ImageDecoder> d_ptr = *static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
     return d_ptr->type();
 }
 
+int opencv_decoder_get_orientation(const opencv_Decoder d) {
+    cv::Ptr<cv::ImageDecoder> d_ptr = *static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
+    return d_ptr->orientation();
+}
+
 bool opencv_decoder_read_data(opencv_Decoder d, opencv_Mat dst) {
     cv::Ptr<cv::ImageDecoder> d_ptr = *static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    cv::Mat mat = *static_cast<cv::Mat *>(dst);
-    return d_ptr->readData(mat);
+    cv::Mat *mat = static_cast<cv::Mat *>(dst);
+    return d_ptr->readData(*mat);
 }
 
 opencv_Encoder opencv_createEncoder(const char *ext) {
@@ -122,12 +127,12 @@ bool opencv_encoder_set_destination(opencv_Encoder e, vec dst) {
 
 bool opencv_encoder_write(opencv_Encoder e, const opencv_Mat src, const int *opt, size_t opt_len) {
     cv::Ptr<cv::ImageEncoder> e_ptr = *static_cast<cv::Ptr<cv::ImageEncoder> *>(e);
-    cv::Mat mat = *static_cast<const cv::Mat *>(src);
+    const cv::Mat *mat = static_cast<const cv::Mat *>(src);
     std::vector<int> params;
     for (size_t i = 0; i < opt_len; i++) {
         params.push_back(opt[i]);
     }
-    return e_ptr->write(mat, params);
+    return e_ptr->write(*mat, params);
 };
 
 bool opencv_imencode(const char *ext, const opencv_Mat image, void *dst, size_t dst_len, const int32_t *params, size_t params_len, int *new_len) {
@@ -147,8 +152,23 @@ void opencv_resize(const opencv_Mat src, opencv_Mat dst, int width, int height, 
     cv::resize(*static_cast<const cv::Mat *>(src), *static_cast<cv::Mat *>(dst), cv::Size(width, height), 0, 0, interpolation);
 }
 
-opencv_Mat opencv_crop(opencv_Mat src, int x, int y, int width, int height) {
+opencv_Mat opencv_crop(const opencv_Mat src, int x, int y, int width, int height) {
     cv::Mat *ret = new cv::Mat;
-    *ret = (*static_cast<cv::Mat *>(src))(cv::Rect(x, y, width, height));
+    *ret = (*static_cast<const cv::Mat *>(src))(cv::Rect(x, y, width, height));
     return ret;
+}
+
+void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_Mat mat) {
+    cv::Mat *cvMat = static_cast<cv::Mat *>(mat);
+    cv::OrientationTransform(cv::ImageOrientation(orientation), *cvMat);
+}
+
+int opencv_mat_get_width(const opencv_Mat mat) {
+    const cv::Mat *cvMat = static_cast<const cv::Mat *>(mat);
+    return cvMat->cols;
+}
+
+int opencv_mat_get_height(const opencv_Mat mat) {
+    const cv::Mat *cvMat = static_cast<const cv::Mat *>(mat);
+    return cvMat->rows;
 }

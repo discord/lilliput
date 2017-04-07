@@ -11,10 +11,21 @@ import (
 	"unsafe"
 )
 
+type ImageOrientation int
+
 var (
 	JpegQuality    = int(C.CV_IMWRITE_JPEG_QUALITY)
 	PngCompression = int(C.CV_IMWRITE_PNG_COMPRESSION)
 	WebpQuality    = int(C.CV_IMWRITE_WEBP_QUALITY)
+
+	OrientationTopLeft     = ImageOrientation(C.CV_IMAGE_ORIENTATION_TL)
+	OrientationTopRight    = ImageOrientation(C.CV_IMAGE_ORIENTATION_TR)
+	OrientationBottomRight = ImageOrientation(C.CV_IMAGE_ORIENTATION_BR)
+	OrientationBottomLeft  = ImageOrientation(C.CV_IMAGE_ORIENTATION_BL)
+	OrientationLeftTop     = ImageOrientation(C.CV_IMAGE_ORIENTATION_LT)
+	OrientationRightTop    = ImageOrientation(C.CV_IMAGE_ORIENTATION_RT)
+	OrientationRightBottom = ImageOrientation(C.CV_IMAGE_ORIENTATION_RB)
+	OrientationLeftBottom  = ImageOrientation(C.CV_IMAGE_ORIENTATION_LB)
 
 	ErrInvalidImage   = errors.New("unrecognized image format")
 	ErrDecodingFailed = errors.New("failed to decode image")
@@ -40,9 +51,10 @@ type Framebuffer struct {
 }
 
 type ImageHeader struct {
-	width     int
-	height    int
-	pixelType PixelType
+	width       int
+	height      int
+	pixelType   PixelType
+	orientation ImageOrientation
 }
 
 type Decoder struct {
@@ -67,6 +79,10 @@ func (h *ImageHeader) Height() int {
 
 func (h *ImageHeader) PixelType() PixelType {
 	return h.pixelType
+}
+
+func (h *ImageHeader) Orientation() ImageOrientation {
+	return h.orientation
 }
 
 func NewDecoder(buf []byte) (*Decoder, error) {
@@ -105,9 +121,10 @@ func (d *Decoder) Header() (*ImageHeader, error) {
 	d.hasReadHeader = true
 
 	return &ImageHeader{
-		width:     int(C.opencv_decoder_get_width(d.decoder)),
-		height:    int(C.opencv_decoder_get_height(d.decoder)),
-		pixelType: PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
+		width:       int(C.opencv_decoder_get_width(d.decoder)),
+		height:      int(C.opencv_decoder_get_height(d.decoder)),
+		pixelType:   PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
+		orientation: ImageOrientation(C.opencv_decoder_get_orientation(d.decoder)),
 	}, nil
 }
 
@@ -213,6 +230,16 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	f.height = height
 	f.pixelType = pixelType
 	return nil
+}
+
+func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
+	if f.mat == nil {
+		return
+	}
+
+	C.opencv_mat_orientation_transform(C.CVImageOrientation(orientation), f.mat)
+	f.width = int(C.opencv_mat_get_width(f.mat))
+	f.height = int(C.opencv_mat_get_height(f.mat))
 }
 
 func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {

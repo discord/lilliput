@@ -75,6 +75,11 @@ func (o *ImageOps) fit(d *Decoder, width, height int) error {
 	return nil
 }
 
+func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
+	active := o.active()
+	active.OrientationTransform(orientation)
+}
+
 func (o *ImageOps) encode(e *Encoder, opt map[int]int) ([]byte, error) {
 	active := o.active()
 	content, err := e.Encode(active, opt)
@@ -82,16 +87,21 @@ func (o *ImageOps) encode(e *Encoder, opt map[int]int) ([]byte, error) {
 }
 
 func (o *ImageOps) Transform(d *Decoder, opt *ImageOptions) ([]byte, error) {
-	err := o.decode(d)
+	h, err := d.Header()
 	if err != nil {
 		return nil, err
 	}
 
+	err = o.decode(d)
+	if err != nil {
+		return nil, err
+	}
+
+	o.normalizeOrientation(h.Orientation())
+
 	if opt.ResizeMethod == ImageOpsFit {
 		o.fit(d, opt.Width, opt.Height)
 	}
-
-	// TODO normalize orientation
 
 	enc, err := NewEncoder(opt.FileType)
 	if err != nil {
