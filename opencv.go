@@ -175,11 +175,15 @@ func NewEncoder(ext string) (*Encoder, error) {
 
 func (e *Encoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	var optList []C.int
+	var firstOpt *C.int
 	for k, v := range opt {
 		optList = append(optList, C.int(k))
 		optList = append(optList, C.int(v))
 	}
-	if !C.opencv_encoder_write(e.encoder, f.mat, (*C.int)(unsafe.Pointer(&optList[0])), C.size_t(len(optList))) {
+	if len(optList) > 0 {
+		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
+	}
+	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))) {
 		return nil, ErrInvalidImage
 	}
 	vec_len := int(C.vec_size(e.vec))
