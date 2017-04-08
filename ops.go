@@ -54,7 +54,7 @@ func (o *ImageOps) Close() {
 	o.frames[1].Close()
 }
 
-func (o *ImageOps) decode(d *Decoder) error {
+func (o *ImageOps) decode(d Decoder) error {
 	active := o.active()
 	err := d.DecodeTo(active)
 	if err != nil {
@@ -64,7 +64,7 @@ func (o *ImageOps) decode(d *Decoder) error {
 	return nil
 }
 
-func (o *ImageOps) fit(d *Decoder, width, height int) error {
+func (o *ImageOps) fit(d Decoder, width, height int) error {
 	active := o.active()
 	secondary := o.secondary()
 	err := active.Fit(width, height, secondary)
@@ -80,13 +80,13 @@ func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
 	active.OrientationTransform(orientation)
 }
 
-func (o *ImageOps) encode(e *Encoder, opt map[int]int) ([]byte, error) {
+func (o *ImageOps) encode(e Encoder, opt map[int]int) ([]byte, error) {
 	active := o.active()
 	content, err := e.Encode(active, opt)
 	return content, err
 }
 
-func (o *ImageOps) Transform(d *Decoder, opt *ImageOptions) ([]byte, error) {
+func (o *ImageOps) Transform(d Decoder, opt *ImageOptions) ([]byte, error) {
 	h, err := d.Header()
 	if err != nil {
 		return nil, err

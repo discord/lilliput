@@ -160,7 +160,7 @@ opencv_Mat opencv_crop(const opencv_Mat src, int x, int y, int width, int height
 
 void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_Mat mat) {
     cv::Mat *cvMat = static_cast<cv::Mat *>(mat);
-    cv::OrientationTransform(cv::ImageOrientation(orientation), *cvMat);
+    cv::OrientationTransform(int(orientation), *cvMat);
 }
 
 int opencv_mat_get_width(const opencv_Mat mat) {

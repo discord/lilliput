@@ -7,7 +7,9 @@ package opencv
 import "C"
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"unsafe"
 )
 
@@ -30,6 +32,9 @@ var (
 	ErrInvalidImage   = errors.New("unrecognized image format")
 	ErrDecodingFailed = errors.New("failed to decode image")
 	ErrBufTooSmall    = errors.New("buffer too small to hold pixel frame")
+
+	gif87Magic = []byte("GIF87a")
+	gif89Magic = []byte("GIF89a")
 )
 
 type PixelType int
@@ -55,15 +60,29 @@ type ImageHeader struct {
 	height      int
 	pixelType   PixelType
 	orientation ImageOrientation
+	numFrames   int
 }
 
-type Decoder struct {
+type Decoder interface {
+	Header() (*ImageHeader, error)
+	Close()
+	Description() string
+	DecodeTo(f *Framebuffer) error
+}
+
+type OpenCVDecoder struct {
 	decoder       C.opencv_Decoder
 	mat           C.opencv_Mat
 	hasReadHeader bool
+	hasDecoded    bool
 }
 
-type Encoder struct {
+type Encoder interface {
+	Encode(f *Framebuffer, opt map[int]int) ([]byte, error)
+	Close()
+}
+
+type OpenCVEncoder struct {
 	encoder C.opencv_Encoder
 	vec     C.vec
 	buf     []byte
@@ -85,7 +104,24 @@ func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
 }
 
-func NewDecoder(buf []byte) (*Decoder, error) {
+func (h *ImageHeader) NumFrames() int {
+	return h.numFrames
+}
+
+func isGIF(maybeGIF []byte) bool {
+	return bytes.HasPrefix(maybeGIF, gif87Magic) || bytes.HasPrefix(maybeGIF, gif89Magic)
+}
+
+func NewDecoder(buf []byte) (Decoder, error) {
+	isBufGIF := isGIF(buf)
+	if isBufGIF {
+		return newGifDecoder(buf)
+	}
+
+	return newOpenCVDecoder(buf)
+}
+
+func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
 	mat := C.opencv_createMatFromData(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	// this next check is sort of silly since this array is 1-dimensional
@@ -105,13 +141,13 @@ func NewDecoder(buf []byte) (*Decoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	return &Decoder{
+	return &OpenCVDecoder{
 		mat:     mat,
 		decoder: decoder,
 	}, nil
 }
 
-func (d *Decoder) Header() (*ImageHeader, error) {
+func (d *OpenCVDecoder) Header() (*ImageHeader, error) {
 	if !d.hasReadHeader {
 		if !C.opencv_decoder_read_header(d.decoder) {
 			return nil, ErrInvalidImage
@@ -125,19 +161,23 @@ func (d *Decoder) Header() (*ImageHeader, error) {
 		height:      int(C.opencv_decoder_get_height(d.decoder)),
 		pixelType:   PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
 		orientation: ImageOrientation(C.opencv_decoder_get_orientation(d.decoder)),
+		numFrames:   1,
 	}, nil
 }
 
-func (d *Decoder) Close() {
+func (d *OpenCVDecoder) Close() {
 	C.opencv_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 }
 
-func (d *Decoder) Description() string {
+func (d *OpenCVDecoder) Description() string {
 	return C.GoString(C.opencv_decoder_get_description(d.decoder))
 }
 
-func (d *Decoder) DecodeTo(f *Framebuffer) error {
+func (d *OpenCVDecoder) DecodeTo(f *Framebuffer) error {
+	if d.hasDecoded {
+		return io.EOF
+	}
 	h, err := d.Header()
 	if err != nil {
 		return err
@@ -150,10 +190,11 @@ func (d *Decoder) DecodeTo(f *Framebuffer) error {
 	if !ret {
 		return ErrDecodingFailed
 	}
+	d.hasDecoded = true
 	return nil
 }
 
-func NewEncoder(ext string) (*Encoder, error) {
+func NewEncoder(ext string) (Encoder, error) {
 	enc := C.opencv_createEncoder(C.CString(ext))
 	if enc == nil {
 		return nil, ErrInvalidImage
@@ -167,13 +208,13 @@ func NewEncoder(ext string) (*Encoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	return &Encoder{
+	return &OpenCVEncoder{
 		encoder: enc,
 		vec:     vec,
 	}, nil
 }
 
-func (e *Encoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
+func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	var optList []C.int
 	var firstOpt *C.int
 	for k, v := range opt {
@@ -195,7 +236,7 @@ func (e *Encoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	return dst, nil
 }
 
-func (e *Encoder) Close() {
+func (e *OpenCVEncoder) Close() {
 	C.opencv_encoder_release(e.encoder)
 	C.vec_destroy(e.vec)
 }
