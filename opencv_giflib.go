@@ -8,25 +8,35 @@ package opencv
 import "C"
 
 import (
+	"errors"
 	"io"
 	"unsafe"
 )
 
 type GifDecoder struct {
-	decoder    C.giflib_Decoder
-	mat        C.opencv_Mat
+	decoder    C.giflib_decoder
+	mat        C.opencv_mat
 	frameIndex int
 	hasSlurped bool
 }
 
+type GifEncoder struct {
+	encoder    C.giflib_encoder
+	buf        *OutputBuffer
+	frameIndex int
+	hasSpewed  bool
+}
+
+var ErrGifEncoderNeedsDecoder = errors.New("GIF encoder needs decoder used to create image")
+
 func newGifDecoder(buf []byte) (*GifDecoder, error) {
-	mat := C.opencv_createMatFromData(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	if mat == nil {
 		return nil, ErrBufTooSmall
 	}
 
-	decoder := C.giflib_createDecoder(mat)
+	decoder := C.giflib_decoder_create(mat)
 	if decoder == nil {
 		return nil, ErrInvalidImage
 	}
@@ -39,14 +49,6 @@ func newGifDecoder(buf []byte) (*GifDecoder, error) {
 }
 
 func (d *GifDecoder) Header() (*ImageHeader, error) {
-	if !d.hasSlurped {
-		ret := C.giflib_decoder_slurp(d.decoder)
-		if !ret {
-			return nil, ErrDecodingFailed
-		}
-		d.hasSlurped = true
-	}
-
 	return &ImageHeader{
 		width:       int(C.giflib_get_decoder_width(d.decoder)),
 		height:      int(C.giflib_get_decoder_height(d.decoder)),
@@ -65,15 +67,31 @@ func (d *GifDecoder) Description() string {
 	return "GIF"
 }
 
-func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
-	numFrames := int(C.giflib_get_decoder_num_frames(d.decoder))
-	if d.frameIndex == numFrames {
-		return io.EOF
+func (d *GifDecoder) slurp() error {
+	if !d.hasSlurped {
+		ret := C.giflib_decoder_slurp(d.decoder)
+		if !ret {
+			return ErrDecodingFailed
+		}
+		d.hasSlurped = true
 	}
+	return nil
+}
 
+func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
 		return err
+	}
+
+	err = d.slurp()
+	if err != nil {
+		return err
+	}
+
+	numFrames := int(C.giflib_get_decoder_num_frames(d.decoder))
+	if d.frameIndex == numFrames {
+		return io.EOF
 	}
 
 	err = f.resizeMat(h.Width(), h.Height(), h.PixelType())
@@ -87,4 +105,71 @@ func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 	}
 	d.frameIndex++
 	return nil
+}
+
+func newGifEncoder(decodedBy Decoder, buf *OutputBuffer) (*GifEncoder, error) {
+	// we must have a decoder since we can't build our own palettes
+	// so if we don't get a gif decoder, bail out
+	if decodedBy == nil {
+		return nil, ErrGifEncoderNeedsDecoder
+	}
+
+	gifDecoder, ok := decodedBy.(*GifDecoder)
+	if !ok {
+		return nil, ErrGifEncoderNeedsDecoder
+	}
+
+	err := gifDecoder.slurp()
+	if err != nil {
+		return nil, err
+	}
+
+	enc := C.giflib_encoder_create(buf.vec, gifDecoder.decoder)
+	if enc == nil {
+		return nil, ErrBufTooSmall
+	}
+
+	return &GifEncoder{
+		encoder:    enc,
+		buf:        buf,
+		frameIndex: 0,
+	}, nil
+}
+
+func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
+	if e.hasSpewed {
+		return nil, io.EOF
+	}
+
+	if f == nil {
+		ret := C.giflib_encoder_spew(e.encoder)
+		if !ret {
+			return nil, ErrInvalidImage
+		}
+		e.hasSpewed = true
+
+		err := e.buf.copyOutput()
+		if err != nil {
+			return nil, err
+		}
+		return e.buf.bytes, nil
+	}
+
+	if e.frameIndex == 0 {
+		// first run setup
+		// TODO figure out actual gif width/height?
+		C.giflib_encoder_init(e.encoder, C.int(f.Width()), C.int(f.Height()))
+	}
+
+	if !C.giflib_encoder_encode_frame(e.encoder, C.int(e.frameIndex), f.mat) {
+		return nil, ErrInvalidImage
+	}
+
+	e.frameIndex++
+
+	return nil, nil
+}
+
+func (e *GifEncoder) Close() {
+	C.giflib_encoder_release(e.encoder)
 }

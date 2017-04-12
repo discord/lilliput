@@ -25,43 +25,44 @@ typedef enum CVImageOrientation {
     CV_IMAGE_ORIENTATION_LB = 8  ///< Rotate 270 CW
 } CVImageOrientation;
 
-typedef void *opencv_Mat;
-typedef void *opencv_Decoder;
-typedef void *opencv_Encoder;
+typedef void *opencv_mat;
+typedef void *opencv_decoder;
+typedef void *opencv_encoder;
 typedef void *vec;
 
 vec vec_create();
-void vec_destroy(vec v);
-size_t vec_copy(const vec v, void *buf, size_t buf_len);
+void vec_release(vec v);
+size_t vec_copy(const vec v, void *buf, size_t buf_cap);
 size_t vec_size(const vec v);
+void vec_clear(const vec v);
 
 int opencv_type_depth(int type);
 int opencv_type_channels(int type);
 
-opencv_Decoder opencv_createDecoder(const opencv_Mat buf);
-const char *opencv_decoder_get_description(const opencv_Decoder d);
-void opencv_decoder_release(opencv_Decoder d);
-bool opencv_decoder_set_source(opencv_Decoder d, const opencv_Mat buf);
-bool opencv_decoder_read_header(opencv_Decoder d);
-int opencv_decoder_get_width(const opencv_Decoder d);
-int opencv_decoder_get_height(const opencv_Decoder d);
-int opencv_decoder_get_pixel_type(const opencv_Decoder d);
-int opencv_decoder_get_orientation(const opencv_Decoder d);
-bool opencv_decoder_read_data(opencv_Decoder d, opencv_Mat dst);
+opencv_decoder opencv_decoder_create(const opencv_mat buf);
+const char *opencv_decoder_get_description(const opencv_decoder d);
+void opencv_decoder_release(opencv_decoder d);
+bool opencv_decoder_set_source(opencv_decoder d, const opencv_mat buf);
+bool opencv_decoder_read_header(opencv_decoder d);
+int opencv_decoder_get_width(const opencv_decoder d);
+int opencv_decoder_get_height(const opencv_decoder d);
+int opencv_decoder_get_pixel_type(const opencv_decoder d);
+int opencv_decoder_get_orientation(const opencv_decoder d);
+bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
 
-opencv_Mat opencv_createMat(int width, int height, int type);
-opencv_Mat opencv_createMatFromData(int width, int height, int type, void *data, size_t data_len);
-void opencv_mat_release(opencv_Mat mat);
-void opencv_resize(const opencv_Mat src, opencv_Mat dst, int width, int height, int interpolation);
-opencv_Mat opencv_crop(const opencv_Mat src, int x, int y, int width, int height);
-void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_Mat mat);
-int opencv_mat_get_width(const opencv_Mat mat);
-int opencv_mat_get_height(const opencv_Mat mat);
+opencv_mat opencv_mat_create(int width, int height, int type);
+opencv_mat opencv_mat_create_from_data(int width, int height, int type, void *data, size_t data_len);
+void opencv_mat_release(opencv_mat mat);
+void opencv_mat_resize(const opencv_mat src, opencv_mat dst, int width, int height, int interpolation);
+opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height);
+void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_mat mat);
+int opencv_mat_get_width(const opencv_mat mat);
+int opencv_mat_get_height(const opencv_mat mat);
 
-opencv_Encoder opencv_createEncoder(const char *ext);
-void opencv_encoder_release(opencv_Encoder e);
-bool opencv_encoder_set_destination(opencv_Encoder e, vec dst);
-bool opencv_encoder_write(opencv_Encoder e, const opencv_Mat src, const int *opt, size_t opt_len);
+opencv_encoder opencv_encoder_create(const char *ext);
+void opencv_encoder_release(opencv_encoder e);
+bool opencv_encoder_set_destination(opencv_encoder e, vec dst);
+bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int *opt, size_t opt_len);
 
 #ifdef __cplusplus
 }

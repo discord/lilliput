@@ -1,5 +1,9 @@
 package opencv
 
+import (
+	"io"
+)
+
 type ImageOpsSizeMethod int
 
 const (
@@ -18,8 +22,9 @@ type ImageOptions struct {
 }
 
 type ImageOps struct {
-	frames     []*Framebuffer
-	frameIndex int
+	frames       []*Framebuffer
+	frameIndex   int
+	outputBuffer *OutputBuffer
 }
 
 func NewImageOps(maxSize int) *ImageOps {
@@ -27,8 +32,9 @@ func NewImageOps(maxSize int) *ImageOps {
 	frames[0] = NewFramebuffer(maxSize, maxSize)
 	frames[1] = NewFramebuffer(maxSize, maxSize)
 	return &ImageOps{
-		frames:     frames,
-		frameIndex: 0,
+		frames:       frames,
+		frameIndex:   0,
+		outputBuffer: NewOutputBuffer(),
 	}
 }
 
@@ -47,21 +53,18 @@ func (o *ImageOps) swap() {
 func (o *ImageOps) Clear() {
 	o.frames[0].Clear()
 	o.frames[1].Clear()
+	o.outputBuffer.Clear()
 }
 
 func (o *ImageOps) Close() {
 	o.frames[0].Close()
 	o.frames[1].Close()
+	o.outputBuffer.Close()
 }
 
 func (o *ImageOps) decode(d Decoder) error {
 	active := o.active()
-	err := d.DecodeTo(active)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.DecodeTo(active)
 }
 
 func (o *ImageOps) fit(d Decoder, width, height int) error {
@@ -82,8 +85,11 @@ func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
 
 func (o *ImageOps) encode(e Encoder, opt map[int]int) ([]byte, error) {
 	active := o.active()
-	content, err := e.Encode(active, opt)
-	return content, err
+	return e.Encode(active, opt)
+}
+
+func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
+	return e.Encode(nil, opt)
 }
 
 func (o *ImageOps) Transform(d Decoder, opt *ImageOptions) ([]byte, error) {
@@ -92,22 +98,47 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions) ([]byte, error) {
 		return nil, err
 	}
 
-	err = o.decode(d)
-	if err != nil {
-		return nil, err
-	}
-
-	o.normalizeOrientation(h.Orientation())
-
-	if opt.ResizeMethod == ImageOpsFit {
-		o.fit(d, opt.Width, opt.Height)
-	}
-
-	enc, err := NewEncoder(opt.FileType)
+	enc, err := NewEncoder(opt.FileType, d, o.outputBuffer)
 	if err != nil {
 		return nil, err
 	}
 	defer enc.Close()
 
-	return o.encode(enc, opt.EncodeOptions)
+	for {
+		err = o.decode(d)
+		emptyFrame := false
+		if err != nil {
+			if err != io.EOF {
+				return nil, err
+			}
+			// io.EOF means we are out of frames, so we should signal to encoder to wrap up
+			emptyFrame = true
+		}
+
+		o.normalizeOrientation(h.Orientation())
+
+		if opt.ResizeMethod == ImageOpsFit {
+			o.fit(d, opt.Width, opt.Height)
+		}
+
+		var content []byte
+		if emptyFrame {
+			content, err = o.encodeEmpty(enc, opt.EncodeOptions)
+		} else {
+			content, err = o.encode(enc, opt.EncodeOptions)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		if content != nil {
+			return content, nil
+		}
+
+		// content == nil and err == nil -- this is encoder telling us to do another frame
+
+		// for mulitple frames/gifs we need the decoded frame to be active again
+		o.swap()
+	}
 }
