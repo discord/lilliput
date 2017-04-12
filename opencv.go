@@ -2,6 +2,7 @@ package opencv
 
 // #include "opencv.hpp"
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
+// #cgo CXXFLAGS: -std=c++14
 // #cgo linux pkg-config: opencv
 // #cgo darwin pkg-config: opencv
 import "C"

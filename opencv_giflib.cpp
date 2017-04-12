@@ -39,7 +39,7 @@ struct giflib_encoder_struct {
 };
 
 int decode_func(GifFileType *gif, GifByteType *buf, int len) {
-    giflib_decoder d = static_cast<giflib_decoder>(gif->UserData);
+    auto d = static_cast<giflib_decoder>(gif->UserData);
     size_t buf_len = d->mat->total() - d->read_index;
     size_t read_len = (buf_len > len) ? len : buf_len;
     memmove(buf, d->mat->data + d->read_index, read_len);
@@ -88,7 +88,7 @@ bool giflib_decoder_slurp(giflib_decoder d) {
 }
 
 bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
-    cv::Mat *cvMat = static_cast<cv::Mat *>(mat);
+    auto cvMat = static_cast<cv::Mat *>(mat);
     GraphicsControlBlock FirstGCB;
     DGifSavedExtensionToGCB(d->gif, 0, &FirstGCB);
     int first_transparency_index = FirstGCB.TransparentColor;
@@ -260,7 +260,7 @@ int encode_func(GifFileType *gif, const GifByteType *buf, int len) {
 giflib_encoder giflib_encoder_create(vec buf, const giflib_decoder d) {
     giflib_encoder e = new struct giflib_encoder_struct();
     memset(e, 0, sizeof(struct giflib_encoder_struct));
-    std::vector<uchar> *dst = static_cast<std::vector<uchar> *>(buf);
+    auto dst = static_cast<std::vector<uchar> *>(buf);
     e->gif = NULL;
     e->dst = dst;
 
@@ -354,7 +354,6 @@ giflib_encoder giflib_encoder_create(vec buf, const giflib_decoder d) {
     // encoder is now set up with the correct number of frames and image metadata, delays etc
     // ready to receive the rasterized frames
 
-
     // set up palette lookup table. we need 2^15 entries because we will be
     // using bit-crushed RGB values, 5 bits each. this is a reasonable compromise
     // between fidelity and computation/storage
@@ -383,7 +382,7 @@ static inline int rgb_distance(int r0, int g0, int b0, int r1, int g1, int b1) {
 
 bool giflib_encoder_encode_frame(giflib_encoder e, int frame_index, const opencv_mat opaque_frame) {
     GifFileType *gif_out = e->gif;
-    const cv::Mat *frame = static_cast<const cv::Mat *>(opaque_frame);
+    auto frame = static_cast<const cv::Mat *>(opaque_frame);
 
     // basic bounds checking - would this frame be wider than the global gif width?
     // if we do partial frames, we'll need to change this to account for top/left
