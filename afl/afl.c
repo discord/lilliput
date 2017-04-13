@@ -17,11 +17,11 @@ int main() {
         }
     } while (nread > 0);
 
-    opencv_Mat mat = opencv_createMatFromData(total_read, 1, CV_8U, buf, total_read);
+    opencv_mat mat = opencv_mat_create_from_data(total_read, 1, CV_8U, buf, total_read);
     if (!mat) {
         return 5;
     }
-    opencv_Decoder dec = opencv_createDecoder(mat);
+    opencv_decoder dec = opencv_decoder_create(mat);
     if (!dec) {
         return 2;
     }
@@ -45,16 +45,16 @@ int main() {
     }
 
     uint8_t *pixel_buf = (uint8_t*)(malloc(width * height * 4));
-    opencv_Mat pixelMat = opencv_createMatFromData(width, height, type, pixel_buf, width * height * 4);
-    if (!pixelMat) {
+    opencv_mat pixel_mat = opencv_mat_create_from_data(width, height, type, pixel_buf, width * height * 4);
+    if (!pixel_mat) {
         return 6;
     }
 
-    if (!opencv_decoder_read_data(dec, pixelMat)) {
+    if (!opencv_decoder_read_data(dec, pixel_mat)) {
         return 8;
     }
 
-    opencv_mat_release(pixelMat);
+    opencv_mat_release(pixel_mat);
     opencv_decoder_release(dec);
     opencv_mat_release(mat);
 
