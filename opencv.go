@@ -129,6 +129,7 @@ func (buf *OutputBuffer) copyOutput() error {
 	if copied != vec_len {
 		return ErrBufTooSmall
 	}
+	buf.bytes = buf.bytes[:copied]
 	return nil
 }
 
