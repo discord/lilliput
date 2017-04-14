@@ -2,9 +2,10 @@ package opencv
 
 // #include "opencv_giflib.hpp"
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
-// #cgo LDFLAGS: -lgif
-// #cgo linux pkg-config: opencv
-// #cgo darwin pkg-config: opencv
+// #cgo darwin CFLAGS: -I./deps/osx/include
+// #cgo CXXFLAGS: -std=c++14
+// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lzlib -lgif
+// #cgo darwin LDFLAGS: -L./deps/osx/lib -L./deps/osx/share/OpenCV/3rdparty/lib -framework Accelerate
 import "C"
 
 import (
