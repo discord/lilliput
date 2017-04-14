@@ -1,11 +1,11 @@
 package opencv
 
-// #include "opencv.hpp"
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
 // #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo CXXFLAGS: -std=c++14
 // #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lzlib
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib -framework Accelerate
+// #include "opencv.hpp"
 import "C"
 
 import (
