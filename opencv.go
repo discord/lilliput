@@ -136,7 +136,6 @@ func (buf *OutputBuffer) copyOutput() error {
 
 func (buf *OutputBuffer) Clear() {
 	C.vec_clear(buf.vec)
-	buf.bytes = buf.bytes[:0]
 }
 
 func (buf *OutputBuffer) Close() {
