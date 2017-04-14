@@ -1,0 +1,11 @@
+#ifndef OPENCV_CORE_OCL_RUNTIME_OPENCL_CORE_HPP
+#error "Invalid usage"
+#endif
+
+@CL_REMAP_ORIGIN@
+
+#include <CL/cl.h>
+
+@CL_REMAP_DYNAMIC@
+
+@CL_FN_DECLARATIONS@
