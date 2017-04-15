@@ -6,7 +6,7 @@ package opencv
 // #cgo CXXFLAGS: -std=c++14
 // #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
-// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lzlib
+// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib -framework Accelerate
 // #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
 // #include "opencv.hpp"
