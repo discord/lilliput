@@ -3,7 +3,7 @@ package lilliput
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
 // #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
-// #cgo CXXFLAGS: -std=c++14
+// #cgo CXXFLAGS: -std=c++11
 // #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
 // #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz
