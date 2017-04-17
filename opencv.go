@@ -1,4 +1,4 @@
-package opencv
+package lilliput
 
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
 // #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
