@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "opencv.hpp"
+#include "opencv_giflib.hpp"
 
 int main() {
     // 400 MB
@@ -21,6 +22,7 @@ int main() {
     if (!mat) {
         return 5;
     }
+    /*
     opencv_decoder dec = opencv_decoder_create(mat);
     if (!dec) {
         return 2;
@@ -43,19 +45,48 @@ int main() {
     if (height > 8192) {
         return 10;
     }
+    */
+    giflib_decoder dec = giflib_decoder_create(mat);
+    if (!dec) {
+        return 2;
+    }
+
+    int width = giflib_get_decoder_width(dec);
+    int height = giflib_get_decoder_height(dec);
+
+    if (width > 8192) {
+        return 9;
+    }
+
+    if (height > 8192) {
+        return 10;
+    }
+
+    if (!giflib_decoder_slurp(dec)) {
+        return 3;
+    }
 
     uint8_t *pixel_buf = (uint8_t*)(malloc(width * height * 4));
-    opencv_mat pixel_mat = opencv_mat_create_from_data(width, height, type, pixel_buf, width * height * 4);
+    opencv_mat pixel_mat = opencv_mat_create_from_data(width, height, CV_8UC4, pixel_buf, width * height * 4);
     if (!pixel_mat) {
         return 6;
     }
 
+    /*
     if (!opencv_decoder_read_data(dec, pixel_mat)) {
         return 8;
     }
+    */
+
+    if (!giflib_decoder_decode(dec, 0, pixel_mat)) {
+            return 8;
+    }
 
     opencv_mat_release(pixel_mat);
+    /*
     opencv_decoder_release(dec);
+    */
+    giflib_decoder_release(dec);
     opencv_mat_release(mat);
 
     free(pixel_buf);
