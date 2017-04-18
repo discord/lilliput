@@ -95,11 +95,13 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     uint8_t bg_red, bg_green, bg_blue, bg_alpha;
     if (d->gif->SBackGroundColor == first_transparency_index) {
         bg_red = bg_green = bg_blue = bg_alpha = 0;
-    } else {
+    } else if (d->gif->SColorMap && d->gif->SColorMap->Colors) {
         bg_red = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Red;
         bg_green = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Green;
         bg_blue = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Blue;
         bg_alpha = 255;
+    } else {
+        bg_red = bg_green = bg_blue = bg_alpha = 255;
     }
 
     GraphicsControlBlock GCB;
