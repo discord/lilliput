@@ -1,3 +1,7 @@
 build/
-opencv/3rdparty/ippicv/downloads
-libjpeg-turbo/config.h.in~
+libjpeg-turbo/
+zlib/
+libpng/
+libwebp/
+giflib/
+opencv/
