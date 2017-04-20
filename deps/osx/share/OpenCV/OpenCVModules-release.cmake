@@ -5,21 +5,11 @@
 # Commands may need to know the format version.
 set(CMAKE_IMPORT_FILE_VERSION 1)
 
-# Import target "zlib" for configuration "Release"
-set_property(TARGET zlib APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(zlib PROPERTIES
-  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/share/OpenCV/3rdparty/lib/libzlib.a"
-  )
-
-list(APPEND _IMPORT_CHECK_TARGETS zlib )
-list(APPEND _IMPORT_CHECK_FILES_FOR_zlib "${_IMPORT_PREFIX}/share/OpenCV/3rdparty/lib/libzlib.a" )
-
 # Import target "opencv_core" for configuration "Release"
 set_property(TARGET opencv_core APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(opencv_core PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "zlib;stdc++;ippicv;-framework Accelerate"
+  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;stdc++;ippicv;-framework Accelerate"
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libopencv_core.a"
   )
 
@@ -85,7 +75,7 @@ list(APPEND _IMPORT_CHECK_FILES_FOR_opencv_video "${_IMPORT_PREFIX}/lib/libopenc
 set_property(TARGET opencv_imgcodecs APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(opencv_imgcodecs PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;stdc++;ippicv;-framework Accelerate;zlib;/Users/brianarmstrong/code/opencv_wrapper/deps/osx/LIB/libjpeg.a;/Users/brianarmstrong/code/opencv_wrapper/deps/osx/LIB/libwebp.a;/Users/brianarmstrong/code/opencv_wrapper/deps/osx/LIB/libpng.a;zlib"
+  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;stdc++;ippicv;-framework Accelerate;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libjpeg.a;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libwebp.a;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libpng.a;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a"
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libopencv_imgcodecs.a"
   )
 
@@ -107,7 +97,7 @@ list(APPEND _IMPORT_CHECK_FILES_FOR_opencv_shape "${_IMPORT_PREFIX}/lib/libopenc
 set_property(TARGET opencv_videoio APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(opencv_videoio PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;stdc++;ippicv;-framework Accelerate;zlib;-framework Cocoa;-framework Accelerate;-framework AVFoundation;-framework CoreGraphics;-framework CoreMedia;-framework CoreVideo;-framework QuartzCore"
+  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;stdc++;ippicv;-framework Accelerate;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;-framework Cocoa;-framework Accelerate;-framework AVFoundation;-framework CoreGraphics;-framework CoreMedia;-framework CoreVideo;-framework QuartzCore"
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libopencv_videoio.a"
   )
 
@@ -118,7 +108,7 @@ list(APPEND _IMPORT_CHECK_FILES_FOR_opencv_videoio "${_IMPORT_PREFIX}/lib/libope
 set_property(TARGET opencv_highgui APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(opencv_highgui PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_videoio;stdc++;ippicv;-framework Accelerate;zlib;-framework Cocoa"
+  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_videoio;stdc++;ippicv;-framework Accelerate;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;-framework Cocoa"
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libopencv_highgui.a"
   )
 

@@ -1,4 +1,4 @@
-prefix=/Users/brianarmstrong/code/opencv_wrapper/deps/osx
+prefix=/Users/brianarmstrong/code/lilliput/deps/osx
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include/libpng16
