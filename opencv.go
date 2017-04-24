@@ -38,7 +38,7 @@ var (
 
 	ErrInvalidImage   = errors.New("unrecognized image format")
 	ErrDecodingFailed = errors.New("failed to decode image")
-	ErrBufTooSmall    = errors.New("buffer too small to hold pixel frame")
+	ErrBufTooSmall    = errors.New("buffer too small to hold image")
 
 	gif87Magic = []byte("GIF87a")
 	gif89Magic = []byte("GIF89a")
@@ -60,11 +60,6 @@ type Framebuffer struct {
 	width     int
 	height    int
 	pixelType PixelType
-}
-
-type OutputBuffer struct {
-	bytes []byte
-	vec   C.vec
 }
 
 type ImageHeader struct {
@@ -96,7 +91,8 @@ type Encoder interface {
 
 type OpenCVEncoder struct {
 	encoder C.opencv_encoder
-	buf     *OutputBuffer
+	dst     C.opencv_mat
+	dstBuf  []byte
 }
 
 func (h *ImageHeader) Width() int {
@@ -117,37 +113,6 @@ func (h *ImageHeader) Orientation() ImageOrientation {
 
 func (h *ImageHeader) NumFrames() int {
 	return h.numFrames
-}
-
-func NewOutputBuffer() *OutputBuffer {
-	return &OutputBuffer{
-		vec: C.vec_create(),
-	}
-}
-
-func (buf *OutputBuffer) copyOutput() error {
-	vec_len := int(C.vec_size(buf.vec))
-	if vec_len > cap(buf.bytes) {
-		buf.bytes = make([]byte, vec_len)
-	}
-	copied := int(C.vec_copy(buf.vec, unsafe.Pointer(&buf.bytes[0]), C.size_t(cap(buf.bytes))))
-	if copied != vec_len {
-		return ErrBufTooSmall
-	}
-	buf.bytes = buf.bytes[:copied]
-	return nil
-}
-
-func (buf *OutputBuffer) Clear() {
-	C.vec_clear(buf.vec)
-}
-
-func (buf *OutputBuffer) Close() {
-	C.vec_release(buf.vec)
-}
-
-func (buf *OutputBuffer) Bytes() []byte {
-	return buf.bytes
 }
 
 // Allocate the backing store for a pixel frame buffer
@@ -288,11 +253,6 @@ func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	if !C.opencv_decoder_set_source(decoder, mat) {
-		C.opencv_decoder_release(decoder)
-		return nil, ErrInvalidImage
-	}
-
 	return &OpenCVDecoder{
 		mat:     mat,
 		decoder: decoder,
@@ -346,28 +306,30 @@ func (d *OpenCVDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func NewEncoder(ext string, decodedBy Decoder, buf *OutputBuffer) (Encoder, error) {
+func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
-		return newGifEncoder(decodedBy, buf)
+		return newGifEncoder(decodedBy, dst)
 	}
 
-	return newOpenCVEncoder(ext, decodedBy, buf)
+	return newOpenCVEncoder(ext, decodedBy, dst)
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, buf *OutputBuffer) (*OpenCVEncoder, error) {
-	enc := C.opencv_encoder_create(C.CString(ext))
-	if enc == nil {
-		return nil, ErrInvalidImage
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEncoder, error) {
+	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
+
+	if dst == nil {
+		return nil, ErrBufTooSmall
 	}
 
-	if !C.opencv_encoder_set_destination(enc, buf.vec) {
-		C.opencv_encoder_release(enc)
+	enc := C.opencv_encoder_create(C.CString(ext), dst)
+	if enc == nil {
 		return nil, ErrInvalidImage
 	}
 
 	return &OpenCVEncoder{
 		encoder: enc,
-		buf:     buf,
+		dst:     dst,
+		dstBuf:  dstBuf,
 	}, nil
 }
 
@@ -384,13 +346,20 @@ func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))) {
 		return nil, ErrInvalidImage
 	}
-	err := e.buf.copyOutput()
-	if err != nil {
-		return nil, err
+
+	ptrCheck := C.opencv_mat_get_data(e.dst)
+	if ptrCheck != unsafe.Pointer(&e.dstBuf[0]) {
+		// mat pointer got reallocated - the passed buf was too small to hold the image
+		// XXX we should free? the mat here, probably want to recreate
+		return nil, ErrBufTooSmall
 	}
-	return e.buf.bytes, nil
+
+	length := int(C.opencv_mat_get_width(e.dst))
+
+	return e.dstBuf[:length], nil
 }
 
 func (e *OpenCVEncoder) Close() {
 	C.opencv_encoder_release(e.encoder)
+	C.opencv_mat_release(e.dst)
 }
