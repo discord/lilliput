@@ -22,9 +22,8 @@ type ImageOptions struct {
 }
 
 type ImageOps struct {
-	frames       []*Framebuffer
-	frameIndex   int
-	outputBuffer *OutputBuffer
+	frames     []*Framebuffer
+	frameIndex int
 }
 
 func NewImageOps(maxSize int) *ImageOps {
@@ -32,9 +31,8 @@ func NewImageOps(maxSize int) *ImageOps {
 	frames[0] = NewFramebuffer(maxSize, maxSize)
 	frames[1] = NewFramebuffer(maxSize, maxSize)
 	return &ImageOps{
-		frames:       frames,
-		frameIndex:   0,
-		outputBuffer: NewOutputBuffer(),
+		frames:     frames,
+		frameIndex: 0,
 	}
 }
 
@@ -53,13 +51,11 @@ func (o *ImageOps) swap() {
 func (o *ImageOps) Clear() {
 	o.frames[0].Clear()
 	o.frames[1].Clear()
-	o.outputBuffer.Clear()
 }
 
 func (o *ImageOps) Close() {
 	o.frames[0].Close()
 	o.frames[1].Close()
-	o.outputBuffer.Close()
 }
 
 func (o *ImageOps) decode(d Decoder) error {
@@ -92,13 +88,13 @@ func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
 	return e.Encode(nil, opt)
 }
 
-func (o *ImageOps) Transform(d Decoder, opt *ImageOptions) ([]byte, error) {
+func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, error) {
 	h, err := d.Header()
 	if err != nil {
 		return nil, err
 	}
 
-	enc, err := NewEncoder(opt.FileType, d, o.outputBuffer)
+	enc, err := NewEncoder(opt.FileType, d, dst)
 	if err != nil {
 		return nil, err
 	}

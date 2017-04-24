@@ -27,7 +27,7 @@ type GifDecoder struct {
 
 type GifEncoder struct {
 	encoder    C.giflib_encoder
-	buf        *OutputBuffer
+	buf        []byte
 	frameIndex int
 	hasSpewed  bool
 }
@@ -112,7 +112,7 @@ func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func newGifEncoder(decodedBy Decoder, buf *OutputBuffer) (*GifEncoder, error) {
+func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 	// we must have a decoder since we can't build our own palettes
 	// so if we don't get a gif decoder, bail out
 	if decodedBy == nil {
@@ -129,7 +129,7 @@ func newGifEncoder(decodedBy Decoder, buf *OutputBuffer) (*GifEncoder, error) {
 		return nil, err
 	}
 
-	enc := C.giflib_encoder_create(buf.vec, gifDecoder.decoder)
+	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(len(buf)), gifDecoder.decoder)
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
@@ -153,11 +153,9 @@ func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 		}
 		e.hasSpewed = true
 
-		err := e.buf.copyOutput()
-		if err != nil {
-			return nil, err
-		}
-		return e.buf.bytes, nil
+		len := C.int(C.giflib_encoder_get_output_length(e.encoder))
+
+		return e.buf[:len], nil
 	}
 
 	if e.frameIndex == 0 {

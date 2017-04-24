@@ -15,6 +15,18 @@ opencv_mat opencv_mat_create_from_data(int width, int height, int type, void *da
     return new cv::Mat(height, width, type, data);
 }
 
+opencv_mat opencv_mat_create_empty_from_data(int length, void *data) {
+    // this is slightly sketchy - what we're going to do is build a 1x0 matrix
+    // and then set its data* properties to reflect the capacity (given by length arg here)
+    // this tells opencv internally that the Mat can store more but has nothing in it
+    // this is directly analogous to Go's len and cap
+    auto mat = new cv::Mat(1, 0, CV_8U, data);
+
+    mat->datalimit = mat->data + length;
+
+    return mat;
+}
+
 void opencv_mat_release(opencv_mat mat) {
     auto m = static_cast<cv::Mat *>(mat);
     delete m;
@@ -58,87 +70,68 @@ int opencv_type_channels(int type) {
 
 opencv_decoder opencv_decoder_create(const opencv_mat buf) {
     auto mat = static_cast<const cv::Mat *>(buf);
-    auto d_ptr = cv::findDecoder(*mat);
-    if (!d_ptr) {
-        return NULL;
-    }
-    return new cv::Ptr<cv::ImageDecoder>(d_ptr);
+    return new cv::ImageDecoder(*mat);
 }
 
 const char *opencv_decoder_get_description(const opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->getDescription().c_str();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->getDescription().c_str();
 }
 
 void opencv_decoder_release(opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
     delete d_ptr;
 }
 
-bool opencv_decoder_set_source(opencv_decoder d, const opencv_mat buf) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    // setSource() takes a const reference so we have to deref here
-    return (*d_ptr)->setSource(*static_cast<const cv::Mat *>(buf));
-}
-
 bool opencv_decoder_read_header(opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->readHeader();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->readHeader();
 }
 
 int opencv_decoder_get_width(const opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->width();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->width();
 }
 
 int opencv_decoder_get_height(const opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->height();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->height();
 }
 
 int opencv_decoder_get_pixel_type(const opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->type();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->type();
 }
 
 int opencv_decoder_get_orientation(const opencv_decoder d) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
-    return (*d_ptr)->orientation();
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
+    return d_ptr->orientation();
 }
 
 bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst) {
-    auto d_ptr = static_cast<cv::Ptr<cv::ImageDecoder> *>(d);
+    auto d_ptr = static_cast<cv::ImageDecoder *>(d);
     auto *mat = static_cast<cv::Mat *>(dst);
-    return (*d_ptr)->readData(*mat);
+    return d_ptr->readData(*mat);
 }
 
-opencv_encoder opencv_encoder_create(const char *ext) {
-    auto enc = cv::findEncoder(cv::String(ext));
-    if (!enc) {
-        return NULL;
-    }
-
-    return new cv::Ptr<cv::ImageEncoder>(enc);
+opencv_encoder opencv_encoder_create(const char *ext, opencv_mat dst) {
+    auto *mat = static_cast<cv::Mat *>(dst);
+    return new cv::ImageEncoder(ext, *mat);
 }
 
 void opencv_encoder_release(opencv_encoder e) {
-    auto e_ptr = static_cast<cv::Ptr<cv::ImageEncoder> *>(e);
+    auto e_ptr = static_cast<cv::ImageEncoder *>(e);
     delete e_ptr;
 }
 
-bool opencv_encoder_set_destination(opencv_encoder e, vec dst) {
-    auto e_ptr = static_cast<cv::Ptr<cv::ImageEncoder> *>(e);
-    return (*e_ptr)->setDestination(*static_cast<std::vector<uchar> *>(dst));
-}
-
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int *opt, size_t opt_len) {
-    auto e_ptr = static_cast<cv::Ptr<cv::ImageEncoder> *>(e);
+    auto e_ptr = static_cast<cv::ImageEncoder *>(e);
     auto mat = static_cast<const cv::Mat *>(src);
     std::vector<int> params;
     for (size_t i = 0; i < opt_len; i++) {
         params.push_back(opt[i]);
     }
-    return (*e_ptr)->write(*mat, params);
+    return e_ptr->write(*mat, params);
 };
 
 void opencv_mat_resize(const opencv_mat src, opencv_mat dst, int width, int height, int interpolation) {
@@ -164,4 +157,9 @@ int opencv_mat_get_width(const opencv_mat mat) {
 int opencv_mat_get_height(const opencv_mat mat) {
     auto cvMat = static_cast<const cv::Mat *>(mat);
     return cvMat->rows;
+}
+
+void *opencv_mat_get_data(const opencv_mat mat) {
+    auto cvMat = static_cast<const cv::Mat *>(mat);
+    return cvMat->data;
 }

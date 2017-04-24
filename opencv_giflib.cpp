@@ -19,7 +19,9 @@ typedef struct {
 
 struct giflib_encoder_struct {
     GifFileType *gif;
-    std::vector<uchar> *dst;
+    uint8_t *dst;
+    size_t dst_len;
+    ptrdiff_t dst_offset;
 
     // palette lookup is a computational-saving structure to convert
     // (reduced-depth) RGB values into the frame's 256-entry palette
@@ -255,16 +257,21 @@ SavedImage *giflib_encoder_allocate_saved_images(giflib_encoder e, size_t count)
 
 int encode_func(GifFileType *gif, const GifByteType *buf, int len) {
     giflib_encoder e = static_cast<giflib_encoder>(gif->UserData);
-    e->dst->insert(e->dst->end(), &buf[0], &buf[len]);
+    if (e->dst_offset + len > e->dst_len) {
+        return 0;
+    }
+    memcpy(e->dst + e->dst_offset, &buf[0], len);
+    e->dst_offset += len;
     return len;
 }
 
-giflib_encoder giflib_encoder_create(vec buf, const giflib_decoder d) {
+giflib_encoder giflib_encoder_create(void *buf, size_t buf_len, const giflib_decoder d) {
     giflib_encoder e = new struct giflib_encoder_struct();
     memset(e, 0, sizeof(struct giflib_encoder_struct));
-    auto dst = static_cast<std::vector<uchar> *>(buf);
     e->gif = NULL;
-    e->dst = dst;
+    e->dst = (uint8_t*)(buf);
+    e->dst_len = buf_len;
+    e->dst_offset = 0;
 
     int error = 0;
     GifFileType *gif_out = EGifOpen(e, encode_func, &error);
@@ -562,4 +569,8 @@ void giflib_encoder_release(giflib_encoder e) {
     }
 
     delete e;
+}
+
+int giflib_encoder_get_output_length(giflib_encoder e) {
+    return e->dst_offset;
 }

@@ -52,16 +52,17 @@ bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width, int height, int type, void *data, size_t data_len);
+opencv_mat opencv_mat_create_empty_from_data(int length, void *data);
 void opencv_mat_release(opencv_mat mat);
 void opencv_mat_resize(const opencv_mat src, opencv_mat dst, int width, int height, int interpolation);
 opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height);
 void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_mat mat);
 int opencv_mat_get_width(const opencv_mat mat);
 int opencv_mat_get_height(const opencv_mat mat);
+void *opencv_mat_get_data(const opencv_mat mat);
 
-opencv_encoder opencv_encoder_create(const char *ext);
+opencv_encoder opencv_encoder_create(const char *ext, opencv_mat dst);
 void opencv_encoder_release(opencv_encoder e);
-bool opencv_encoder_set_destination(opencv_encoder e, vec dst);
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int *opt, size_t opt_len);
 
 #ifdef __cplusplus

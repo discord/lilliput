@@ -151,58 +151,81 @@ enum ImageOrientation
  * Finally, use readData() to decode the image into a
  * Mat where the pixels should be stored
  */
-class CV_EXPORTS_W ImageDecoder
+class CV_EXPORTS ImageDecoder
 {
 public:
-    CV_WRAP virtual ~ImageDecoder();
+    ImageDecoder();
+    ImageDecoder(const ImageDecoder& d);
+    ImageDecoder& operator = (const ImageDecoder& d);
 
-    /** Get image width. Only returns successfully after readHeader() has been called.
-     */
-    CV_WRAP virtual int width() const = 0;
+    /** @brief Create an ImageDecoder that can decode the contents pointed at by filename
+     * @param[in] filename File to search
+     *
+     * This method *does not* inspect the extension of the filename, only the contents
+     * in the file itself. So if image.jpg actually contains PNG data, then the
+     * appropriate PNG decoder will be returned when ImageDecoder("image.jpg") is called.
+     *
+     * @return Image decoder to parse image file.
+    */
+    ImageDecoder( const String& filename );
 
-    /** Get image height. Only returns successfully after readHeader() has been called.
-     */
-    CV_WRAP virtual int height() const = 0;
+    /** @brief Create an ImageDecoder that can decode the encoded contents of buf
+     * @param[in] buf vector of encoded bytes
+     *
+     * @return Image decoder to parse image file.
+    */
+    ImageDecoder( const Mat& buf );
 
-    /** Get image pixel data type. Only returns successfully after readHeader() has been called.
-     */
-    CV_WRAP virtual int type() const = 0;
+    ~ImageDecoder();
 
-    /** Get the image's orientation, as set by its metadata, if any
-     */
-    CV_WRAP virtual int orientation() const = 0;
-
-    /** Set decoder to decode file with filename. Returns true on success
-     */
-    CV_WRAP virtual bool setSource( const String& filename ) = 0;
-
-    /** Set decoder to decode image encoded in memory buffer. Returns true on success
-     */
-    CV_WRAP virtual bool setSource( const Mat& buf ) = 0;
-
-    CV_WRAP virtual int setScale( const int& scale_denom ) = 0;
-
-    /** Read the image metadata from the source set by setSource.
+    /** Read the image metadata from the decoder source.
      * Call after setSource has been called
      * Sets decoder width, height, type
      * Returns true on success
      */
-    CV_WRAP virtual bool readHeader() = 0;
+    bool readHeader();
 
-    /** Read the image data from the source set by setSource.
+    /** Read the image data from the decoder source.
      * Loads deserialized pixels into img, which should be large enough
      * to store entire image.
      * Returns true on success
      */
-    CV_WRAP virtual bool readData( Mat& img ) = 0;
+    bool readData( Mat& img );
+
+    /** Get image width. Only returns successfully after readHeader() has been called.
+     */
+    int width() const;
+
+    /** Get image height. Only returns successfully after readHeader() has been called.
+     */
+    int height() const;
+
+    /** Get image pixel data type. Only returns successfully after readHeader() has been called.
+     */
+    int type() const;
+
+    /** Get the image's orientation, as set by its metadata, if any
+     */
+    int orientation() const;
+
+    int setScale( const int& scale_denom );
 
     /// Called after readData to advance to the next page, if any.
-    CV_WRAP virtual bool nextPage() = 0;
+    bool nextPage();
 
-    CV_WRAP virtual size_t signatureLength() const = 0;
-    CV_WRAP virtual bool checkSignature( const String& signature ) const = 0;
+    /* Get the description for this instance of ImageDecoder */
+    String getDescription() const;
 
-    CV_WRAP virtual String getDescription() const = 0;
+    bool empty() const;
+    operator bool() const;
+    bool operator!() const;
+
+    class Impl;
+    ImageDecoder(Ptr<Impl> i, const String& filename);
+    ImageDecoder(Ptr<Impl> i, const Mat& buf);
+
+protected:
+    Ptr<Impl> p;
 };
 
 /** @brief Encodes pixels into an image format
@@ -210,59 +233,54 @@ public:
  * This class should not be constructed directly. Instead, use
  * findEncoder to construct an Encoder for a particular type of image.
  */
-class CV_EXPORTS_W ImageEncoder
+class CV_EXPORTS ImageEncoder
 {
 public:
-    CV_WRAP virtual ~ImageEncoder();
+    ImageEncoder();
+    ImageEncoder(const ImageEncoder& d);
+    ImageEncoder& operator = (const ImageEncoder& d);
 
-    CV_WRAP virtual bool isFormatSupported( int depth ) const = 0;
+    /** @brief Create an ImageEncoder that can encode pixels into a specific format
+     * @param[in] _ext hint for encoder type
+     * @param[in] filename where to save encoded image
+     *
+     * @return Image encoder to encode image file.
+    */
+    ImageEncoder( const String& _ext, const String& filename );
 
-    /** Set the output destination for the serialized image data to a file
-     * with name given by filename
-     */
-    CV_WRAP virtual bool setDestination( const String& filename ) = 0;
+    /** @brief Create an ImageEncoder that can encode pixels into a specific format
+     * @param[in] _ext hint for encoder type
+     * @param[in] buf where to save encoded image
+     *
+     * @return Image encoder to encode image file.
+    */
+    ImageEncoder( const String& _ext, Mat& buf );
 
-    /** Set the output destination for the serialized image data to a memory
-     * buffer given by buf
-     */
-    CV_WRAP virtual bool setDestination( std::vector<uchar>& buf ) = 0;
+    ~ImageEncoder();
 
-    /** Write the pixels contained by img into the destination.
-     * setDestination() should be called before calling write
+    bool isFormatSupported( int depth ) const;
+
+    /** Write the pixels contained by img into the image destination.
      * params accepts the same params as imwrite
      */
-    CV_WRAP virtual bool write( const Mat& img, const std::vector<int>& params ) = 0;
+    bool write( const Mat& img, InputArray params );
 
-    CV_WRAP virtual String getDescription() const = 0;
+    /* Get the description for this instance of ImageEncoder */
+    String getDescription() const;
 
-    CV_WRAP virtual void throwOnEror() const = 0;
+    void throwOnEror() const;
+
+    bool empty() const;
+    operator bool() const;
+    bool operator!() const;
+
+    class Impl;
+    // ImageEncoder(Ptr<Impl> i, const String& filename);
+    // ImageEncoder(Ptr<Impl> i, Mat& buf);
+
+protected:
+    Ptr<Impl> p;
 };
-
-
-/** @brief Create an ImageDecoder that can decode the contents pointed at by filename
- * @param[in] filename File to search
- *
- * This method *does not* inspect the extension of the filename, only the contents
- * in the file itself. So if image.jpg actually contains PNG data, then the
- * appropriate PNG decoder will be returned when findDecoder("image.jpg") is called.
- *
- * @return Image decoder to parse image file.
-*/
-CV_EXPORTS_W Ptr<ImageDecoder> findDecoder( const String& filename );
-
-/** @brief Create an ImageDecoder that can decode the encoded contents of buf
- * @param[in] buf vector of encoded bytes
- *
- * @return Image decoder to parse image file.
-*/
-CV_EXPORTS_W Ptr<ImageDecoder> findDecoder( const Mat& buf );
-
-/** @brief Create an ImageEncoder that can encode pixels into a specific format
- * @param[in] _ext hint for encoder type
- *
- * @return Image encoder to encoder image file.
-*/
-CV_EXPORTS_W Ptr<ImageEncoder> findEncoder( const String& _ext );
 
 /** @brief Applies the orientation transform specified by orientation
  * @param[in] orientation a valid orientation value
