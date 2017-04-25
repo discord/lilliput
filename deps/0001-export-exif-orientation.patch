@@ -5027,7 +5027,7 @@ index 7abce20..2ded72e 100644
 2.10.1 (Apple Git-78)
 
 
-From 67beec2378dd479f92af35ed99ea265a5674c8cd Mon Sep 17 00:00:00 2001
+From 276440415354028ded148e4e81924a2528d6fb62 Mon Sep 17 00:00:00 2001
 From: Brian Armstrong <brian.armstrong@discordapp.com>
 Date: Mon, 24 Apr 2017 14:24:41 -0700
 Subject: [PATCH 11/11] exif orientation info
@@ -5137,7 +5137,7 @@ index 45adbca..020f9dc 100644
      virtual bool setSource( const String& filename );
      virtual bool setSource( const Mat& buf );
 diff --git a/modules/imgcodecs/src/grfmt_jpeg.cpp b/modules/imgcodecs/src/grfmt_jpeg.cpp
-index 61adc3e..386aee5 100644
+index 61adc3e..f58004c 100644
 --- a/modules/imgcodecs/src/grfmt_jpeg.cpp
 +++ b/modules/imgcodecs/src/grfmt_jpeg.cpp
 @@ -41,6 +41,8 @@
@@ -5168,21 +5168,21 @@ index 61adc3e..386aee5 100644
 +                              std::ios_base::seekdir dir,
 +                              std::ios_base::openmode )
 +    {
-+        // get absolute offset
-+        off_type off = offset;
++        char* whence = eback();
 +        if (dir == std::ios_base::cur)
 +        {
-+            off += gptr() - eback();
++            whence = gptr();
 +        }
 +        else if (dir == std::ios_base::end)
 +        {
-+            off += egptr() - eback();
++            whence = egptr();
 +        }
++        char* to = whence + offset;
 +
 +        // check limits
-+        if (off >= (off_type)0 && off <= egptr() - eback())
++        if (to >= eback() && to <= egptr())
 +        {
-+            setg(eback(), gptr() + off, egptr());
++            setg(eback(), to, egptr());
 +            return gptr() - eback();
 +        }
 +
