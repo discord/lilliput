@@ -354,7 +354,7 @@ func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 		return nil, ErrBufTooSmall
 	}
 
-	length := int(C.opencv_mat_get_width(e.dst))
+	length := int(C.opencv_mat_get_height(e.dst))
 
 	return e.dstBuf[:length], nil
 }
