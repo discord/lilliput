@@ -20,7 +20,7 @@ opencv_mat opencv_mat_create_empty_from_data(int length, void *data) {
     // and then set its data* properties to reflect the capacity (given by length arg here)
     // this tells opencv internally that the Mat can store more but has nothing in it
     // this is directly analogous to Go's len and cap
-    auto mat = new cv::Mat(1, 0, CV_8U, data);
+    auto mat = new cv::Mat(0, 1, CV_8U, data);
 
     mat->datalimit = mat->data + length;
 
