@@ -221,8 +221,8 @@ public:
     bool operator!() const;
 
     class Impl;
-    ImageDecoder(Ptr<Impl> i, const String& filename);
-    ImageDecoder(Ptr<Impl> i, const Mat& buf);
+    ImageDecoder(const String& filename, Ptr<Impl> i);
+    ImageDecoder(const Mat& buf, Ptr<Impl> i);
 
 protected:
     Ptr<Impl> p;
@@ -275,8 +275,8 @@ public:
     bool operator!() const;
 
     class Impl;
-    ImageEncoder(Ptr<Impl> i, const String& filename);
-    ImageEncoder(Ptr<Impl> i, Mat& buf);
+    ImageEncoder(const String& filename, Ptr<Impl> i);
+    ImageEncoder(Mat& buf, Ptr<Impl> i);
 
 protected:
     Ptr<Impl> p;
