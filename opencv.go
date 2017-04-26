@@ -315,6 +315,7 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 }
 
 func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEncoder, error) {
+	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 
 	if dst == nil {
