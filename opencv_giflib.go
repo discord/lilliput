@@ -129,7 +129,8 @@ func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 		return nil, err
 	}
 
-	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(len(buf)), gifDecoder.decoder)
+	buf = buf[:1]
+	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)), gifDecoder.decoder)
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
