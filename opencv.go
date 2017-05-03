@@ -322,7 +322,9 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEnco
 		return nil, ErrBufTooSmall
 	}
 
-	enc := C.opencv_encoder_create(C.CString(ext), dst)
+	c_ext := C.CString(ext)
+	defer C.free(unsafe.Pointer(c_ext))
+	enc := C.opencv_encoder_create(c_ext, dst)
 	if enc == nil {
 		return nil, ErrInvalidImage
 	}
