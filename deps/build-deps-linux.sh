@@ -30,7 +30,7 @@ make
 make install
 
 mkdir -p $BASEDIR/zlib
-tar -xzf $BASEDIR/zlib-1.2.11.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $BASEDIR/zlib-cloudflare.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
@@ -41,7 +41,7 @@ mkdir -p $BASEDIR/libpng
 tar -xzf $BASEDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --enable-intel-sse
 make
 make install
 
