@@ -12,7 +12,7 @@
 # Modeled after libxml-config.
 
 version="1.6.29"
-prefix="/home/brian_armstrong/opencv/deps/linux"
+prefix="/home/brian_armstrong/lilliput/deps/linux"
 exec_prefix="${prefix}"
 libdir="${exec_prefix}/lib"
 includedir="${prefix}/include/libpng16"
