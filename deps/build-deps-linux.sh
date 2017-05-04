@@ -30,10 +30,10 @@ make
 make install
 
 mkdir -p $BASEDIR/zlib
-tar -xzf $BASEDIR/zlib-cloudflare.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $BASEDIR/zlib-1.2.11.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
-$BASEDIR/zlib/configure --prefix=$PREFIX --static
+cmake $BASEDIR/zlib -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_SHARED_LIBS=off -DAMD64=on
 make
 make install
 
