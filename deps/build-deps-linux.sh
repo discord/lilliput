@@ -36,6 +36,7 @@ cd $BUILDDIR/zlib
 cmake $BASEDIR/zlib -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_SHARED_LIBS=off -DAMD64=on
 make
 make install
+rm -f $PREFIX/lib/libz.so
 
 mkdir -p $BASEDIR/libpng
 tar -xzf $BASEDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
