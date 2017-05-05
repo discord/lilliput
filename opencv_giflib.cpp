@@ -276,6 +276,7 @@ giflib_encoder giflib_encoder_create(void *buf, size_t buf_len, const giflib_dec
     int error = 0;
     GifFileType *gif_out = EGifOpen(e, encode_func, &error);
     if (error) {
+        fprintf("encountered error opening gif, %d\n", error);
         delete e;
         return NULL;
     }
@@ -521,6 +522,7 @@ bool giflib_encoder_encode_frame(giflib_encoder e, int frame_index, const opencv
 bool giflib_encoder_spew(giflib_encoder e) {
     int error = EGifSpew(e->gif);
     if (error == GIF_ERROR) {
+        fprintf(stderr, "encountered error spewing gif, %d\n", e->gif->Error);
         return false;
     }
     // for some reason giflib closes/frees the gif when you spew
@@ -547,7 +549,23 @@ void giflib_encoder_release(giflib_encoder e) {
     }
     e->gif_bytes.clear();
 
+    ColorMapObject *gif_scolor = NULL;
+    ColorMapObject *gif_last_color = NULL;
+    if (e->gif) {
+        gif_scolor = e->gif->SColorMap;
+        gif_last_color = e->gif->Image.ColorMap;
+    }
     for (std::vector<ColorMapObject *>::iterator it = e->color_maps.begin(); it != e->color_maps.end(); ++it) {
+        if (gif_scolor && gif_scolor == *it) {
+            // this is extremely unlikely to happen, but giflib transitions from
+            // borrowing this ptr to owning it, and it's possible that it will try
+            // to free ours in certain circumstances
+            // so swap its ptr if it matches one we own
+            e->gif->SColorMap = NULL;
+        }
+        if (gif_last_color && gif_last_color == *it) {
+            // this seemingly will never happen, but given how strange last case is,
+            // check for it anyway
         free(*it);
     }
     e->color_maps.clear();
@@ -565,7 +583,11 @@ void giflib_encoder_release(giflib_encoder e) {
     if (e->gif) {
         // we most likely won't actually call this since Spew() does it
         // but in exceptional cases we'll need it for cleanup
-        EGifCloseFile(e->gif, NULL);
+        int error_code = 0;
+        EGifCloseFile(e->gif, &error_code);
+        if (error_code) {
+            fprintf(stderr, "encountered error closing gif, %d\n", error_code);
+        }
     }
 
     delete e;
