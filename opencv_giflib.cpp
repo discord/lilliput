@@ -276,7 +276,7 @@ giflib_encoder giflib_encoder_create(void *buf, size_t buf_len, const giflib_dec
     int error = 0;
     GifFileType *gif_out = EGifOpen(e, encode_func, &error);
     if (error) {
-        fprintf("encountered error opening gif, %d\n", error);
+        fprintf(stderr, "encountered error opening gif, %d\n", error);
         delete e;
         return NULL;
     }
@@ -566,6 +566,8 @@ void giflib_encoder_release(giflib_encoder e) {
         if (gif_last_color && gif_last_color == *it) {
             // this seemingly will never happen, but given how strange last case is,
             // check for it anyway
+            e->gif->Image.ColorMap = NULL;
+        }
         free(*it);
     }
     e->color_maps.clear();
