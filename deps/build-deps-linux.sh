@@ -30,13 +30,12 @@ make
 make install
 
 mkdir -p $BASEDIR/zlib
-tar -xzf $BASEDIR/zlib-1.2.11.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $BASEDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
-cmake $BASEDIR/zlib -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_SHARED_LIBS=off -DAMD64=on
+$BASEDIR/zlib/configure --prefix=$PREFIX --static
 make
 make install
-rm -f $PREFIX/lib/libz.so
 
 mkdir -p $BASEDIR/libpng
 tar -xzf $BASEDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
