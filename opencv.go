@@ -166,7 +166,7 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 	if err != nil {
 		return err
 	}
-	C.opencv_mat_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_LANCZOS4)
+	C.opencv_mat_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
 	return nil
 }
 
@@ -209,7 +209,7 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	if err != nil {
 		return err
 	}
-	C.opencv_mat_resize(newMat, dst.mat, C.int(width), C.int(height), C.CV_INTER_LANCZOS4)
+	C.opencv_mat_resize(newMat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
 	return nil
 }
 
