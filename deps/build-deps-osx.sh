@@ -41,7 +41,7 @@ mkdir -p $BASEDIR/libpng
 tar -xzf $BASEDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static
+$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --enable-intel-sse
 make
 make install
 
