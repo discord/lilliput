@@ -121,26 +121,32 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     int buf_height = cvMat->rows;
 
     if (frame_left < 0) {
+        fprintf(stderr, "encountered error, gif frame left border less than 0\n");
         return false;
     }
 
     if (frame_top < 0) {
+        fprintf(stderr, "encountered error, gif frame top border less than 0\n");
         return false;
     }
 
     if (frame_width < 0) {
+        fprintf(stderr, "encountered error, gif frame width less than 0\n");
         return false;
     }
 
     if (frame_height < 0) {
+        fprintf(stderr, "encountered error, gif frame height less than 0\n");
         return false;
     }
 
     if (frame_left + frame_width > buf_width) {
+        fprintf(stderr, "encountered error, gif frame right border greater than width\n");
         return false;
     }
 
     if (frame_top + frame_height > buf_height) {
+        fprintf(stderr, "encountered error, gif frame bottom border greater than height\n");
         return false;
     }
 
@@ -149,6 +155,7 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     ColorMapObject *colorMap = frameColorMap ? frameColorMap : globalColorMap;
 
     if (!colorMap) {
+        fprintf(stderr, "encountered error, gif frame has no color map\n");
         return false;
     }
 
@@ -397,10 +404,12 @@ bool giflib_encoder_encode_frame(giflib_encoder e, int frame_index, const opencv
     // basic bounds checking - would this frame be wider than the global gif width?
     // if we do partial frames, we'll need to change this to account for top/left
     if (frame->cols > gif_out->SWidth) {
+        fprintf(stderr, "encountered error, gif frame wider than gif global width\n");
         return false;
     }
 
     if (frame->rows > gif_out->SHeight) {
+        fprintf(stderr, "encountered error, gif frame taller than gif global height\n");
         return false;
     }
 
@@ -421,6 +430,7 @@ bool giflib_encoder_encode_frame(giflib_encoder e, int frame_index, const opencv
     ColorMapObject *color_map = frame_color_map ? frame_color_map : global_color_map;
 
     if (!color_map) {
+        fprintf(stderr, "encountered error, gif frame has no color map\n");
         return false;
     }
 
