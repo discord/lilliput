@@ -232,8 +232,12 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     frame_width -= skip_left;
     frame_left += skip_left;
 
+    // right-side skip requires shortening the loop iter and moving raster pointer
+    // here we just shorten loop, move raster at bottom of row loop
+    frame_width -= skip_right;
+
     // bottom skip is simple, we just reduce # of rows we do
-    frame_height -= skip_top;
+    frame_height -= skip_bottom;
 
     int bit_index = 0;
     for (int y = frame_top; y < frame_top + frame_height; y++) {
@@ -253,6 +257,8 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
             *dst++ = colorMap->Colors[palette_index].Red;
             *dst++ = 255;
         }
+
+        bit_index += skip_right;
     }
 
     return true;
