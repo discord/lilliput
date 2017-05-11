@@ -120,35 +120,13 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     int buf_width = cvMat->cols;
     int buf_height = cvMat->rows;
 
-    if (frame_left < 0) {
-        fprintf(stderr, "encountered error, gif frame left border less than 0\n");
-        return false;
-    }
-
-    if (frame_top < 0) {
-        fprintf(stderr, "encountered error, gif frame top border less than 0\n");
-        return false;
-    }
-
-    if (frame_width < 0) {
-        fprintf(stderr, "encountered error, gif frame width less than 0\n");
-        return false;
-    }
-
-    if (frame_height < 0) {
-        fprintf(stderr, "encountered error, gif frame height less than 0\n");
-        return false;
-    }
-
-    if (frame_left + frame_width > buf_width) {
-        fprintf(stderr, "encountered error, gif frame right border greater than width\n");
-        return false;
-    }
-
-    if (frame_top + frame_height > buf_height) {
-        fprintf(stderr, "encountered error, gif frame bottom border greater than height\n");
-        return false;
-    }
+    // calculate the out-of-bounds skip lengths
+    // for whatever reason, gifs allow frames to draw outside of the viewport
+    // we can't just cap these values because we have to skip the (unrenderable!) raster bits
+    int skip_left = (frame_left < 0) ? -frame_left : 0;
+    int skip_top = (frame_top < 0) ? -frame_top : 0;
+    int skip_right = (frame_left + frame_width > buf_width) ? (frame_left + frame_width - buf_width) : 0;
+    int skip_bottom = (frame_top + frame_height > buf_height) ? (frame_top + frame_height - buf_height) : 0;
 
     ColorMapObject *globalColorMap = d->gif->SColorMap;
     ColorMapObject *frameColorMap = im.ImageDesc.ColorMap;
@@ -179,12 +157,39 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
         int prev_disposal = prevGCB.DisposalMode;
         if (prev_disposal == DISPOSE_BACKGROUND) {
             // draw over the previous frame with the BG color
-            // TODO should we do bounds checking here?
             SavedImage prevIM = d->gif->SavedImages[previous_frame_index];
             int prev_frame_left = prevIM.ImageDesc.Left;
             int prev_frame_top = prevIM.ImageDesc.Top;
             int prev_frame_width = prevIM.ImageDesc.Width;
             int prev_frame_height = prevIM.ImageDesc.Height;
+
+            if (prev_frame_left) {
+                // "subtract" the width that hangs off the left edge
+                prev_frame_width += prev_frame_left;
+                prev_frame_left = 0;
+            }
+
+            if (prev_frame_top < 0) {
+                // do same subtracting for height off top edge
+                prev_frame_height += prev_frame_top;
+                prev_frame_top = 0;
+            }
+
+            if (prev_frame_left + prev_frame_width > buf_width) {
+                // cap width to keep frame within right edge
+                prev_frame_width = buf_width - prev_frame_left;
+            }
+
+            if (prev_frame_top + prev_frame_height > buf_height) {
+                // do same cap to keep frame within bottom edge
+                prev_frame_height = buf_height - prev_frame_top;
+            }
+
+            // if either of these is true, we'll just do nothing in the loop
+            // we could bail out of here somehow, seems easiest to do it this way
+            prev_frame_height = (prev_frame_height < 0) ? 0 : prev_frame_height;
+            prev_frame_width = (prev_frame_width < 0) ? 0 : prev_frame_width;
+
             for (int y = prev_frame_top; y < prev_frame_top + prev_frame_height; y++) {
                 uint8_t *dst = cvMat->data + y * cvMat->step + (prev_frame_left * 4);
                 for (int x = prev_frame_left; x < prev_frame_left + prev_frame_width; x++) {
@@ -212,8 +217,29 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
     // when encoding back to gif, so that the resized frame is drawn to the
     // correct location
 
+    // skip entire rows at the top if frame_top < 0
+    // start by skipping the raster bits -- we're skipping full rows here
+    bit_index += (skip_top * im.ImageDesc.Width);
+    // now reduce how far we iterate by subtracting how many rows we skipped
+    // if we were supposed to start at y = -2 and go for 5 rows, then instead
+    // start at y = 0 and go for 3 rows
+    frame_height -= skip_top;
+    // move the top of the frame over by how far we skipped
+    frame_top += skip_top;
+
+    // do similar thing for left-side skip as with top-side
+    // here we only skip by some columns, not an entire row
+    frame_width -= skip_left;
+    frame_left += skip_left;
+
+    // bottom skip is simple, we just reduce # of rows we do
+    frame_height -= skip_top;
+
     int bit_index = 0;
     for (int y = frame_top; y < frame_top + frame_height; y++) {
+        // do actual column skipping here
+        bit_index += skip_left;
+
         uint8_t *dst = cvMat->data + y * cvMat->step + (frame_left * 4);
         for (int x = frame_left; x < frame_left + frame_width; x++) {
             GifByteType palette_index = im.RasterBits[bit_index++];
