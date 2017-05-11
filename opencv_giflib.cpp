@@ -163,7 +163,7 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
             int prev_frame_width = prevIM.ImageDesc.Width;
             int prev_frame_height = prevIM.ImageDesc.Height;
 
-            if (prev_frame_left) {
+            if (prev_frame_left < 0) {
                 // "subtract" the width that hangs off the left edge
                 prev_frame_width += prev_frame_left;
                 prev_frame_left = 0;
