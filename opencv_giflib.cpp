@@ -112,6 +112,16 @@ bool giflib_decoder_decode(giflib_decoder d, int frame_index, opencv_mat mat) {
 
     SavedImage im = d->gif->SavedImages[frame_index];
 
+    if (im.ImageDesc.Width < 0) {
+        fprintf(stderr, "encountered error, gif frame width less than 0\n");
+        return false;
+    }
+
+    if (im.ImageDesc.Height < 0) {
+        fprintf(stderr, "encountered error, gif frame height less than 0\n");
+        return false;
+    }
+
     int frame_left = im.ImageDesc.Left;
     int frame_top = im.ImageDesc.Top;
     int frame_width = im.ImageDesc.Width;
