@@ -385,14 +385,17 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     GifImageDesc desc = d->gif->Image;
 
     if (desc.Width < 0) {
+        fprintf(stderr, "encountered error, gif frame has negative width\n");
         return false;
     }
 
     if (desc.Height < 0) {
+        fprintf(stderr, "encountered error, gif frame has negative height\n");
         return false;
     }
 
     if (desc.Width > (INT_MAX / desc.Height)) {
+        fprintf(stderr, "encountered error, gif frame is too wide\n");
         return false;
     }
 
@@ -403,6 +406,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     size_t image_size = desc.Width * desc.Height;
 
     if (image_size > (SIZE_MAX / sizeof(GifPixelType))) {
+        fprintf(stderr, "encountered error, gif frame is too large\n");
         return false;
     }
 
@@ -414,6 +418,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     }
 
     if (d->pixels == NULL) {
+        fprintf(stderr, "encountered error, gif pixel buffer failed to allocate\n");
         return false;
     }
 
@@ -422,6 +427,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
             for (int j = interlace_offset[i]; j < desc.Height; j += interlace_jumps[i]) {
                 int res = DGifGetLine(d->gif, d->pixels + j*desc.Width, desc.Width);
                 if (res == GIF_ERROR) {
+                    fprintf(stderr, "encountered error, could not rasterize gif line\n");
                     return false;
                 }
             }
@@ -429,6 +435,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     } else {
         int res = DGifGetLine(d->gif, d->pixels, image_size);
         if (res == GIF_ERROR) {
+            fprintf(stderr, "encountered error, could not rasterize gif\n");
             return false;
         }
     }
