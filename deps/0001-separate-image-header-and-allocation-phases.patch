@@ -1,0 +1,108 @@
+From 02c91fd79282686aa132c7bad9a59c98d6ee8c06 Mon Sep 17 00:00:00 2001
+From: Brian Armstrong <brian.armstrong@discordapp.com>
+Date: Mon, 15 May 2017 15:35:23 -0700
+Subject: [PATCH] separate image header and allocation phases
+
+this will allow users of giflib to inspect the properties of each saved
+image without writing it to the SavedImages array. this allows a new
+type of decoder that does frame-at-a-time without allocating memory for
+all the frames in the gif simultaneously. this can yield large memory
+allocation savings for gifs with large dimensions and many frames.
+
+diff --git a/lib/dgif_lib.c b/lib/dgif_lib.c
+index 66a1d6a..830ca8b 100644
+--- a/lib/dgif_lib.c
++++ b/lib/dgif_lib.c
+@@ -332,17 +332,12 @@ DGifGetRecordType(GifFileType *GifFile, GifRecordType* Type)
+     return GIF_OK;
+ }
+ 
+-/******************************************************************************
+- This routine should be called before any attempt to read an image.
+- Note it is assumed the Image desc. header has been read.
+-******************************************************************************/
+ int
+-DGifGetImageDesc(GifFileType *GifFile)
++DGifGetImageHeader(GifFileType *GifFile)
+ {
+     unsigned int BitsPerPixel;
+     GifByteType Buf[3];
+     GifFilePrivateType *Private = (GifFilePrivateType *)GifFile->Private;
+-    SavedImage *sp;
+ 
+     if (!IS_READABLE(Private)) {
+         /* This file was NOT open for reading: */
+@@ -357,8 +352,8 @@ DGifGetImageDesc(GifFileType *GifFile)
+         return GIF_ERROR;
+     if (READ(GifFile, Buf, 1) != 1) {
+         GifFile->Error = D_GIF_ERR_READ_FAILED;
+-	GifFreeMapObject(GifFile->Image.ColorMap);
+-	GifFile->Image.ColorMap = NULL;
++        GifFreeMapObject(GifFile->Image.ColorMap);
++        GifFile->Image.ColorMap = NULL;
+         return GIF_ERROR;
+     }
+     BitsPerPixel = (Buf[0] & 0x07) + 1;
+@@ -371,7 +366,7 @@ DGifGetImageDesc(GifFileType *GifFile)
+     }
+     /* Does this image have local color map? */
+     if (Buf[0] & 0x80) {
+-	unsigned int i;
++        unsigned int i;
+ 
+         GifFile->Image.ColorMap = GifMakeMapObject(1 << BitsPerPixel, NULL);
+         if (GifFile->Image.ColorMap == NULL) {
+@@ -381,7 +376,7 @@ DGifGetImageDesc(GifFileType *GifFile)
+ 
+         /* Get the image local color map: */
+         for (i = 0; i < GifFile->Image.ColorMap->ColorCount; i++) {
+-	    /* coverity[check_return] */
++            /* coverity[check_return] */
+             if (READ(GifFile, Buf, 3) != 3) {
+                 GifFreeMapObject(GifFile->Image.ColorMap);
+                 GifFile->Error = D_GIF_ERR_READ_FAILED;
+@@ -394,6 +389,29 @@ DGifGetImageDesc(GifFileType *GifFile)
+         }
+     }
+ 
++    return GIF_OK;
++}
++
++/******************************************************************************
++ This routine should be called before any attempt to read an image.
++ Note it is assumed the Image desc. header has been read.
++******************************************************************************/
++int
++DGifGetImageDesc(GifFileType *GifFile)
++{
++    GifFilePrivateType *Private = (GifFilePrivateType *)GifFile->Private;
++    SavedImage *sp;
++
++    if (!IS_READABLE(Private)) {
++        /* This file was NOT open for reading: */
++        GifFile->Error = D_GIF_ERR_NOT_READABLE;
++        return GIF_ERROR;
++    }
++
++    if (DGifGetImageHeader(GifFile) == GIF_ERROR) {
++        return GIF_ERROR;
++    }
++
+     if (GifFile->SavedImages) {
+         SavedImage* new_saved_images =
+             (SavedImage *)reallocarray(GifFile->SavedImages,
+diff --git a/lib/gif_lib.h b/lib/gif_lib.h
+index 078930c..9609163 100644
+--- a/lib/gif_lib.h
++++ b/lib/gif_lib.h
+@@ -200,6 +200,7 @@ GifFileType *DGifOpen(void *userPtr, InputFunc readFunc, int *Error);    /* new
+ /* These are legacy.  You probably do not want to call them directly */
+ int DGifGetScreenDesc(GifFileType *GifFile);
+ int DGifGetRecordType(GifFileType *GifFile, GifRecordType *GifType);
++int DGifGetImageHeader(GifFileType *GifFile);
+ int DGifGetImageDesc(GifFileType *GifFile);
+ int DGifGetLine(GifFileType *GifFile, GifPixelType *GifLine, int GifLineLen);
+ int DGifGetPixel(GifFileType *GifFile, GifPixelType GifPixel);
+-- 
+2.10.1 (Apple Git-78)
+
