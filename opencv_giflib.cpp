@@ -208,7 +208,7 @@ giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d) 
         return giflib_decoder_error;
     }
 
-    return giflib_decoder_eof;
+    return giflib_decoder_have_next_frame;
 }
 
 static bool giflib_decoder_render_frame(giflib_decoder d, const GraphicsControlBlock *gcb, opencv_mat mat) {
