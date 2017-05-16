@@ -208,10 +208,6 @@ giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d) 
         return giflib_decoder_error;
     }
 
-    if (DGifSetupDecompress(d->gif) == GIF_ERROR) {
-        return giflib_decoder_error;
-    }
-
     return giflib_decoder_have_next_frame;
 }
 
