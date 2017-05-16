@@ -1,4 +1,4 @@
-From 6d72ae45aba589b34ca76f7ba5a5f46462497ad6 Mon Sep 17 00:00:00 2001
+From e6dca8729597bfdf7676f20456e141587a8a8369 Mon Sep 17 00:00:00 2001
 From: Brian Armstrong <brian.armstrong@discordapp.com>
 Date: Mon, 15 May 2017 15:35:23 -0700
 Subject: [PATCH] separate image header and allocation phases
@@ -10,7 +10,7 @@ all the frames in the gif simultaneously. this can yield large memory
 allocation savings for gifs with large dimensions and many frames.
 
 diff --git a/lib/dgif_lib.c b/lib/dgif_lib.c
-index 66a1d6a..0bdf925 100644
+index 66a1d6a..6439972 100644
 --- a/lib/dgif_lib.c
 +++ b/lib/dgif_lib.c
 @@ -332,17 +332,12 @@ DGifGetRecordType(GifFileType *GifFile, GifRecordType* Type)
@@ -61,14 +61,15 @@ index 66a1d6a..0bdf925 100644
              if (READ(GifFile, Buf, 3) != 3) {
                  GifFreeMapObject(GifFile->Image.ColorMap);
                  GifFile->Error = D_GIF_ERR_READ_FAILED;
-@@ -394,6 +389,32 @@ DGifGetImageDesc(GifFileType *GifFile)
+@@ -394,6 +389,33 @@ DGifGetImageDesc(GifFileType *GifFile)
          }
      }
  
 +    Private->PixelCount = (long)GifFile->Image.Width *
 +       (long)GifFile->Image.Height;
 +
-+    return GIF_OK;
++    /* Reset decompress algorithm parameters. */
++    return DGifSetupDecompress(GifFile);
 +}
 +
 +/******************************************************************************
@@ -94,16 +95,19 @@ index 66a1d6a..0bdf925 100644
      if (GifFile->SavedImages) {
          SavedImage* new_saved_images =
              (SavedImage *)reallocarray(GifFile->SavedImages,
-@@ -428,9 +449,6 @@ DGifGetImageDesc(GifFileType *GifFile)
+@@ -428,11 +450,7 @@ DGifGetImageDesc(GifFileType *GifFile)
  
      GifFile->ImageCount++;
  
 -    Private->PixelCount = (long)GifFile->Image.Width *
 -       (long)GifFile->Image.Height;
 -
-     /* Reset decompress algorithm parameters. */
-     return DGifSetupDecompress(GifFile);
+-    /* Reset decompress algorithm parameters. */
+-    return DGifSetupDecompress(GifFile);
++    return GIF_OK;
  }
+ 
+ /******************************************************************************
 diff --git a/lib/gif_lib.h b/lib/gif_lib.h
 index 078930c..9609163 100644
 --- a/lib/gif_lib.h
