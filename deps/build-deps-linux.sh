@@ -57,6 +57,9 @@ make install
 
 mkdir -p $BASEDIR/giflib
 tar -xjf $BASEDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
+cd $BASEDIR/giflib
+patch -p1 < $BASEDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
+patch -p1 < $BASEDIR/0001-separate-image-header-and-allocation-phases.patch
 mkdir -p $BUILDDIR/giflib
 cd $BUILDDIR/giflib
 $BASEDIR/giflib/configure --prefix=$PREFIX --disable-shared
