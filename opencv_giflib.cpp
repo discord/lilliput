@@ -121,8 +121,6 @@ static bool giflib_decoder_read_extensions(giflib_decoder d) {
         return false;
     }
 
-    GifFreeExtensions(&d->gif->ExtensionBlockCount, &d->gif->ExtensionBlocks);
-
     // XXX filter out everything but GRAPHICS_EXT_FUNC_CODE
     if (ExtData != NULL) {
         int res = GifAddExtensionBlock(&d->gif->ExtensionBlockCount,
@@ -172,9 +170,7 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
 static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d) {
     GifRecordType RecordType;
 
-    // XXX check to make sure these are 0'd out (consumed by a decode call)
-    d->gif->ExtensionBlocks = NULL;
-    d->gif->ExtensionBlockCount = 0;
+    GifFreeExtensions(&d->gif->ExtensionBlockCount, &d->gif->ExtensionBlocks);
 
     do {
         if (DGifGetRecordType(d->gif, &RecordType) == GIF_ERROR) {
