@@ -171,6 +171,7 @@ static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder 
     GifRecordType RecordType;
 
     GifFreeExtensions(&d->gif->ExtensionBlockCount, &d->gif->ExtensionBlocks);
+    d->gif->ExtensionBlockCount = 0;
 
     do {
         if (DGifGetRecordType(d->gif, &RecordType) == GIF_ERROR) {
