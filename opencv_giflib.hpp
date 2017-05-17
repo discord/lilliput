@@ -26,10 +26,10 @@ void giflib_decoder_release(giflib_decoder d);
 giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d);
 bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat);
 
-giflib_encoder giflib_encoder_create(void *buf, size_t buf_len, const giflib_decoder d);
-bool giflib_encoder_init(giflib_encoder e, int width, int height);
-bool giflib_encoder_encode_frame(giflib_encoder e, int frame_index, const opencv_mat frame);
-bool giflib_encoder_spew(giflib_encoder e);
+giflib_encoder giflib_encoder_create(void *buf, size_t buf_len);
+bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, int height);
+bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const opencv_mat frame);
+bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d);
 void giflib_encoder_release(giflib_encoder e);
 int giflib_encoder_get_output_length(giflib_encoder e);
 

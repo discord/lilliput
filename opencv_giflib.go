@@ -27,9 +27,10 @@ type GifDecoder struct {
 
 type GifEncoder struct {
 	encoder    C.giflib_encoder
+	decoder    C.giflib_decoder
 	buf        []byte
 	frameIndex int
-	hasSpewed  bool
+	hasFlushed bool
 }
 
 const defaultMaxFrameDimension = 10000
@@ -141,29 +142,30 @@ func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 	}
 
 	buf = buf[:1]
-	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)), gifDecoder.decoder)
+	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
 
 	return &GifEncoder{
 		encoder:    enc,
+		decoder:    gifDecoder.decoder,
 		buf:        buf,
 		frameIndex: 0,
 	}, nil
 }
 
 func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
-	if e.hasSpewed {
+	if e.hasFlushed {
 		return nil, io.EOF
 	}
 
 	if f == nil {
-		ret := C.giflib_encoder_spew(e.encoder)
+		ret := C.giflib_encoder_flush(e.encoder, e.decoder)
 		if !ret {
 			return nil, ErrInvalidImage
 		}
-		e.hasSpewed = true
+		e.hasFlushed = true
 
 		len := C.int(C.giflib_encoder_get_output_length(e.encoder))
 
@@ -173,10 +175,10 @@ func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.frameIndex == 0 {
 		// first run setup
 		// TODO figure out actual gif width/height?
-		C.giflib_encoder_init(e.encoder, C.int(f.Width()), C.int(f.Height()))
+		C.giflib_encoder_init(e.encoder, e.decoder, C.int(f.Width()), C.int(f.Height()))
 	}
 
-	if !C.giflib_encoder_encode_frame(e.encoder, C.int(e.frameIndex), f.mat) {
+	if !C.giflib_encoder_encode_frame(e.encoder, e.decoder, f.mat) {
 		return nil, ErrInvalidImage
 	}
 
