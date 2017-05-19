@@ -18,6 +18,7 @@ struct giflib_decoder_struct {
     uint8_t bg_blue;
     uint8_t bg_alpha;
     bool have_read_first_frame;
+    bool seek_clear_extensions;
 };
 
 // this structure will help save us work of "reversing" a palette
@@ -42,6 +43,7 @@ struct giflib_encoder_struct {
     GifByteType *pixels;
     size_t pixel_len;
 
+    ColorMapObject *frame_color_map;
     ColorMapObject *prev_frame_color_map;
 
     bool have_written_first_frame;
@@ -121,8 +123,6 @@ static bool giflib_decoder_read_extensions(giflib_decoder d) {
         return false;
     }
 
-    GifFreeExtensions(&d->gif->ExtensionBlockCount, &d->gif->ExtensionBlocks);
-
     // XXX filter out everything but GRAPHICS_EXT_FUNC_CODE
     if (ExtData != NULL) {
         int res = GifAddExtensionBlock(&d->gif->ExtensionBlockCount,
@@ -171,6 +171,11 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
 
 static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d) {
     GifRecordType RecordType;
+
+    if (d->seek_clear_extensions) {
+        GifFreeExtensions(&d->gif->ExtensionBlockCount, &d->gif->ExtensionBlocks);
+        d->seek_clear_extensions = false;
+    }
 
     do {
         if (DGifGetRecordType(d->gif, &RecordType) == GIF_ERROR) {
@@ -472,6 +477,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     d->prev_frame_width = d->gif->Image.Width;
     d->prev_frame_height = d->gif->Image.Height;
     d->have_read_first_frame = true;
+    d->seek_clear_extensions = true;
 
     return true;
 }
@@ -541,6 +547,8 @@ giflib_encoder giflib_encoder_create(void *buf, size_t buf_len) {
 
 // this function should be called just once when we know the global dimensions
 bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, int height) {
+    // all gifs will output as gif89
+    EGifSetGifVersion(e->gif, true);
     e->gif->SWidth = width;
     e->gif->SHeight = height;
 
@@ -577,14 +585,13 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
     im_out->Interlace = im_in->Interlace;
 
     // prepare frame local palette, if any
-    e->prev_frame_color_map = im_out->ColorMap;
-    im_out->ColorMap = NULL;
+    e->frame_color_map = NULL;
     if (im_in->ColorMap) {
-        im_out->ColorMap = giflib_encoder_allocate_color_maps(e, 1);
-        memmove(im_out->ColorMap, im_in->ColorMap, sizeof(ColorMapObject));
+        e->frame_color_map = giflib_encoder_allocate_color_maps(e, 1);
+        memmove(e->frame_color_map, im_in->ColorMap, sizeof(ColorMapObject));
         // copy all of the RGB color values from input frame palette to output frame palette
-        im_out->ColorMap->Colors = giflib_encoder_allocate_colors(e, im_out->ColorMap->ColorCount);
-        memmove(im_out->ColorMap->Colors, im_in->ColorMap->Colors, im_out->ColorMap->ColorCount * sizeof(GifColorType));
+        e->frame_color_map->Colors = giflib_encoder_allocate_colors(e, e->frame_color_map->ColorCount);
+        memmove(e->frame_color_map->Colors, im_in->ColorMap->Colors, e->frame_color_map->ColorCount * sizeof(GifColorType));
     }
 
     // copy extension blocks specific to this frame
@@ -597,11 +604,12 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
         // other values like COMMENT_ and PLAINTEXT_ are not essential to viewing the image
         e->gif->ExtensionBlocks = giflib_encoder_allocate_extension_blocks(e, e->gif->ExtensionBlockCount);
         for (int i = 0; i < e->gif->ExtensionBlockCount; i++) {
-            ExtensionBlock *eb = &(e->gif->ExtensionBlocks[i]);
-            eb->ByteCount = d->gif->ExtensionBlocks[i].ByteCount;
-            eb->Function = d->gif->ExtensionBlocks[i].Function;
-            eb->Bytes = giflib_encoder_allocate_gif_bytes(e, eb->ByteCount);
-            memmove(eb->Bytes, d->gif->ExtensionBlocks[i].Bytes, eb->ByteCount);
+            ExtensionBlock *eb_in = &(d->gif->ExtensionBlocks[i]);
+            ExtensionBlock *eb_out = &(e->gif->ExtensionBlocks[i]);
+            eb_out->ByteCount = eb_in->ByteCount;
+            eb_out->Function = eb_in->Function;
+            eb_out->Bytes = giflib_encoder_allocate_gif_bytes(e, eb_out->ByteCount);
+            memmove(eb_out->Bytes, eb_in->Bytes, eb_out->ByteCount);
         }
     }
 
@@ -651,7 +659,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     }
 
     ColorMapObject *global_color_map = e->gif->SColorMap;
-    ColorMapObject *frame_color_map = im_out->ColorMap;
+    ColorMapObject *frame_color_map = e->frame_color_map;
     ColorMapObject *color_map = frame_color_map ? frame_color_map : global_color_map;
 
     if (!color_map) {
@@ -746,6 +754,8 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
         }
     }
 
+    e->prev_frame_color_map = color_map;
+
     return true;
 }
 
@@ -759,13 +769,13 @@ static int giflib_encoder_write_extensions(giflib_encoder e) {
                 if (EGifPutExtensionLeader(e->gif, ep->Function) == GIF_ERROR) {
                     return false;
                 }
-                if (EGifPutExtensionBlock(e->gif, ep->ByteCount, ep->Bytes) == GIF_ERROR) {
+            }
+            if (EGifPutExtensionBlock(e->gif, ep->ByteCount, ep->Bytes) == GIF_ERROR) {
+                return false;
+            }
+            if (i == e->gif->ExtensionBlockCount - 1 || (ep + 1)->Function != CONTINUE_EXT_FUNC_CODE) {
+                if (EGifPutExtensionTrailer(e->gif) == GIF_ERROR) {
                     return false;
-                }
-                if (i == e->gif->ExtensionBlockCount - 1 || (ep + 1)->Function != CONTINUE_EXT_FUNC_CODE) {
-                    if (EGifPutExtensionTrailer(e->gif) == GIF_ERROR) {
-                        return false;
-                    }
                 }
             }
         }
@@ -788,7 +798,7 @@ bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const
     }
 
     res = EGifPutImageDesc(e->gif, im_out->Left, im_out->Top, im_out->Width, im_out->Height,
-                           im_out->Interlace, im_out->ColorMap);
+                           im_out->Interlace, e->frame_color_map);
     if (res == GIF_ERROR) {
         return false;
     }
