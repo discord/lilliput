@@ -394,13 +394,13 @@ static int interlace_jumps[] = { 8, 8, 4, 2 };
 bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     GifImageDesc desc = d->gif->Image;
 
-    if (desc.Width < 0) {
-        fprintf(stderr, "encountered error, gif frame has negative width\n");
+    if (desc.Width <= 0) {
+        fprintf(stderr, "encountered error, gif frame has negative or zero width\n");
         return false;
     }
 
-    if (desc.Height < 0) {
-        fprintf(stderr, "encountered error, gif frame has negative height\n");
+    if (desc.Height <= 0) {
+        fprintf(stderr, "encountered error, gif frame has negative or zero height\n");
         return false;
     }
 
