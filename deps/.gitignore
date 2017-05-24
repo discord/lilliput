@@ -5,3 +5,5 @@ libpng/
 libwebp/
 giflib/
 opencv/
+bzip2/
+ffmpeg/
