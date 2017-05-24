@@ -235,7 +235,12 @@ func NewDecoder(buf []byte) (Decoder, error) {
 		return newGifDecoder(buf)
 	}
 
-	return newOpenCVDecoder(buf)
+	maybeDecoder, err := newOpenCVDecoder(buf)
+	if err == nil {
+		return maybeDecoder, nil
+	}
+
+	return newAVCodecDecoder(buf)
 }
 
 func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
