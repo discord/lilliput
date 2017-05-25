@@ -15,6 +15,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf);
 void avcodec_decoder_release(avcodec_decoder d);
 int avcodec_decoder_get_width(const avcodec_decoder d);
 int avcodec_decoder_get_height(const avcodec_decoder d);
+bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat);
 const char *avcodec_decoder_get_description(const avcodec_decoder d);
 
 #ifdef __cplusplus
