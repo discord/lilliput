@@ -255,6 +255,7 @@ func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
 
 	decoder := C.opencv_decoder_create(mat)
 	if decoder == nil {
+		C.opencv_mat_release(mat)
 		return nil, ErrInvalidImage
 	}
 
