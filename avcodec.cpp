@@ -6,6 +6,8 @@ extern "C" {
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
 
 #ifdef __cplusplus
 }
@@ -25,16 +27,17 @@ void avcodec_init() {
     avcodec_register(&ff_h264_decoder);
     avcodec_register(&ff_mpeg4_decoder);
     avcodec_register(&ff_vp9_decoder);
+
+    av_log_set_level(AV_LOG_WARNING);
 }
 
 struct avcodec_decoder_struct {
     const cv::Mat *mat;
     ptrdiff_t read_index;
-    const char *description;
     AVFormatContext *container;
     AVCodecContext *codec;
-    uint8_t *av_buf;
     AVIOContext *avio;
+    int video_stream_index;
 };
 
 static int avcodec_decoder_read_callback(void *d_void, uint8_t *buf, int buf_size) {
@@ -59,6 +62,8 @@ static int64_t avcodec_decoder_seek_callback(void *d_void, int64_t offset, int w
     case SEEK_END:
         to = d->mat->data + d->mat->total() + offset;
         break;
+    case AVSEEK_SIZE:
+        return d->mat->total();
     default:
         return -1;
     }
@@ -83,14 +88,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
         return NULL;
     }
 
-    size_t av_buf_sz = 4096;
-    d->av_buf = (uint8_t*)(av_malloc(av_buf_sz));
-    if (!d->av_buf) {
-        avcodec_decoder_release(d);
-        return NULL;
-    }
-
-    d->avio = avio_alloc_context(d->av_buf, av_buf_sz, 1, d, avcodec_decoder_read_callback,
+    d->avio = avio_alloc_context(NULL, 0, 0, d, avcodec_decoder_read_callback,
                                  NULL, avcodec_decoder_seek_callback);
     if (!d->avio) {
         avcodec_decoder_release(d);
@@ -98,98 +96,142 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
     }
     d->container->pb = d->avio;
 
-    int res = avformat_find_stream_info(d->container, NULL);
+    int res = avformat_open_input(&d->container, NULL, NULL, NULL);
+    if (res < 0) {
+        avformat_free_context(d->container);
+        d->container = NULL;
+        avcodec_decoder_release(d);
+        return NULL;
+    }
+
+    res = avformat_find_stream_info(d->container, NULL);
     if (res < 0) {
         avcodec_decoder_release(d);
         return NULL;
     }
 
-    d->codec = NULL;
+    AVCodecParameters *codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
-        if (d->container->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            d->codec = d->container->streams[i]->codec;
+        if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            codec_params = d->container->streams[i]->codecpar;
+            d->video_stream_index = i;
             break;
         }
     }
-    if (!d->codec) {
+    if (!codec_params) {
         avcodec_decoder_release(d);
         return NULL;
     }
 
-    // build a string description
-    // use this format:
-    // $container_name + '/' + $codec name + NUL
-    const size_t max_container_name_len = 32;
-    const size_t max_codec_name_len = 32;
-    // add a char for '/' and a char for NUL
-    char *description = (char*)(malloc(max_container_name_len + max_codec_name_len + 1 + 1));
-    if (description) {
+    AVCodec *codec = avcodec_find_decoder(codec_params->codec_id);
+
+    d->codec = avcodec_alloc_context3(codec);
+
+    res = avcodec_parameters_to_context(d->codec, codec_params);
+    if (res < 0) {
         avcodec_decoder_release(d);
         return NULL;
     }
-    const char *container_name = d->container->iformat->name;
-    const char *codec_name = avcodec_get_name(d->codec->codec_id);
-    size_t container_name_len = strlen(container_name);
-    size_t codec_name_len = strlen(codec_name);
-    container_name_len = (container_name_len > max_container_name_len) ? max_container_name_len : container_name_len;
-    codec_name_len = (codec_name_len > max_codec_name_len) ? max_codec_name_len : codec_name_len;
-    memcpy(description, container_name, container_name_len);
-    description[container_name_len] = '/';
-    memcpy(description + container_name_len + 1, codec_name, codec_name_len);
-    description[container_name_len + 1 + codec_name_len] = 0;
-    d->description = description;
+
+    res = avcodec_open2(d->codec, codec, NULL);
+    if (res < 0) {
+        avcodec_decoder_release(d);
+        return NULL;
+    }
 
     return d;
 }
 
 int avcodec_decoder_get_width(const avcodec_decoder d) {
-    return d->codec->width;
+    if (d->codec) {
+        return d->codec->width;
+    }
+    return 0;
 }
 
 int avcodec_decoder_get_height(const avcodec_decoder d) {
-    return d->codec->height;
+    if (d->codec) {
+        return d->codec->height;
+    }
+    return 0;
 }
 
 const char *avcodec_decoder_get_description(const avcodec_decoder d) {
-    return d->description;
+    if (d->codec) {
+        return avcodec_get_name(d->codec->codec_id);
+    }
+    return "";
 }
 
-bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
+static bool avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame *frame) {
     auto cvMat = static_cast<cv::Mat *>(mat);
+
+    int res = avcodec_receive_frame(d->codec, frame);
+    if (res >= 0) {
+        struct SwsContext *sws = sws_getContext(frame->width, frame->height, (AVPixelFormat)(frame->format),
+                                                frame->width, frame->height, AV_PIX_FMT_RGBA,
+                                                SWS_BILINEAR, NULL, NULL, NULL);
+        // XXX make this below use mat's width/height
+        uint8_t *data_ptrs[4];
+        int linesizes[4];
+        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_RGBA, frame->width, frame->height, 32);
+        sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
+        sws_freeContext(sws);
+        return true;
+    }
+
+    return false;
+}
+
+static bool avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket *packet) {
+    int res = avcodec_send_packet(d->codec, packet);
+    if (res < 0) {
+        return false;
+    }
+
     AVFrame *frame = av_frame_alloc();
     if (!frame) {
         return false;
     }
 
-    bool success = false;
-    int ret = avcodec_receive_frame(d->codec, frame);
-    if (ret >= 0) {
-        success = true;
-        uint8_t *dst = cvMat->data;
-        memcpy(dst, frame->data, frame->width * frame->height * 4);
-    }
+    bool success = avcodec_decoder_copy_frame(d, mat, frame);
 
     av_frame_free(&frame);
     return success;
 }
 
-void avcodec_decoder_release(avcodec_decoder d) {
-    if (d->avio) {
-        avio_close(d->avio);
+bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
+    AVPacket packet;
+    while (true) {
+        int res = av_read_frame(d->container, &packet);
+        if (res < 0) {
+            return false;
+        }
+        if (packet.stream_index == d->video_stream_index) {
+            break;
+        }
+        av_packet_unref(&packet);
     }
 
-    if (d->av_buf) {
-        av_free(d->av_buf);
+    bool success = avcodec_decoder_decode_packet(d, mat, &packet);
+
+    av_packet_unref(&packet);
+    return success;
+}
+
+void avcodec_decoder_release(avcodec_decoder d) {
+    if (d->codec) {
+        avcodec_free_context(&d->codec);
     }
 
     if (d->container) {
-        d->container->pb = NULL;
-        avformat_free_context(d->container);
+        avformat_close_input(&d->container);
     }
 
-    if (d->description) {
-        char *desc = (char *)(d->description);
-        free(desc);
+    if (d->avio) {
+        avio_flush(d->avio);
+        av_free(d->avio->buffer);
+        av_free(d->avio);
     }
 
     delete d;
