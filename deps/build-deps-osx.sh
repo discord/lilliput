@@ -87,6 +87,6 @@ mkdir -p $BASEDIR/ffmpeg
 tar -xjf $BASEDIR/ffmpeg-3.3.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
-$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=mpeg4 --enable-decoder=vp9 --disable-iconv
+$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=mpeg4 --enable-decoder=vp9 --enable-decoder=vp8 --disable-iconv
 make
 make install
