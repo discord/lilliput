@@ -157,8 +157,12 @@ int avcodec_decoder_get_height(const avcodec_decoder d) {
 }
 
 const char *avcodec_decoder_get_description(const avcodec_decoder d) {
-    if (d->codec) {
-        return avcodec_get_name(d->codec->codec_id);
+    if (d->container) {
+        if (d->container->iformat == &ff_mov_demuxer) {
+            return "MOV";
+        } else if (d->container->iformat == &ff_matroska_demuxer) {
+            return "WEBM";
+        }
     }
     return "";
 }
