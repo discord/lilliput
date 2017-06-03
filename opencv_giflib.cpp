@@ -391,8 +391,6 @@ static bool giflib_decoder_render_frame(giflib_decoder d, const GraphicsControlB
 static int interlace_offset[] = { 0, 4, 2, 1 };
 static int interlace_jumps[] = { 8, 8, 4, 2 };
 
-static int frame_index = 0;
-
 // decode the full frame and write it into mat
 // decode_frame_header *must* be called before this function
 bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
@@ -458,7 +456,6 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     giflib_get_frame_gcb(d->gif, &gcb);
 
     if (!d->have_read_first_frame) {
-        frame_index = 0;
         int transparency_index = gcb.TransparentColor;
         if (d->gif->SBackGroundColor == transparency_index) {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 0;
