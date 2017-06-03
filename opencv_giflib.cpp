@@ -46,6 +46,8 @@ struct giflib_encoder_struct {
     ColorMapObject *frame_color_map;
     ColorMapObject *prev_frame_color_map;
 
+    uint8_t *prev_frame_bgra;
+
     bool have_written_first_frame;
 
     // keep track of all of the things we've allocated
@@ -389,6 +391,8 @@ static bool giflib_decoder_render_frame(giflib_decoder d, const GraphicsControlB
 static int interlace_offset[] = { 0, 4, 2, 1 };
 static int interlace_jumps[] = { 8, 8, 4, 2 };
 
+static int frame_index = 0;
+
 // decode the full frame and write it into mat
 // decode_frame_header *must* be called before this function
 bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
@@ -454,6 +458,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     giflib_get_frame_gcb(d->gif, &gcb);
 
     if (!d->have_read_first_frame) {
+        frame_index = 0;
         int transparency_index = gcb.TransparentColor;
         if (d->gif->SBackGroundColor == transparency_index) {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 0;
@@ -551,6 +556,8 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
     EGifSetGifVersion(e->gif, true);
     e->gif->SWidth = width;
     e->gif->SHeight = height;
+
+    e->prev_frame_bgra = (uint8_t*)(malloc(width * height * 4));
 
     // preserve # of palette entries and aspect ratio of original gif
     e->gif->SColorResolution = d->gif->SColorResolution;
@@ -719,6 +726,8 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
             }
 
             uint32_t crushed = ((R >> 3) << 10) | ((G >> 3) << 5) | ((B >> 3));
+            int least_dist = INT_MAX;
+            int best_color = 0;
             if (!(e->palette_lookup[crushed].present)) {
                 // calculate the best palette entry based on the midpoint of the crushed colors
                 // what this means is that we drop the crushed bits (& 0xf8)
@@ -728,8 +737,6 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 uint32_t B_center = (B & 0xf8) | 4;
 
                 // we're calculating the best, so keep track of which palette entry has least distance
-                int least_dist = INT_MAX;
-                int best_color = 0;
                 int count = color_map->ColorCount;
                 for (int i = 0; i < count; i++) {
                     int dist = rgb_distance(R_center, G_center, B_center, color_map->Colors[i].Red,
@@ -741,6 +748,10 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 }
                 e->palette_lookup[crushed].present = 1;
                 e->palette_lookup[crushed].index = best_color;
+            } else {
+                best_color = e->palette_lookup[crushed].index;
+                least_dist = rgb_distance(R, G, B, color_map->Colors[best_color].Red,
+                                          color_map->Colors[best_color].Green, color_map->Colors[best_color].Blue);
             }
 
             // now that we for sure know which palette entry to pick, we have one more test
@@ -748,11 +759,24 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
             // the color of this pixel in the previous frame. if that's true, we'll just
             // choose the transparency color, which will compress better on average
             // (plus it improves color range of image)
-            // TODO implement this by having encoder preserve previous BGRA frame somewhere
+            if (e->have_written_first_frame && gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
+                ptrdiff_t frame_index = 4 * ((y * e->gif->SWidth) + x);
+                uint32_t last_B = e->prev_frame_bgra[frame_index];
+                uint32_t last_G = e->prev_frame_bgra[frame_index + 1];
+                uint32_t last_R = e->prev_frame_bgra[frame_index + 2];
+                int dist = rgb_distance(R, G, B, last_R, last_G, last_B);
+                if (dist < least_dist) {
+                    least_dist = dist;
+                    best_color = gcb.TransparentColor;
+                }
+            }
 
-            *raster_out++ = e->palette_lookup[crushed].index;
+            *raster_out++ = best_color;
         }
     }
+
+    // XXX change this if we do partial frames (only copy over some)
+    memcpy(e->prev_frame_bgra, frame->data, 4 * e->gif->SWidth * e->gif->SHeight);
 
     e->prev_frame_color_map = color_map;
 
@@ -863,6 +887,10 @@ bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d) {
 
 void giflib_encoder_release(giflib_encoder e) {
     // don't free dst -- we're borrowing it
+
+    if (e->prev_frame_bgra) {
+        free(e->prev_frame_bgra);
+    }
 
     if (e->palette_lookup) {
         free(e->palette_lookup);
