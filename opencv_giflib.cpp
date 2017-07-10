@@ -458,8 +458,8 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     giflib_get_frame_gcb(d->gif, &gcb);
 
     if (!d->have_read_first_frame) {
-        int transparency_index = gcb.TransparentColor;
-        if (d->gif->SBackGroundColor == transparency_index) {
+        bool have_transparency = (gcb.TransparentColor != NO_TRANSPARENT_COLOR);
+        if (have_transparency) {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 0;
         } else if (d->gif->SColorMap && d->gif->SColorMap->Colors) {
             d->bg_red = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Red;
