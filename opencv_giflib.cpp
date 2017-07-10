@@ -46,6 +46,8 @@ struct giflib_encoder_struct {
     ColorMapObject *frame_color_map;
     ColorMapObject *prev_frame_color_map;
 
+    int prev_frame_disposal;
+
     uint8_t *prev_frame_bgra;
 
     bool have_written_first_frame;
@@ -692,6 +694,10 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     int transparency_index = gcb.TransparentColor;
     bool have_transparency = (transparency_index != NO_TRANSPARENT_COLOR);
 
+    // decide whether we can use transparency against the previous frame
+    bool prev_frame_valid = e->have_written_first_frame &&
+            (e->prev_frame_disposal == DISPOSAL_UNSPECIFIED || e->prev_frame_disposal == DISPOSE_DO_NOT);
+
     // convenience names for these dimensions
     int frame_left = im_out->Left;
     int frame_top = im_out->Top;
@@ -736,6 +742,10 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 // we're calculating the best, so keep track of which palette entry has least distance
                 int count = color_map->ColorCount;
                 for (int i = 0; i < count; i++) {
+                    if (i == transparency_index) {
+                        // this index doesn't point to an actual color
+                        continue;
+                    }
                     int dist = rgb_distance(R_center, G_center, B_center, color_map->Colors[i].Red,
                                             color_map->Colors[i].Green, color_map->Colors[i].Blue);
                     if (dist < least_dist) {
@@ -756,7 +766,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
             // the color of this pixel in the previous frame. if that's true, we'll just
             // choose the transparency color, which will compress better on average
             // (plus it improves color range of image)
-            if (e->have_written_first_frame && gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
+            if (prev_frame_valid && have_transparency) {
                 ptrdiff_t frame_index = 4 * ((y * e->gif->SWidth) + x);
                 uint32_t last_B = e->prev_frame_bgra[frame_index];
                 uint32_t last_G = e->prev_frame_bgra[frame_index + 1];
@@ -764,7 +774,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 int dist = rgb_distance(R, G, B, last_R, last_G, last_B);
                 if (dist < least_dist) {
                     least_dist = dist;
-                    best_color = gcb.TransparentColor;
+                    best_color = transparency_index;
                 }
             }
 
@@ -776,6 +786,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     memcpy(e->prev_frame_bgra, frame->data, 4 * e->gif->SWidth * e->gif->SHeight);
 
     e->prev_frame_color_map = color_map;
+    e->prev_frame_disposal = gcb.DisposalMode;
 
     return true;
 }
