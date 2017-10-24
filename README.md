@@ -93,6 +93,8 @@ into the output `[]byte` given when the `Encoder` was created. `opts` is optiona
 It is used to control encoder behavior e.g. `map[int]int{lilliput.JpegQuality: 80}` to set JPEG output
 quality to `80`.
 
+Valid keys/values for `opts` are `JpegQuality` (1 - 100), `PngCompression` (0 - 9) and `WebpQuality` (0 - 100).
+
 The `Encoder` object must have `.Close()` called when it is no longer in use.
 
 ### Ops
