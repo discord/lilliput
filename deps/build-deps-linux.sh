@@ -3,8 +3,9 @@
 set -e
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX=$BASEDIR/linux
-BUILDDIR=$BASEDIR/build
+PREFIX="$BASEDIR/linux"
+BUILDDIR="$BASEDIR/build"
+SRCDIR="$BASEDIR/lilliput-dep-source"
 
 mkdir -p $PREFIX/include
 mkdir -p $PREFIX/lib
@@ -21,8 +22,12 @@ rm -rf opencv
 rm -rf bzip2
 rm -rf ffmpeg
 
+if [ ! -d "$SRCDIR" ]; then
+    git clone https://github.com/discordapp/lilliput-dep-source "$SRCDIR"
+fi
+
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $BASEDIR/libjpeg-turbo-1.5.1.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-1.5.1.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
 autoreconf -fiv
 mkdir -p $BUILDDIR/libjpeg-turbo
@@ -32,7 +37,7 @@ make
 make install
 
 mkdir -p $BASEDIR/zlib
-tar -xzf $BASEDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
@@ -40,7 +45,7 @@ make
 make install
 
 mkdir -p $BASEDIR/libpng
-tar -xzf $BASEDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
+tar -xzf $SRCDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
 CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --enable-intel-sse
@@ -48,7 +53,7 @@ make
 make install
 
 mkdir -p $BASEDIR/libwebp
-tar -xzf $BASEDIR/libwebp-0.6.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-0.6.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
@@ -58,10 +63,10 @@ make
 make install
 
 mkdir -p $BASEDIR/giflib
-tar -xjf $BASEDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
+tar -xjf $SRCDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
 cd $BASEDIR/giflib
-patch -p1 < $BASEDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
-patch -p1 < $BASEDIR/0001-separate-image-header-and-allocation-phases.patch
+patch -p1 < $SRCDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
+patch -p1 < $SRCDIR/0001-separate-image-header-and-allocation-phases.patch
 mkdir -p $BUILDDIR/giflib
 cd $BUILDDIR/giflib
 $BASEDIR/giflib/configure --prefix=$PREFIX --disable-shared
@@ -69,7 +74,7 @@ make
 make install
 
 mkdir -p $BASEDIR/opencv
-tar -xzf $BASEDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
+tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
 patch -p1 < $BASEDIR/0001-export-exif-orientation.patch
 mkdir -p $BUILDDIR/opencv
@@ -79,12 +84,12 @@ make
 make install
 
 mkdir -p $BASEDIR/bzip2
-tar -xvf $BASEDIR/bzip2-1.0.6.tar.gz -C $BASEDIR/bzip2 --strip-components 1
+tar -xvf $SRCDIR/bzip2-1.0.6.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
 make PREFIX=$PREFIX install
 
 mkdir -p $BASEDIR/ffmpeg
-tar -xjf $BASEDIR/ffmpeg-3.3.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
+tar -xjf $SRCDIR/ffmpeg-3.3.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=mpeg4 --enable-decoder=vp9 --enable-decoder=vp8 --disable-iconv --disable-cuda --disable-cuvid --disable-nvenc --disable-xlib
