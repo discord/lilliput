@@ -15,6 +15,7 @@ import "C"
 import (
 	"errors"
 	"io"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -22,17 +23,27 @@ type GifDecoder struct {
 	decoder    C.giflib_decoder
 	mat        C.opencv_mat
 	frameIndex int
-	hasSlurped bool
 }
 
 type GifEncoder struct {
 	encoder    C.giflib_encoder
+	decoder    C.giflib_decoder
 	buf        []byte
 	frameIndex int
-	hasSpewed  bool
+	hasFlushed bool
 }
 
-var ErrGifEncoderNeedsDecoder = errors.New("GIF encoder needs decoder used to create image")
+const defaultMaxFrameDimension = 10000
+
+var (
+	gifMaxFrameDimension uint64
+
+	ErrGifEncoderNeedsDecoder = errors.New("GIF encoder needs decoder used to create image")
+)
+
+func SetGIFMaxFrameDimension(dim uint64) {
+	atomic.StoreUint64(&gifMaxFrameDimension, dim)
+}
 
 func newGifDecoder(buf []byte) (*GifDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
@@ -55,11 +66,21 @@ func newGifDecoder(buf []byte) (*GifDecoder, error) {
 
 func (d *GifDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
-		width:       int(C.giflib_get_decoder_width(d.decoder)),
-		height:      int(C.giflib_get_decoder_height(d.decoder)),
+		width:       int(C.giflib_decoder_get_width(d.decoder)),
+		height:      int(C.giflib_decoder_get_height(d.decoder)),
 		pixelType:   PixelType(C.CV_8UC4),
 		orientation: OrientationTopLeft,
-		numFrames:   int(C.giflib_get_decoder_num_frames(d.decoder)),
+		numFrames:   int(C.giflib_decoder_get_num_frames(d.decoder)),
+	}, nil
+}
+
+func (d *GifDecoder) FrameHeader() (*ImageHeader, error) {
+	return &ImageHeader{
+		width:       int(C.giflib_decoder_get_frame_width(d.decoder)),
+		height:      int(C.giflib_decoder_get_frame_height(d.decoder)),
+		pixelType:   PixelType(C.CV_8UC4),
+		orientation: OrientationTopLeft,
+		numFrames:   1,
 	}, nil
 }
 
@@ -72,31 +93,10 @@ func (d *GifDecoder) Description() string {
 	return "GIF"
 }
 
-func (d *GifDecoder) slurp() error {
-	if !d.hasSlurped {
-		ret := C.giflib_decoder_slurp(d.decoder)
-		if !ret {
-			return ErrDecodingFailed
-		}
-		d.hasSlurped = true
-	}
-	return nil
-}
-
 func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
 		return err
-	}
-
-	err = d.slurp()
-	if err != nil {
-		return err
-	}
-
-	numFrames := int(C.giflib_get_decoder_num_frames(d.decoder))
-	if d.frameIndex == numFrames {
-		return io.EOF
 	}
 
 	err = f.resizeMat(h.Width(), h.Height(), h.PixelType())
@@ -104,7 +104,24 @@ func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 		return err
 	}
 
-	ret := C.giflib_decoder_decode(d.decoder, C.int(d.frameIndex), f.mat)
+	nextFrameResult := int(C.giflib_decoder_decode_frame_header(d.decoder))
+	if nextFrameResult == C.giflib_decoder_eof {
+		return io.EOF
+	}
+	if nextFrameResult == C.giflib_decoder_error {
+		return ErrInvalidImage
+	}
+
+	frameHeader, err := d.FrameHeader()
+	if err != nil {
+		return ErrInvalidImage
+	}
+	maxDim := int(atomic.LoadUint64(&gifMaxFrameDimension))
+	if frameHeader.Width() > maxDim || frameHeader.Height() > maxDim {
+		return ErrInvalidImage
+	}
+
+	ret := C.giflib_decoder_decode_frame(d.decoder, f.mat)
 	if !ret {
 		return ErrDecodingFailed
 	}
@@ -124,35 +141,31 @@ func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 		return nil, ErrGifEncoderNeedsDecoder
 	}
 
-	err := gifDecoder.slurp()
-	if err != nil {
-		return nil, err
-	}
-
 	buf = buf[:1]
-	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)), gifDecoder.decoder)
+	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
 
 	return &GifEncoder{
 		encoder:    enc,
+		decoder:    gifDecoder.decoder,
 		buf:        buf,
 		frameIndex: 0,
 	}, nil
 }
 
 func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
-	if e.hasSpewed {
+	if e.hasFlushed {
 		return nil, io.EOF
 	}
 
 	if f == nil {
-		ret := C.giflib_encoder_spew(e.encoder)
+		ret := C.giflib_encoder_flush(e.encoder, e.decoder)
 		if !ret {
 			return nil, ErrInvalidImage
 		}
-		e.hasSpewed = true
+		e.hasFlushed = true
 
 		len := C.int(C.giflib_encoder_get_output_length(e.encoder))
 
@@ -162,10 +175,10 @@ func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.frameIndex == 0 {
 		// first run setup
 		// TODO figure out actual gif width/height?
-		C.giflib_encoder_init(e.encoder, C.int(f.Width()), C.int(f.Height()))
+		C.giflib_encoder_init(e.encoder, e.decoder, C.int(f.Width()), C.int(f.Height()))
 	}
 
-	if !C.giflib_encoder_encode_frame(e.encoder, C.int(e.frameIndex), f.mat) {
+	if !C.giflib_encoder_encode_frame(e.encoder, e.decoder, f.mat) {
 		return nil, ErrInvalidImage
 	}
 
@@ -176,4 +189,8 @@ func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 
 func (e *GifEncoder) Close() {
 	C.giflib_encoder_release(e.encoder)
+}
+
+func init() {
+	SetGIFMaxFrameDimension(defaultMaxFrameDimension)
 }

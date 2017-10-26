@@ -70,7 +70,12 @@ int opencv_type_channels(int type) {
 
 opencv_decoder opencv_decoder_create(const opencv_mat buf) {
     auto mat = static_cast<const cv::Mat *>(buf);
-    return new cv::ImageDecoder(*mat);
+    cv::ImageDecoder *d = new cv::ImageDecoder(*mat);
+    if (d->empty()) {
+        delete d;
+        d = NULL;
+    }
+    return d;
 }
 
 const char *opencv_decoder_get_description(const opencv_decoder d) {
