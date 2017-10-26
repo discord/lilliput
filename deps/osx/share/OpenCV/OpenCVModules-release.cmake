@@ -97,7 +97,7 @@ list(APPEND _IMPORT_CHECK_FILES_FOR_opencv_shape "${_IMPORT_PREFIX}/lib/libopenc
 set_property(TARGET opencv_videoio APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(opencv_videoio PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;stdc++;ippicv;-framework Accelerate;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;-framework Cocoa;-framework Accelerate;-framework AVFoundation;-framework CoreGraphics;-framework CoreMedia;-framework CoreVideo;-framework QuartzCore"
+  IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "opencv_core;opencv_imgproc;opencv_imgcodecs;stdc++;ippicv;-framework Accelerate;avcodec;avformat;avutil;swscale;avresample;/Users/brianarmstrong/code/lilliput/deps/osx/LIB/libz.a;-framework VideoDecodeAcceleration;bz2;-framework Cocoa;-framework Accelerate;-framework AVFoundation;-framework CoreGraphics;-framework CoreMedia;-framework CoreVideo;-framework QuartzCore"
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libopencv_videoio.a"
   )
 
