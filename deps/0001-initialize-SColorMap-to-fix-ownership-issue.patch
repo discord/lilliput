@@ -1,0 +1,21 @@
+From 625c1fce1bc62ae550899b2fc2e8078e7c0b96c9 Mon Sep 17 00:00:00 2001
+From: Brian Armstrong <brian.armstrong@discordapp.com>
+Date: Thu, 11 May 2017 12:53:03 -0700
+Subject: [PATCH] initialize SColorMap to fix ownership issue
+
+
+diff --git a/lib/egif_lib.c b/lib/egif_lib.c
+index 18f954f..3bb9430 100644
+--- a/lib/egif_lib.c
++++ b/lib/egif_lib.c
+@@ -270,6 +270,7 @@ EGifPutScreenDesc(GifFileType *GifFile,
+     GifByteType Buf[3];
+     GifFilePrivateType *Private = (GifFilePrivateType *) GifFile->Private;
+     const char *write_version;
++    GifFile->SColorMap = NULL;
+ 
+     if (Private->FileState & FILE_STATE_SCREEN) {
+         /* If already has screen descriptor - something is wrong! */
+-- 
+2.10.1 (Apple Git-78)
+
