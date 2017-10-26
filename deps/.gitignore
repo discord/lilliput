@@ -1,0 +1,9 @@
+build/
+libjpeg-turbo/
+zlib/
+libpng/
+libwebp/
+giflib/
+opencv/
+bzip2/
+ffmpeg/
