@@ -51,7 +51,12 @@ Returns a string describing the image's type, e.g. `"JPEG"` or `"PNG"`.
 func (d lilliput.Decoder) DecodeTo(f *lilliput.Framebuffer) error
 ```
 Fully decodes the image and writes its pixel data to `f`. Returns an error
-if the decoding process fails.
+if the decoding process fails. If the image contains multiple frames,
+then each call returns a subsequent frame. `io.EOF` is returned when the image
+does not contain any more data to be decoded.
+
+*** Users of lilliput generally should not call `DecodeTo` and should instead
+use an Ops object.***
 
 ```go
 func (d lilliput.Decoder) Close()
@@ -173,8 +178,8 @@ Returns the `PixelType` of the contained pixel data, if any.
 func (f *lilliput.Framebuffer) OrientationTransform(orientation lilliput.ImageOrientation)
 ```
 Rotate and/or mirror framebuffer according to orientation value. If you
-pass the `orientation` value given by the image's `ImageHeader`, the result
-will be that the resulting image has its orientation normalized to the
+pass the `orientation` value given by the image's `ImageHeader`, then the
+resulting image has its orientation normalized to the
 default orientation.
 
 ```go
@@ -190,7 +195,7 @@ func (f *lilliput.Framebuffer) Fit(width, height int, dst *lilliput.Framebuffer)
 Perform a cropping resize into `dst` of `f` according to given dimensions. This function
 does preserve the source's aspect ratio. The image will be cropped along one axis if
 the new dimensions have a different ratio than the source. The cropping will occur equally
-on the edges, e.g. if the image is too tall for the new ratio, then the destination will
+on the edges, e.g. if the source image is too tall for the new ratio, then the destination will
 have rows of pixels from the top and bottom removed. Returns error if the destination is
 not large enough to contain the resized image.
 
@@ -199,31 +204,38 @@ func (f *lilliput.Framebuffer) Close()
 ```
 Closes the framebuffer and releases resources. The `Framebuffer` object must have `.Close()` called when it is no longer in use.
 
-### Encoding
-
-Once you have a `Framebuffer` containing the pixels as desired, you can
-encode them back into one of the supported compressed image formats using
-`lilliput.Encoder`.
+### Encoder
+The Encoder takes a Framebuffer and writes the pixels into a compressed format.
 
 ```go
-lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)
+func lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)
 ```
-will create a new Encoder object that writes to `dst`. `decodedBy` may be left as `nil`
-in most cases but is required when creating a `.gif` encoder. Additionally, `.gif` outputs
-require that the input is also `.gif`.
+Create a new Encoder object that writes to `dst`. `extension` should be a file extension-like string,
+e.g. `.jpeg` or `.png`. `decodedBy` should be the `Decoder` used to decompress the image, if any.
+`decodedBy` may be left as `nil` in most cases but is required when creating a `.gif` encoder. That is,
+`.gif` outputs can only be created from source GIFs.
 
 ```go
-Encoder.Encode(buffer lilliput.Framebuffer, opts map[int]int) error
+func (e lilliput.Encoder) Encode(buffer lilliput.Framebuffer, opts map[int]int) ([]byte, error)
 ```
-encodes the buffer supplied
-into the output `[]byte` given when the `Encoder` was created. `opts` is optional and may be left `nil`.
-It is used to control encoder behavior e.g. `map[int]int{lilliput.JpegQuality: 80}` to set JPEG output
-quality to `80`.
+Encodes the Framebuffer supplied into the output `dst` given when the `Encoder` was created. The
+returned []byte will point to the same buffer as `dst` but can be a shorter slice, so that if `dst`
+has 50MB of capacity but the image only occupies 30KB, you can tell where the image data ends. This
+function returns an error if the encoding process fails.
 
-Valid keys/values for `opts` are `JpegQuality` (1 - 100), `PngCompression` (0 - 9) and `WebpQuality` (0 - 100).
+`opts` is optional and may be left `nil`. It is used to control encoder behavior
+e.g. `map[int]int{lilliput.JpegQuality: 80}` to set JPEG outputquality to `80`.
 
-The `Encoder` object must have `.Close()` called when it is no longer in use.
+Valid keys/values for `opts` are
 
+* `JpegQuality` (1 - 100)
+* `PngCompression` (0 - 9)
+* `WebpQuality` (0 - 100).
+
+```go
+func (e lilliput.Encoder) Close()
+```
+Close the Encoder and release resources. The `Encoder` object must have `.Close()` called when it is no longer in use.
 
 ## Building Dependencies
 
