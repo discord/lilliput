@@ -67,7 +67,7 @@ use an ImageOps object.**
 ```go
 func (d lilliput.Decoder) Close()
 ```
-Closes the decoder and releases resources. The `Decoder` object must have
+Closes the decoder and releases resources. The Decoder object must have
 `.Close()` called when it is no longer in use.
 
 ### ImageOps
@@ -86,9 +86,11 @@ This object can be reused for multiple operations.
 func (o *lilliput.ImageOps) Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) ([]byte, error)
 ```
 Transform the compressed image contained in a Decoder object into the desired output type. **The decoder must not
-have DecodeTo() called on it already.** The resulting compressed image will be written into `dst`. The returned []byte
+have DecodeTo() called on it already.** However, it is ok to call `decoder.Header()` if you would like to check
+image properties before transforming the image. Returns an error if the resize or encoding process fails.
+
+The resulting compressed image will be written into `dst`. The returned []byte
 slice will point to the same region as `dst` but with a different length, so that you can tell where the image ends.
-Returns an error if the resize or encoding process fails.
 
 Fields for `lilliput.ImageOptions` are as follows
 
@@ -105,7 +107,7 @@ is the same as `Framebuffer.Fit()` -- it performs a cropping resize that does no
 normalize the output so that it is facing in the standard orientation. This will undo
 JPEG EXIF-based orientation.
 
-* `EncodeOptions`: Of type `map[int]int`, same options accepted as `Encoder.Encode()`. This
+* `EncodeOptions`: Of type `map[int]int`, same options accepted as [Encoder.Encode()](#encoder). This
 controls output encode quality.
 
 ```go
