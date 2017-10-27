@@ -55,8 +55,8 @@ if the decoding process fails. If the image contains multiple frames,
 then each call returns a subsequent frame. `io.EOF` is returned when the image
 does not contain any more data to be decoded.
 
-*** Users of lilliput generally should not call `DecodeTo` and should instead
-use an Ops object.***
+**Users of lilliput generally should not call `DecodeTo` and should instead
+use an ImageOps object.**
 
 ```go
 func (d lilliput.Decoder) Close()
@@ -64,24 +64,25 @@ func (d lilliput.Decoder) Close()
 Closes the decoder and releases resources. The `Decoder` object must have
 `.Close()` called when it is no longer in use.
 
-### Ops
-
-The previous process described for transforming images is somewhat burdensome. For that
-reason, lilliput also provides the `lilliput.Ops` object that can handle a combined
-resize and encode operation on an opened `Decoder`. This object also carefully manages
-objects so as to not create much garbage while running.
-
-```go
-lilliput.NewImageOps(dimension int)
-```
-creates an `Ops` object that can operate on images
-up to `dimension x dimension` pixels large.
+### ImageOps
+Lilliput provides a convenience object to handle image resizing and encoding from an
+open Decoder object. The ImageOps object can be created and then reused, which reduces memory
+allocations. Generally, users should prefer the ImageOps object over manually controlling
+the resize and encode process.
 
 ```go
-Ops.Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) error
+func lilliput.NewImageOps(dimension int) *lilliput.ImageOps
 ```
-takes a `Decoder` and decodes the image content within, writing the output to `dst` according to
-parameters specified in `opts`.
+Create an ImageOps object that can operate on images up to `dimension x dimension` pixels in size.
+This object can be reused for multiple operations.
+
+```go
+func (o *lilliput.ImageOps) Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) ([]byte, error)
+```
+Transform the compressed image contained in a Decoder object into the desired output type. **The decoder must not
+have DecodeTo() called on it already.** The resulting compressed image will be written into `dst`. The returned []byte
+slice will point to the same region as `dst` but with a different length, so that you can tell where the image ends.
+Returns an error if the resize or encoding process fails.
 
 Fields for `lilliput.ImageOptions` are as follows
 
@@ -92,16 +93,26 @@ Fields for `lilliput.ImageOptions` are as follows
 * `Height`: number of pixels of height of output image
 
 * `ResizeMethod`: one of `lilliput.ImageOpsNoResize` or `lilliput.ImageOpsFit`. `Fit` behavior
-is the same as `Framebuffer.Fit()` described previously.
+is the same as `Framebuffer.Fit()` -- it performs a cropping resize that does not stretch the image.
 
 * `NormalizeOrientation`: If `true`, `Transform()` will inspect the image orientation and
 normalize the output so that it is facing in the standard orientation. This will undo
-Jpeg EXIF-based orientation.
+JPEG EXIF-based orientation.
 
-* `EncodeOptions`: Of type `map[int]int`, same options accepted as `Encoder.Encode`. This
+* `EncodeOptions`: Of type `map[int]int`, same options accepted as `Encoder.Encode()`. This
 controls output encode quality.
 
-The `Ops` object must have `.Close()` called when it is no longer in use.
+```go
+func (o *lilliput.ImageOps) Clear()
+```
+Clear out all pixel data contained in ImageOps object from any previous operations.
+This function does not need to be called between Transform() calls. The user may choose
+to do this if they want to remove image data from memory.
+
+```go
+func (o *lilliput.ImageOps) Close()
+```
+Close the ImageOps object and release resources. The ImageOps object must have `.Close()` called when it is no longer in use.
 
 ### ImageHeader
 This interface returns basic metadata about an image. It is created by
@@ -144,7 +155,7 @@ Returns the number of channels per pixel, e.g. 3 for RGB or 4 for RGBA.
 
 ### Framebuffer
 This type contains a raw array of pixels, decompressed from an image.
-In general, you will want to use the Ops object instead of operating on
+In general, you will want to use the ImageOps object instead of operating on
 Framebuffers manually.
 
 ```go
@@ -211,7 +222,7 @@ The Encoder takes a Framebuffer and writes the pixels into a compressed format.
 func lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)
 ```
 Create a new Encoder object that writes to `dst`. `extension` should be a file extension-like string,
-e.g. `.jpeg` or `.png`. `decodedBy` should be the `Decoder` used to decompress the image, if any.
+e.g. `".jpeg"` or `".png"`. `decodedBy` should be the `Decoder` used to decompress the image, if any.
 `decodedBy` may be left as `nil` in most cases but is required when creating a `.gif` encoder. That is,
 `.gif` outputs can only be created from source GIFs.
 
