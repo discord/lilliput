@@ -111,7 +111,11 @@ func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
 }
 
-func (h *ImageHeader) NumFrames() int {
+// n.b. this function is unforunately fairly useless for now
+// it was hoped that this could return how many frames GIFs have
+// before decoding them, but it seems the only to know how many
+// frames there are is to decode the full gif
+func (h *ImageHeader) numFrames() int {
 	return h.numFrames
 }
 
