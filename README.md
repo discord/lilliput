@@ -7,7 +7,7 @@ decompressing, resizing and compressing images. It aims to do as little memory
 allocation as possible and especially not to create garbage in Go. As a result,
 it is suitable for very high throughput image resizing services.
 
-Lilliput supports resizing JPEG, PNG, WEBP and GIF. It can also convert formats.
+Lilliput supports resizing JPEG, PNG, WEBP and animated GIFs. It can also convert formats.
 Lilliput also has some support for getting the first frame from MOV and WEBM
 videos.
 
