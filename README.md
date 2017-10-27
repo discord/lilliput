@@ -20,6 +20,12 @@ resulting file.
 To use the example, `go get github.com/discordapp/lilliput` and then run
 `go build` from the examples/ directory.
 
+## License
+
+Lilliput is released under MIT license (see [LICENSE](LICENSE)). Additionally, lilliput ships with other
+libraries, each provided under its own license. See [third-party-licenses](third-party-licenses/) for
+more info.
+
 ## Usage
 
 First, `import "github.com/discordapp/lilliput"`.
@@ -257,8 +263,3 @@ OSX. In order to automate this process, lilliput ships with build scripts alongs
 compressed archives of the sources of its dependencies. These build scripts are provided
 for [OSX](deps/build-deps-osx.sh) and [Linux](deps/build-deps-linux.sh).
 
-## License
-
-Lilliput is released under MIT license (see [LICENSE](LICENSE)). Additionally, lilliput ships with other
-libraries, each provided under its own license. See [third-party-licenses](third-party-licenses/) for
-more info.
