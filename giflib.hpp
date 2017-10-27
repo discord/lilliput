@@ -1,5 +1,5 @@
-#ifndef C_GIFLIB_WRAPPER_H
-#define C_GIFLIB_WRAPPER_H
+#ifndef LILLIPUT_GIFLIB_HPP
+#define LILLIPUT_GIFLIB_HPP
 
 #include "opencv.hpp"
 

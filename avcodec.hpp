@@ -1,5 +1,5 @@
-#ifndef C_AVCODEC_WRAPPER_H
-#define C_AVCODEC_WRAPPER_H
+#ifndef LILLIPUT_AVCODEC_HPP
+#define LILLIPUT_AVCODEC_HPP
 
 #include "opencv.hpp"
 

@@ -1,8 +1,9 @@
-#ifndef C_WRAPPER_H
-#define C_WRAPPER_H
+#ifndef LILLIPUT_OPENCV_HPP
+#define LILLIPUT_OPENCV_HPP
 
 #include <stdbool.h>
 #include <stddef.h>
+
 #include <opencv2/core/fast_math.hpp>
 #include <opencv2/core/core_c.h>
 #include <opencv2/imgproc/types_c.h>
@@ -10,10 +11,9 @@
 
 #ifdef __cplusplus
 extern "C" {
-
 #endif
 
-// duplicated from opencv but without a namespace :)
+// duplicated from opencv but without a namespace
 typedef enum CVImageOrientation {
     CV_IMAGE_ORIENTATION_TL = 1, ///< Horizontal (normal)
     CV_IMAGE_ORIENTATION_TR = 2, ///< Mirrored horizontal
@@ -28,13 +28,6 @@ typedef enum CVImageOrientation {
 typedef void *opencv_mat;
 typedef void *opencv_decoder;
 typedef void *opencv_encoder;
-typedef void *vec;
-
-vec vec_create();
-void vec_release(vec v);
-size_t vec_copy(const vec v, void *buf, size_t buf_cap);
-size_t vec_size(const vec v);
-void vec_clear(const vec v);
 
 int opencv_type_depth(int type);
 int opencv_type_channels(int type);

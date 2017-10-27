@@ -32,34 +32,6 @@ void opencv_mat_release(opencv_mat mat) {
     delete m;
 }
 
-vec vec_create() {
-    return new std::vector<uchar>;
-}
-
-void vec_release(vec v) {
-    delete static_cast<std::vector<uchar> *>(v);
-}
-
-size_t vec_copy(const vec v, void *buf, size_t buf_cap) {
-    auto src = static_cast<std::vector<uchar> *>(v);
-    if (src->size() > buf_cap) {
-        return 0;
-    }
-    auto dst = static_cast<uint8_t *>(buf);
-    std::copy(src->begin(), src->end(), dst);
-    return src->end() - src->begin();
-}
-
-size_t vec_size(const vec v) {
-    auto src = static_cast<std::vector<uchar> *>(v);
-    return src->size();
-}
-
-void vec_clear(vec v) {
-    auto src = static_cast<std::vector<uchar> *>(v);
-    src->clear();
-}
-
 int opencv_type_depth(int type) {
     return CV_ELEM_SIZE1(type) * 8;
 }

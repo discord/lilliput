@@ -1,4 +1,4 @@
-#include "opencv_giflib.hpp"
+#include "giflib.hpp"
 #include "gif_lib.h"
 #include <stdbool.h>
 

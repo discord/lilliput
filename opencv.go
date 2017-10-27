@@ -13,10 +13,8 @@ package lilliput
 import "C"
 
 import (
-	"bytes"
 	"errors"
 	"io"
-	"strings"
 	"unsafe"
 )
 
@@ -35,23 +33,16 @@ var (
 	OrientationRightTop    = ImageOrientation(C.CV_IMAGE_ORIENTATION_RT)
 	OrientationRightBottom = ImageOrientation(C.CV_IMAGE_ORIENTATION_RB)
 	OrientationLeftBottom  = ImageOrientation(C.CV_IMAGE_ORIENTATION_LB)
-
-	ErrInvalidImage   = errors.New("unrecognized image format")
-	ErrDecodingFailed = errors.New("failed to decode image")
-	ErrBufTooSmall    = errors.New("buffer too small to hold image")
-
-	gif87Magic = []byte("GIF87a")
-	gif89Magic = []byte("GIF89a")
 )
 
 type PixelType int
 
-func (p PixelType) Depth() int {
-	return int(C.opencv_type_depth(C.int(p)))
-}
-
-func (p PixelType) Channels() int {
-	return int(C.opencv_type_channels(C.int(p)))
+type ImageHeader struct {
+	width       int
+	height      int
+	pixelType   PixelType
+	orientation ImageOrientation
+	numFrames   int
 }
 
 type Framebuffer struct {
@@ -62,21 +53,6 @@ type Framebuffer struct {
 	pixelType PixelType
 }
 
-type ImageHeader struct {
-	width       int
-	height      int
-	pixelType   PixelType
-	orientation ImageOrientation
-	numFrames   int
-}
-
-type Decoder interface {
-	Header() (*ImageHeader, error)
-	Close()
-	Description() string
-	DecodeTo(f *Framebuffer) error
-}
-
 type OpenCVDecoder struct {
 	decoder       C.opencv_decoder
 	mat           C.opencv_mat
@@ -84,15 +60,18 @@ type OpenCVDecoder struct {
 	hasDecoded    bool
 }
 
-type Encoder interface {
-	Encode(f *Framebuffer, opt map[int]int) ([]byte, error)
-	Close()
-}
-
 type OpenCVEncoder struct {
 	encoder C.opencv_encoder
 	dst     C.opencv_mat
 	dstBuf  []byte
+}
+
+func (p PixelType) Depth() int {
+	return int(C.opencv_type_depth(C.int(p)))
+}
+
+func (p PixelType) Channels() int {
+	return int(C.opencv_type_channels(C.int(p)))
 }
 
 func (h *ImageHeader) Width() int {
@@ -109,14 +88,6 @@ func (h *ImageHeader) PixelType() PixelType {
 
 func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
-}
-
-// n.b. this function is unforunately fairly useless for now
-// it was hoped that this could return how many frames GIFs have
-// before decoding them, but it seems the only to know how many
-// frames there are is to decode the full gif
-func (h *ImageHeader) numFrames() int {
-	return h.numFrames
 }
 
 // Allocate the backing store for a pixel frame buffer
@@ -229,24 +200,6 @@ func (f *Framebuffer) PixelType() PixelType {
 	return f.pixelType
 }
 
-func isGIF(maybeGIF []byte) bool {
-	return bytes.HasPrefix(maybeGIF, gif87Magic) || bytes.HasPrefix(maybeGIF, gif89Magic)
-}
-
-func NewDecoder(buf []byte) (Decoder, error) {
-	isBufGIF := isGIF(buf)
-	if isBufGIF {
-		return newGifDecoder(buf)
-	}
-
-	maybeDecoder, err := newOpenCVDecoder(buf)
-	if err == nil {
-		return maybeDecoder, nil
-	}
-
-	return newAVCodecDecoder(buf)
-}
-
 func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
@@ -314,14 +267,6 @@ func (d *OpenCVDecoder) DecodeTo(f *Framebuffer) error {
 	}
 	d.hasDecoded = true
 	return nil
-}
-
-func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
-	if strings.ToLower(ext) == ".gif" {
-		return newGifEncoder(decodedBy, dst)
-	}
-
-	return newOpenCVEncoder(ext, decodedBy, dst)
 }
 
 func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEncoder, error) {

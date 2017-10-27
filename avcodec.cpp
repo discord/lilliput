@@ -20,7 +20,6 @@ extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
 
-
 void avcodec_init() {
     av_register_input_format(&ff_mov_demuxer);
     av_register_input_format(&ff_matroska_demuxer);
