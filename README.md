@@ -11,6 +11,15 @@ Lilliput supports resizing JPEG, PNG, WEBP and GIF. It can also convert formats.
 Lilliput also has some support for getting the first frame from MOV and WEBM
 videos.
 
+## Example
+Lilliput comes with a [fully working example](examples/main.go) that runs on the command line. The
+example takes a user supplied filename and prints some basic info about the file.
+It then resizes and transcodes the image (if flags are supplied) and saves the
+resulting file.
+
+To use the example, `go get github.com/discordapp/lilliput` and then run
+`go build` from the examples/ directory.
+
 ## Usage
 
 First, `import "github.com/discordapp/lilliput"`.
@@ -29,13 +38,14 @@ one of the supported image types.
 ```go
 func (d lilliput.Decoder) Header() (lilliput.ImageHeader, error)
 ```
-Read and return the image's header. The header contains the image's height and width.
-Returns error if the image has a malformed header.
+Read and return the image's header. The header contains the image's metadata.
+Returns error if the image has a malformed header. An image with a malformed
+header cannot be decoded.
 
 ```go
 func (d lilliput.Decoder) Description() string
 ```
-Returns a string describing the image's type, e.g. `JPEG` or `PNG`.
+Returns a string describing the image's type, e.g. `"JPEG"` or `"PNG"`.
 
 ```go
 func (d lilliput.Decoder) DecodeTo(f *lilliput.Framebuffer) error
@@ -73,7 +83,8 @@ func (h lilliput.ImageHeader) Orientation() lilliput.ImageOrientation
 ```
 Returns the metadata-based orientation of the image. This function can
 be called on all image types but presently only detects orientation in
-JPEG images.
+JPEG images. An orientation value of 1 indicates default orientation.
+All other values indicate some kind of rotation or mirroring.
 
 ### PixelType
 

@@ -23,24 +23,24 @@ func main() {
 	var outputHeight int
 	var outputFilename string
 
+	flag.StringVar(&inputFilename, "input", "", "name of input file to resize/transcode")
 	flag.StringVar(&outputFilename, "output", "", "name of output file, also determines output type")
 	flag.IntVar(&outputWidth, "width", 0, "width of output file")
 	flag.IntVar(&outputHeight, "height", 0, "height of output file")
 	flag.Parse()
 
-	if flag.NArg() == 0 {
+	if inputFilename == "" {
 		fmt.Printf("No input filename provided, quitting.\n")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	inputFilename = flag.Args()[0]
-
+	// decoder wants []byte, so read the whole file into a buffer
 	inputBuf, err := ioutil.ReadFile(inputFilename)
 
-	// assume image is in inputBuffer of type []byte
 	decoder, err := lilliput.NewDecoder(inputBuf)
-	// this error reflects very basic checks, mostly
-	// just for the magic bytes of the file to match known image formats
+	// this error reflects very basic checks,
+	// mostly just for the magic bytes of the file to match known image formats
 	if err != nil {
 		fmt.Printf("error decoding image, %s\n", err)
 		os.Exit(1)
@@ -55,16 +55,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// print some basic info about the image
 	fmt.Printf("image type: %s\n", decoder.Description())
 	fmt.Printf("%dpx x %dpx\n", header.Width(), header.Height())
 
+	// get ready to resize image,
+	// using 8192x8192 maximum resize buffer size
 	ops := lilliput.NewImageOps(8192)
 	defer ops.Close()
 
+	// create a buffer to store the output image, 50MB in this case
 	outputImg := make([]byte, 50*1024*1024)
 
+	// use user supplied filename to guess output type if provided
+	// otherwise don't transcode (use existing type)
 	outputType := "." + strings.ToLower(decoder.Description())
-
 	if outputFilename != "" {
 		outputType = filepath.Ext(outputFilename)
 	}
@@ -86,12 +91,14 @@ func main() {
 		EncodeOptions:        EncodeOptions[outputType],
 	}
 
+	// resize and transcode image
 	outputImg, err = ops.Transform(decoder, opts, outputImg)
 	if err != nil {
 		fmt.Printf("error transforming image, %s\n", err)
 		os.Exit(1)
 	}
 
+	// image has been resized, now write file out
 	if outputFilename == "" {
 		outputFilename = "resized" + filepath.Ext(inputFilename)
 	}
