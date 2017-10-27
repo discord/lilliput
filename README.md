@@ -59,6 +59,45 @@ func (d lilliput.Decoder) Close()
 Closes the decoder and releases resources. The `Decoder` object must have
 `.Close()` called when it is no longer in use.
 
+### Ops
+
+The previous process described for transforming images is somewhat burdensome. For that
+reason, lilliput also provides the `lilliput.Ops` object that can handle a combined
+resize and encode operation on an opened `Decoder`. This object also carefully manages
+objects so as to not create much garbage while running.
+
+```go
+lilliput.NewImageOps(dimension int)
+```
+creates an `Ops` object that can operate on images
+up to `dimension x dimension` pixels large.
+
+```go
+Ops.Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) error
+```
+takes a `Decoder` and decodes the image content within, writing the output to `dst` according to
+parameters specified in `opts`.
+
+Fields for `lilliput.ImageOptions` are as follows
+
+* `FileType`: file extension type, e.g. `".jpeg"`
+
+* `Width`: number of pixels of width of output image
+
+* `Height`: number of pixels of height of output image
+
+* `ResizeMethod`: one of `lilliput.ImageOpsNoResize` or `lilliput.ImageOpsFit`. `Fit` behavior
+is the same as `Framebuffer.Fit()` described previously.
+
+* `NormalizeOrientation`: If `true`, `Transform()` will inspect the image orientation and
+normalize the output so that it is facing in the standard orientation. This will undo
+Jpeg EXIF-based orientation.
+
+* `EncodeOptions`: Of type `map[int]int`, same options accepted as `Encoder.Encode`. This
+controls output encode quality.
+
+The `Ops` object must have `.Close()` called when it is no longer in use.
+
 ### ImageHeader
 This interface returns basic metadata about an image. It is created by
 calling `Decoder.Header()`.
@@ -100,19 +139,65 @@ Returns the number of channels per pixel, e.g. 3 for RGB or 4 for RGBA.
 
 ### Framebuffer
 This type contains a raw array of pixels, decompressed from an image.
+In general, you will want to use the Ops object instead of operating on
+Framebuffers manually.
 
-`lilliput.Framebuffer` objects support two kinds of resizing.
+```go
+func lilliput.NewFramebuffer(width, height int) *lilliput.Framebuffer
+```
+Create a new Framebuffer with given dimensions without any pixel data.
 
-* `Framebuffer.ResizeTo(width, height int, dst *Framebuffer) error` resizes a
-source `Framebuffer` into a destination `Framebuffer`. This method does not preserve
-aspect ratio.
+```go
+func (f *lilliput.Framebuffer) Clear()
+```
+Set contents of framebuffer to 0, clearing out any previous pixel data.
 
-* `Framebuffer.Fit(width, height int, dst *Framebuffer) error` resizes a source
-`Framebuffer` into a destination `Framebuffer`. This method does preserve aspect
-ratio and will do cropping on one dimension if necessary in order to get
-the new image to fit within the constraints specified.
+```go
+func (f *lilliput.Framebuffer) Width() int
+```
+Returns the width in number of pixels of the contained pixel data, if any.
+This does not return the capacity of the buffer.
 
-The `Framebuffer` object must have `.Close()` called when it is no longer in use.
+```go
+func (f *lilliput.Framebuffer) Height() int
+```
+Returns the height in number of pixels of the contained pixel data, if any.
+This does not return the capacity of the buffer.
+
+```go
+func (f *lilliput.Framebuffer) PixelType() lilliput.PixelType
+```
+Returns the `PixelType` of the contained pixel data, if any.
+
+```go
+func (f *lilliput.Framebuffer) OrientationTransform(orientation lilliput.ImageOrientation)
+```
+Rotate and/or mirror framebuffer according to orientation value. If you
+pass the `orientation` value given by the image's `ImageHeader`, the result
+will be that the resulting image has its orientation normalized to the
+default orientation.
+
+```go
+func (f *lilliput.Framebuffer) ResizeTo(width, height int, dst *lilliput.Framebuffer) error
+```
+Perform a resize into `dst` of `f` according to given dimensions. This function does not
+preserve the source's aspect ratio if the new dimensions have a different ratio. The
+resize can fail if the destination is not large enough to hold the new image.
+
+```go
+func (f *lilliput.Framebuffer) Fit(width, height int, dst *lilliput.Framebuffer) error
+```
+Perform a cropping resize into `dst` of `f` according to given dimensions. This function
+does preserve the source's aspect ratio. The image will be cropped along one axis if
+the new dimensions have a different ratio than the source. The cropping will occur equally
+on the edges, e.g. if the image is too tall for the new ratio, then the destination will
+have rows of pixels from the top and bottom removed. Returns error if the destination is
+not large enough to contain the resized image.
+
+```go
+func (f *lilliput.Framebuffer) Close()
+```
+Closes the framebuffer and releases resources. The `Framebuffer` object must have `.Close()` called when it is no longer in use.
 
 ### Encoding
 
@@ -139,44 +224,6 @@ Valid keys/values for `opts` are `JpegQuality` (1 - 100), `PngCompression` (0 - 
 
 The `Encoder` object must have `.Close()` called when it is no longer in use.
 
-### Ops
-
-The previous process described for transforming images is somewhat burdensome. For that
-reason, lilliput also provides the `lilliput.Ops` object that can handle a combined
-resize and encode operation on an opened `Decoder`. This object also carefully manages
-objects so as to not create much garbage while running.
-
-```go
-lilliput.NewImageOps(dimension int)
-```
-creates an `Ops` object that can operate on images
-up to `dimension x dimension` pixels large.
-
-```go
-Ops.Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) error
-```
-takes a `Decoder` and decodes the image content within, writing the output to `dst` according to
-parameters specified in `opts`.
-
-Fields for `lilliput.ImageOptions` are as follows
-
-* `FileType`: file extension type, e.g. `".jpeg"`
-
-* `Width`: number of pixels of width of output image
-
-* `Height`: number of pixels of height of output image
-
-* `ResizeMethod`: one of `lilliput.ImageOpsNoResize` or `lilliput.ImageOpsFit`. `Fit` behavior
-is the same as `Framebuffer.Fit()` described previously.
-
-* `NormalizeOrientation`: If `true`, `Transform()` will inspect the image orientation and
-normalize the output so that it is facing in the standard orientation. This will undo
-Jpeg EXIF-based orientation.
-
-* `EncodeOptions`: Of type `map[int]int`, same options accepted as `Encoder.Encode`. This
-controls output encode quality.
-
-The `Ops` object must have `.Close()` called when it is no longer in use.
 
 ## Building Dependencies
 
