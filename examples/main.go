@@ -22,11 +22,13 @@ func main() {
 	var outputWidth int
 	var outputHeight int
 	var outputFilename string
+	var stretch bool
 
 	flag.StringVar(&inputFilename, "input", "", "name of input file to resize/transcode")
 	flag.StringVar(&outputFilename, "output", "", "name of output file, also determines output type")
 	flag.IntVar(&outputWidth, "width", 0, "width of output file")
 	flag.IntVar(&outputHeight, "height", 0, "height of output file")
+	flag.BoolVar(&stretch, "stretch", false, "perform stretching resize instead of cropping")
 	flag.Parse()
 
 	if inputFilename == "" {
@@ -82,11 +84,16 @@ func main() {
 		outputHeight = header.Height()
 	}
 
+	resizeMethod := lilliput.ImageOpsFit
+	if stretch {
+		resizeMethod = lilliput.ImageOpsResize
+	}
+
 	opts := &lilliput.ImageOptions{
 		FileType:             outputType,
 		Width:                outputWidth,
 		Height:               outputHeight,
-		ResizeMethod:         lilliput.ImageOpsFit,
+		ResizeMethod:         resizeMethod,
 		NormalizeOrientation: true,
 		EncodeOptions:        EncodeOptions[outputType],
 	}
