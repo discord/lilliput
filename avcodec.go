@@ -17,13 +17,13 @@ import (
 	"unsafe"
 )
 
-type AVCodecDecoder struct {
+type avCodecDecoder struct {
 	decoder    C.avcodec_decoder
 	mat        C.opencv_mat
 	hasDecoded bool
 }
 
-func newAVCodecDecoder(buf []byte) (*AVCodecDecoder, error) {
+func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	if mat == nil {
@@ -36,17 +36,17 @@ func newAVCodecDecoder(buf []byte) (*AVCodecDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	return &AVCodecDecoder{
+	return &avCodecDecoder{
 		decoder: decoder,
 		mat:     mat,
 	}, nil
 }
 
-func (d *AVCodecDecoder) Description() string {
+func (d *avCodecDecoder) Description() string {
 	return C.GoString(C.avcodec_decoder_get_description(d.decoder))
 }
 
-func (d *AVCodecDecoder) Header() (*ImageHeader, error) {
+func (d *avCodecDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
 		width:       int(C.avcodec_decoder_get_width(d.decoder)),
 		height:      int(C.avcodec_decoder_get_height(d.decoder)),
@@ -56,7 +56,7 @@ func (d *AVCodecDecoder) Header() (*ImageHeader, error) {
 	}, nil
 }
 
-func (d *AVCodecDecoder) DecodeTo(f *Framebuffer) error {
+func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	if d.hasDecoded {
 		return io.EOF
 	}
@@ -76,7 +76,7 @@ func (d *AVCodecDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func (d *AVCodecDecoder) Close() {
+func (d *avCodecDecoder) Close() {
 	C.avcodec_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 }

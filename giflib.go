@@ -19,13 +19,13 @@ import (
 	"unsafe"
 )
 
-type GifDecoder struct {
+type gifDecoder struct {
 	decoder    C.giflib_decoder
 	mat        C.opencv_mat
 	frameIndex int
 }
 
-type GifEncoder struct {
+type gifEncoder struct {
 	encoder    C.giflib_encoder
 	decoder    C.giflib_decoder
 	buf        []byte
@@ -41,11 +41,14 @@ var (
 	ErrGifEncoderNeedsDecoder = errors.New("GIF encoder needs decoder used to create image")
 )
 
+// SetGIFMaxFrameDimension sets the largest GIF width/height that can be
+// decoded
 func SetGIFMaxFrameDimension(dim uint64) {
+	// TODO we should investigate if this can be removed/become a mat check in decoder
 	atomic.StoreUint64(&gifMaxFrameDimension, dim)
 }
 
-func newGifDecoder(buf []byte) (*GifDecoder, error) {
+func newGifDecoder(buf []byte) (*gifDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	if mat == nil {
@@ -57,14 +60,14 @@ func newGifDecoder(buf []byte) (*GifDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	return &GifDecoder{
+	return &gifDecoder{
 		decoder:    decoder,
 		mat:        mat,
 		frameIndex: 0,
 	}, nil
 }
 
-func (d *GifDecoder) Header() (*ImageHeader, error) {
+func (d *gifDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
 		width:       int(C.giflib_decoder_get_width(d.decoder)),
 		height:      int(C.giflib_decoder_get_height(d.decoder)),
@@ -74,7 +77,7 @@ func (d *GifDecoder) Header() (*ImageHeader, error) {
 	}, nil
 }
 
-func (d *GifDecoder) FrameHeader() (*ImageHeader, error) {
+func (d *gifDecoder) FrameHeader() (*ImageHeader, error) {
 	return &ImageHeader{
 		width:       int(C.giflib_decoder_get_frame_width(d.decoder)),
 		height:      int(C.giflib_decoder_get_frame_height(d.decoder)),
@@ -84,16 +87,16 @@ func (d *GifDecoder) FrameHeader() (*ImageHeader, error) {
 	}, nil
 }
 
-func (d *GifDecoder) Close() {
+func (d *gifDecoder) Close() {
 	C.giflib_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 }
 
-func (d *GifDecoder) Description() string {
+func (d *gifDecoder) Description() string {
 	return "GIF"
 }
 
-func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
+func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
 		return err
@@ -129,14 +132,14 @@ func (d *GifDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
+func newGifEncoder(decodedBy Decoder, buf []byte) (*gifEncoder, error) {
 	// we must have a decoder since we can't build our own palettes
 	// so if we don't get a gif decoder, bail out
 	if decodedBy == nil {
 		return nil, ErrGifEncoderNeedsDecoder
 	}
 
-	gifDecoder, ok := decodedBy.(*GifDecoder)
+	gifDecoder, ok := decodedBy.(*gifDecoder)
 	if !ok {
 		return nil, ErrGifEncoderNeedsDecoder
 	}
@@ -147,7 +150,7 @@ func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 		return nil, ErrBufTooSmall
 	}
 
-	return &GifEncoder{
+	return &gifEncoder{
 		encoder:    enc,
 		decoder:    gifDecoder.decoder,
 		buf:        buf,
@@ -155,7 +158,7 @@ func newGifEncoder(decodedBy Decoder, buf []byte) (*GifEncoder, error) {
 	}, nil
 }
 
-func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
+func (e *gifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.hasFlushed {
 		return nil, io.EOF
 	}
@@ -187,7 +190,7 @@ func (e *GifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	return nil, nil
 }
 
-func (e *GifEncoder) Close() {
+func (e *gifEncoder) Close() {
 	C.giflib_encoder_release(e.encoder)
 }
 

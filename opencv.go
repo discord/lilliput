@@ -18,6 +18,7 @@ import (
 	"unsafe"
 )
 
+// ImageOrientation describes how the decoded image is oriented according to its metadata.
 type ImageOrientation int
 
 var (
@@ -35,8 +36,10 @@ var (
 	OrientationLeftBottom  = ImageOrientation(C.CV_IMAGE_ORIENTATION_LB)
 )
 
+// PixelType describes the base pixel type of the image.
 type PixelType int
 
+// ImageHeader contains basic decoded image metadata.
 type ImageHeader struct {
 	width       int
 	height      int
@@ -45,6 +48,7 @@ type ImageHeader struct {
 	numFrames   int
 }
 
+// Framebuffer contains an array of raw, decoded pixel data.
 type Framebuffer struct {
 	buf       []byte
 	mat       C.opencv_mat
@@ -53,45 +57,50 @@ type Framebuffer struct {
 	pixelType PixelType
 }
 
-type OpenCVDecoder struct {
+type openCVDecoder struct {
 	decoder       C.opencv_decoder
 	mat           C.opencv_mat
 	hasReadHeader bool
 	hasDecoded    bool
 }
 
-type OpenCVEncoder struct {
+type openCVEncoder struct {
 	encoder C.opencv_encoder
 	dst     C.opencv_mat
 	dstBuf  []byte
 }
 
+// Depth returns the number of bits in the PixelType.
 func (p PixelType) Depth() int {
 	return int(C.opencv_type_depth(C.int(p)))
 }
 
+// Channels returns the number of channels in the PixelType.
 func (p PixelType) Channels() int {
 	return int(C.opencv_type_channels(C.int(p)))
 }
 
+// Width returns the width of the image in number of pixels.
 func (h *ImageHeader) Width() int {
 	return h.width
 }
 
+// Height returns the height of the image in number of pixels.
 func (h *ImageHeader) Height() int {
 	return h.height
 }
 
+// PixelType returns a PixelType describing the image's pixels.
 func (h *ImageHeader) PixelType() PixelType {
 	return h.pixelType
 }
 
+// ImageOrientation returns the metadata-based image orientation.
 func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
 }
 
-// Allocate the backing store for a pixel frame buffer
-// Make it big enough to hold width*height, 4 channels, 8 bits per pixel
+// NewFramebuffer creates the backing store for a pixel frame buffer.
 func NewFramebuffer(width, height int) *Framebuffer {
 	return &Framebuffer{
 		buf: make([]byte, width*height*4),
@@ -99,6 +108,7 @@ func NewFramebuffer(width, height int) *Framebuffer {
 	}
 }
 
+// Close releases the resources associated with Framebuffer.
 func (f *Framebuffer) Close() {
 	if f.mat != nil {
 		C.opencv_mat_release(f.mat)
@@ -106,6 +116,7 @@ func (f *Framebuffer) Close() {
 	}
 }
 
+// Clear resets all of the pixel data in Framebuffer.
 func (f *Framebuffer) Clear() {
 	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
 }
@@ -126,6 +137,8 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	return nil
 }
 
+// OrientationTransform rotates and/or mirrors the Framebuffer. Passing the
+// orientation given by the ImageHeader will normalize the orientation of the Framebuffer.
 func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 	if f.mat == nil {
 		return
@@ -136,6 +149,10 @@ func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 	f.height = int(C.opencv_mat_get_height(f.mat))
 }
 
+// ResizeTo performs a resizing transform on the Framebuffer and puts the result
+// in the provided destination Framebuffer. This function does not preserve aspect
+// ratio if the given dimensions differ in ratio from the source. Returns an error
+// if the destination is not large enough to hold the given dimensions.
 func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 	err := dst.resizeMat(width, height, f.pixelType)
 	if err != nil {
@@ -145,7 +162,11 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 	return nil
 }
 
-// Fit operator is taken from PIL's fit()
+// Fit performs a resizing and cropping transform on the Framebuffer and puts the result
+// in the provided destination Framebuffer. This function does preserve aspect ratio
+// but will crop columns or rows from the edges of the image as necessary in order to
+// keep from stretching the image content. Returns an error if the destination is
+// not large enough to hold the given dimensions.
 func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	if f.mat == nil {
 		return errors.New("Framebuffer contains no pixels")
@@ -188,19 +209,24 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	return nil
 }
 
+// Width returns the width of the contained pixel data in number of pixels. This may
+// differ from the capacity of the framebuffer.
 func (f *Framebuffer) Width() int {
 	return f.width
 }
 
+// Height returns the height of the contained pixel data in number of pixels. This may
+// differ from the capacity of the framebuffer.
 func (f *Framebuffer) Height() int {
 	return f.height
 }
 
+// PixelType returns the PixelType information of the contained pixel data, if any.
 func (f *Framebuffer) PixelType() PixelType {
 	return f.pixelType
 }
 
-func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
+func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	// this next check is sort of silly since this array is 1-dimensional
@@ -216,13 +242,13 @@ func newOpenCVDecoder(buf []byte) (*OpenCVDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	return &OpenCVDecoder{
+	return &openCVDecoder{
 		mat:     mat,
 		decoder: decoder,
 	}, nil
 }
 
-func (d *OpenCVDecoder) Header() (*ImageHeader, error) {
+func (d *openCVDecoder) Header() (*ImageHeader, error) {
 	if !d.hasReadHeader {
 		if !C.opencv_decoder_read_header(d.decoder) {
 			return nil, ErrInvalidImage
@@ -240,16 +266,16 @@ func (d *OpenCVDecoder) Header() (*ImageHeader, error) {
 	}, nil
 }
 
-func (d *OpenCVDecoder) Close() {
+func (d *openCVDecoder) Close() {
 	C.opencv_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 }
 
-func (d *OpenCVDecoder) Description() string {
+func (d *openCVDecoder) Description() string {
 	return C.GoString(C.opencv_decoder_get_description(d.decoder))
 }
 
-func (d *OpenCVDecoder) DecodeTo(f *Framebuffer) error {
+func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
 	if d.hasDecoded {
 		return io.EOF
 	}
@@ -269,7 +295,7 @@ func (d *OpenCVDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEncoder, error) {
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 
@@ -284,14 +310,14 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEnco
 		return nil, ErrInvalidImage
 	}
 
-	return &OpenCVEncoder{
+	return &openCVEncoder{
 		encoder: enc,
 		dst:     dst,
 		dstBuf:  dstBuf,
 	}, nil
 }
 
-func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
+func (e *openCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if f == nil {
 		return nil, io.EOF
 	}
@@ -320,7 +346,7 @@ func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 	return e.dstBuf[:length], nil
 }
 
-func (e *OpenCVEncoder) Close() {
+func (e *openCVEncoder) Close() {
 	C.opencv_encoder_release(e.encoder)
 	C.opencv_mat_release(e.dst)
 }
