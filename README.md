@@ -15,54 +15,80 @@ videos.
 
 First, `import "github.com/discordapp/lilliput"`.
 
-### Decoding
-Lilliput is concerned with in-memory images. So let's first assume we have some
-content we think is an image in a `[]byte` (we can get this from a file with
-`ioutil.ReadAll`).
+### Decoder
+Lilliput is concerned with in-memory images, so the decoder requires image
+data to be in a []byte buffer.
 
+```go
+func lilliput.NewDecoder([]byte buf) (lilliput.Decoder, error)
 ```
-// assume image is in inputBuffer of type []byte
-decoder, err := lilliput.NewDecoder(inputBuf)
-// this error reflects very basic checks, mostly
-// just for the magic bytes of the file to match known image formats
-if err != nil {
-    fmt.Printf("error decoding image, %s\n", err)
-    return
-}
-defer decoder.Close()
+Create a new `Decoder` object from the compressed image contained by `buf`.
+This will return an error when the magic bytes of the buffer don't match
+one of the supported image types.
 
-header, err := decoder.Header()
-// this error is much more comprehensive and reflects
-// format errors
-if err != nil {
-    fmt.Printf("error reading image header, %s\n", err)
-    return
-}
-
-fmt.Printf("image type: %s\n", decoder.Description())
-fmt.Printf("%dpx x %dpx\n", header.Width(), header.Height())
-
-// now create a place to store the raw pixels (frame buffer)
-frame := lilliput.NewFrameBuffer(4096, 4096)
-defer frame.Close()
-
-// finally, decode the image itself
-// until we call this, no work will be done in decompressing
-// reading the header is cheap and allows us to reject images
-// if we don't want to support the type or image size
-err = decoder.DecodeTo(frame)
-if err != nil {
-    fmt.Printf("error decoding image, %s\n", err)
-    return
-}
+```go
+func (d lilliput.Decoder) Header() (lilliput.ImageHeader, error)
 ```
+Read and return the image's header. The header contains the image's height and width.
+Returns error if the image has a malformed header.
 
-This example leaves us with a frame buffer containing the content of the
-decompressed image (in `frame`).
+```go
+func (d lilliput.Decoder) Description() string
+```
+Returns a string describing the image's type, e.g. `JPEG` or `PNG`.
 
-The `Decoder` object must have `.Close()` called when it is no longer in use.
+```go
+func (d lilliput.Decoder) DecodeTo(f *lilliput.Framebuffer) error
+```
+Fully decodes the image and writes its pixel data to `f`. Returns an error
+if the decoding process fails.
 
-### Resizing
+```go
+func (d lilliput.Decoder) Close()
+```
+Closes the decoder and releases resources. The `Decoder` object must have
+`.Close()` called when it is no longer in use.
+
+### ImageHeader
+This interface returns basic metadata about an image. It is created by
+calling `Decoder.Header()`.
+
+```go
+func (h lilliput.ImageHeader) Width() int
+```
+Returns the image's width in number of pixels.
+
+```go
+func (h lilliput.ImageHeader) Height() int
+```
+Returns the image's height in number of pixels.
+
+```go
+func (h lilliput.ImageHeader) PixelType() lilliput.PixelType
+```
+Returns the basic pixel type for the image's pixels.
+
+```go
+func (h lilliput.ImageHeader) Orientation() lilliput.ImageOrientation
+```
+Returns the metadata-based orientation of the image. This function can
+be called on all image types but presently only detects orientation in
+JPEG images.
+
+### PixelType
+
+```go
+func (p lilliput.PixelType) Depth() int
+```
+Returns the number of bits per pixel.
+
+```go
+func (p lilliput.PixelType) Channels() int
+```
+Returns the number of channels per pixel, e.g. 3 for RGB or 4 for RGBA.
+
+### Framebuffer
+This type contains a raw array of pixels, decompressed from an image.
 
 `lilliput.Framebuffer` objects support two kinds of resizing.
 
@@ -83,12 +109,17 @@ Once you have a `Framebuffer` containing the pixels as desired, you can
 encode them back into one of the supported compressed image formats using
 `lilliput.Encoder`.
 
-`lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)`
+```go
+lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)
+```
 will create a new Encoder object that writes to `dst`. `decodedBy` may be left as `nil`
 in most cases but is required when creating a `.gif` encoder. Additionally, `.gif` outputs
 require that the input is also `.gif`.
 
-`Encoder.Encode(buffer lilliput.Framebuffer, opts map[int]int) error` encodes the buffer supplied
+```go
+Encoder.Encode(buffer lilliput.Framebuffer, opts map[int]int) error
+```
+encodes the buffer supplied
 into the output `[]byte` given when the `Encoder` was created. `opts` is optional and may be left `nil`.
 It is used to control encoder behavior e.g. `map[int]int{lilliput.JpegQuality: 80}` to set JPEG output
 quality to `80`.
@@ -104,11 +135,16 @@ reason, lilliput also provides the `lilliput.Ops` object that can handle a combi
 resize and encode operation on an opened `Decoder`. This object also carefully manages
 objects so as to not create much garbage while running.
 
-`lilliput.NewImageOps(dimension int)` creates an `Ops` object that can operate on images
+```go
+lilliput.NewImageOps(dimension int)
+```
+creates an `Ops` object that can operate on images
 up to `dimension x dimension` pixels large.
 
-`Ops.Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) error` takes
-a `Decoder` and decodes the image content within, writing the output to `dst` according to
+```go
+Ops.Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) error
+```
+takes a `Decoder` and decodes the image content within, writing the output to `dst` according to
 parameters specified in `opts`.
 
 Fields for `lilliput.ImageOptions` are as follows
