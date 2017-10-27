@@ -343,6 +343,9 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*OpenCVEnco
 }
 
 func (e *OpenCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
+	if f == nil {
+		return nil, io.EOF
+	}
 	var optList []C.int
 	var firstOpt *C.int
 	for k, v := range opt {
