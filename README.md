@@ -19,8 +19,10 @@ example takes a user supplied filename and prints some basic info about the file
 It then resizes and transcodes the image (if flags are supplied) and saves the
 resulting file.
 
-To use the example, `go get github.com/discordapp/lilliput` and then run
-`go build` from the examples/ directory.
+To use the example:
+1. `go get github.com/discordapp/lilliput`
+2. Then run the build script from the deps/ directory.
+3. Finally run `go build` from the examples/ directory.
 
 ## License
 
