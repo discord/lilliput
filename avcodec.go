@@ -51,7 +51,7 @@ func (d *avCodecDecoder) Header() (*ImageHeader, error) {
 		width:       int(C.avcodec_decoder_get_width(d.decoder)),
 		height:      int(C.avcodec_decoder_get_height(d.decoder)),
 		pixelType:   PixelType(C.CV_8UC4),
-		orientation: OrientationTopLeft,
+		orientation: ImageOrientation(C.avcodec_decoder_get_orientation(d.decoder)),
 		numFrames:   1,
 	}, nil
 }

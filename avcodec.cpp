@@ -157,6 +157,27 @@ int avcodec_decoder_get_height(const avcodec_decoder d) {
     return 0;
 }
 
+int avcodec_decoder_get_orientation(const avcodec_decoder d) {
+    CVImageOrientation orientation = CV_IMAGE_ORIENTATION_TL;
+    AVDictionaryEntry *tag = av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
+    if (!tag) {
+        return orientation;
+    }
+    int rotation = atoi(tag->value);
+    switch (rotation) {
+    case 90:
+        orientation = CV_IMAGE_ORIENTATION_RT;
+        break;
+    case 180:
+        orientation = CV_IMAGE_ORIENTATION_BR;
+        break;
+    case 270:
+        orientation = CV_IMAGE_ORIENTATION_LB;
+        break;
+    }
+    return orientation;
+}
+
 const char *avcodec_decoder_get_description(const avcodec_decoder d) {
     if (d->container) {
         if (d->container->iformat == &ff_mov_demuxer) {
