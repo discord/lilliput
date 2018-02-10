@@ -126,6 +126,9 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 		C.opencv_mat_release(f.mat)
 		f.mat = nil
 	}
+	if pixelType.Depth() > 8 {
+		pixelType = PixelType(C.opencv_type_convert_depth(C.int(pixelType), C.CV_8U))
+	}
 	newMat := C.opencv_mat_create_from_data(C.int(width), C.int(height), C.int(pixelType), unsafe.Pointer(&f.buf[0]), C.size_t(len(f.buf)))
 	if newMat == nil {
 		return ErrBufTooSmall

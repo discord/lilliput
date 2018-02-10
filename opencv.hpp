@@ -31,6 +31,7 @@ typedef void *opencv_encoder;
 
 int opencv_type_depth(int type);
 int opencv_type_channels(int type);
+int opencv_type_convert_depth(int type, int depth);
 
 opencv_decoder opencv_decoder_create(const opencv_mat buf);
 const char *opencv_decoder_get_description(const opencv_decoder d);

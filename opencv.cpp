@@ -40,6 +40,10 @@ int opencv_type_channels(int type) {
     return CV_MAT_CN(type);
 }
 
+int opencv_type_convert_depth(int t, int depth) {
+    return CV_MAKETYPE(depth, CV_MAT_CN(t));
+}
+
 opencv_decoder opencv_decoder_create(const opencv_mat buf) {
     auto mat = static_cast<const cv::Mat *>(buf);
     cv::ImageDecoder *d = new cv::ImageDecoder(*mat);
