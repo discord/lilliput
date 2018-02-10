@@ -39,6 +39,10 @@ func main() {
 
 	// decoder wants []byte, so read the whole file into a buffer
 	inputBuf, err := ioutil.ReadFile(inputFilename)
+	if err != nil {
+		fmt.Printf("failed to read input file, %s\n", err)
+		os.Exit(1)
+	}
 
 	decoder, err := lilliput.NewDecoder(inputBuf)
 	// this error reflects very basic checks,
