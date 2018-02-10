@@ -200,10 +200,10 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         // XXX make this below use mat's width/height
         uint8_t *data_ptrs[4];
         int linesizes[4];
-        // XXX the magic value here (16) is the alignment of the array here. apparently 32 is needed for full SIMD
-        // utility but sometimes produces corrupted frames. 16 seems to alleviate that. Going down to 1 may fix
+        // XXX the magic value here (4) is the alignment of the array here. apparently 32 is needed for full SIMD
+        // utility but sometimes produces corrupted frames. 4 seems to alleviate that. Going down to 1 may fix
         // some bugs, in theory
-        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 16);
+        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 4);
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
         sws_freeContext(sws);
     }
