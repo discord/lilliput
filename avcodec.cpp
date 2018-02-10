@@ -200,7 +200,7 @@ static bool avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, 
         // XXX make this below use mat's width/height
         uint8_t *data_ptrs[4];
         int linesizes[4];
-        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 32);
+        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 16);
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
         sws_freeContext(sws);
         return true;
