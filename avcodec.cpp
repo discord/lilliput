@@ -189,7 +189,7 @@ const char *avcodec_decoder_get_description(const avcodec_decoder d) {
     return "";
 }
 
-static bool avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame *frame) {
+static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame *frame) {
     auto cvMat = static_cast<cv::Mat *>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
@@ -203,45 +203,48 @@ static bool avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, 
         av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 32);
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
         sws_freeContext(sws);
-        return true;
     }
 
-    return false;
+    return res;
 }
 
-static bool avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket *packet) {
+static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket *packet) {
     int res = avcodec_send_packet(d->codec, packet);
     if (res < 0) {
-        return false;
+        return res;
     }
 
     AVFrame *frame = av_frame_alloc();
     if (!frame) {
-        return false;
+        return -1;
     }
 
-    bool success = avcodec_decoder_copy_frame(d, mat, frame);
-
+    res = avcodec_decoder_copy_frame(d, mat, frame);
     av_frame_free(&frame);
-    return success;
+
+    return res;
 }
 
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
     AVPacket packet;
-    while (true) {
+    bool done = false;
+    bool success = false;
+    while (!done) {
         int res = av_read_frame(d->container, &packet);
         if (res < 0) {
             return false;
         }
         if (packet.stream_index == d->video_stream_index) {
-            break;
+            res = avcodec_decoder_decode_packet(d, mat, &packet);
+            if (res >= 0) {
+                success = true;
+                done = true;
+            } else if (res != AVERROR(EAGAIN)) {
+                done = true;
+            }
         }
         av_packet_unref(&packet);
     }
-
-    bool success = avcodec_decoder_decode_packet(d, mat, &packet);
-
-    av_packet_unref(&packet);
     return success;
 }
 
