@@ -21,7 +21,7 @@ import (
 // ImageOrientation describes how the decoded image is oriented according to its metadata.
 type ImageOrientation int
 
-var (
+const (
 	JpegQuality    = int(C.CV_IMWRITE_JPEG_QUALITY)
 	PngCompression = int(C.CV_IMWRITE_PNG_COMPRESSION)
 	WebpQuality    = int(C.CV_IMWRITE_WEBP_QUALITY)
