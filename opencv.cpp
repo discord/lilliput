@@ -12,7 +12,9 @@ opencv_mat opencv_mat_create_from_data(int width, int height, int type, void *da
     if (total_size > data_len) {
         return NULL;
     }
-    return new cv::Mat(height, width, type, data);
+    auto mat = new cv::Mat(height, width, type, data);
+    mat->datalimit = (uint8_t*)data + data_len;
+    return mat;
 }
 
 opencv_mat opencv_mat_create_empty_from_data(int length, void *data) {
@@ -25,6 +27,32 @@ opencv_mat opencv_mat_create_empty_from_data(int length, void *data) {
     mat->datalimit = mat->data + length;
 
     return mat;
+}
+
+bool opencv_mat_set_row_stride(opencv_mat mat, size_t stride) {
+    auto m = static_cast<cv::Mat *>(mat);
+    if (m->step == stride) {
+        return true;
+    }
+    size_t width = m->cols;
+    size_t height = m->rows;
+    auto type = m->type();
+    auto width_stride = width * CV_ELEM_SIZE(type);
+    if (stride < width_stride) {
+        return false;
+    }
+    if (m->step != width_stride) {
+        // refuse to set the stride if it's already set
+        // the math for that is confusing and probably unnecessary to figure out
+        return false;
+    }
+    size_t total_size = stride * height;
+    if ((m->datastart + total_size) > m->datalimit) {
+        // don't exceed end of data array
+        return false;
+    }
+    m->step = stride;
+    return true;
 }
 
 void opencv_mat_release(opencv_mat mat) {

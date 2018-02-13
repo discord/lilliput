@@ -47,6 +47,7 @@ bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width, int height, int type, void *data, size_t data_len);
 opencv_mat opencv_mat_create_empty_from_data(int length, void *data);
+bool opencv_mat_set_row_stride(opencv_mat mat, size_t stride);
 void opencv_mat_release(opencv_mat mat);
 void opencv_mat_resize(const opencv_mat src, opencv_mat dst, int width, int height, int interpolation);
 opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height);
