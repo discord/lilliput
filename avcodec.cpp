@@ -193,17 +193,21 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
     auto cvMat = static_cast<cv::Mat *>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
-    if (res >= 0) {
+    if (res >= 0 && frame->width == cvMat->cols && frame->height == cvMat->rows) {
+        int stepSize = 4 * frame->width;
+        if (frame->width % 32 != 0) {
+            int width = frame->width + 32 - (frame->width % 32);
+            stepSize = 4 * width;
+        }
+        if (!opencv_mat_set_row_stride(mat, stepSize)) {
+            return -1;
+        }
+
         struct SwsContext *sws = sws_getContext(frame->width, frame->height, (AVPixelFormat)(frame->format),
                                                 frame->width, frame->height, AV_PIX_FMT_BGRA,
-                                                SWS_BILINEAR, NULL, NULL, NULL);
-        // XXX make this below use mat's width/height
-        uint8_t *data_ptrs[4];
-        int linesizes[4];
-        // XXX the magic value here (4) is the alignment of the array here. apparently 32 is needed for full SIMD
-        // utility but sometimes produces corrupted frames. 4 seems to alleviate that. Going down to 1 may fix
-        // some bugs, in theory
-        av_image_fill_arrays(data_ptrs, linesizes, cvMat->data, AV_PIX_FMT_BGRA, frame->width, frame->height, 4);
+                                                0, NULL, NULL, NULL);
+        int linesizes[] = {stepSize, 0, 0, 0};
+        uint8_t *data_ptrs[] = {cvMat->data, NULL, NULL, NULL};
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
         sws_freeContext(sws);
     }
