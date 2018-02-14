@@ -111,7 +111,7 @@ set(OpenCV_SHARED OFF)
 # Enables mangled install paths, that help with side by side installs
 set(OpenCV_USE_MANGLED_PATHS FALSE)
 
-set(OpenCV_LIB_COMPONENTS opencv_calib3d;opencv_core;opencv_features2d;opencv_flann;opencv_highgui;opencv_imgcodecs;opencv_imgproc;opencv_ml;opencv_objdetect;opencv_photo;opencv_shape;opencv_stitching;opencv_superres;opencv_video;opencv_videoio;opencv_videostab)
+set(OpenCV_LIB_COMPONENTS opencv_core;opencv_imgcodecs;opencv_imgproc)
 set(OpenCV_INCLUDE_DIRS "${OpenCV_INSTALL_PATH}/include" "${OpenCV_INSTALL_PATH}/include/opencv")
 
 if(NOT TARGET opencv_core)
