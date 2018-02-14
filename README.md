@@ -56,6 +56,12 @@ func (d lilliput.Decoder) Description() string
 Returns a string describing the image's type, e.g. `"JPEG"` or `"PNG"`.
 
 ```go
+func (h lilliput.Decoder) Duration() time.Duration
+```
+Returns the length of the content. Returns 0 for static images and
+animated GIFs.
+
+```go
 func (d lilliput.Decoder) DecodeTo(f *lilliput.Framebuffer) error
 ```
 Fully decodes the image and writes its pixel data to `f`. Returns an error

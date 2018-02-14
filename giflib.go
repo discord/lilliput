@@ -16,6 +16,7 @@ import (
 	"errors"
 	"io"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -94,6 +95,10 @@ func (d *gifDecoder) Close() {
 
 func (d *gifDecoder) Description() string {
 	return "GIF"
+}
+
+func (d *gifDecoder) Duration() time.Duration {
+	return time.Duration(0)
 }
 
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {

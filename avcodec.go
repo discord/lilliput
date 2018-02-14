@@ -14,6 +14,7 @@ import "C"
 
 import (
 	"io"
+	"time"
 	"unsafe"
 )
 
@@ -44,6 +45,10 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 
 func (d *avCodecDecoder) Description() string {
 	return C.GoString(C.avcodec_decoder_get_description(d.decoder))
+}
+
+func (d *avCodecDecoder) Duration() time.Duration {
+	return time.Duration(float64(C.avcodec_decoder_get_duration(d.decoder)) * float64(time.Second))
 }
 
 func (d *avCodecDecoder) Header() (*ImageHeader, error) {

@@ -15,21 +15,39 @@ extern "C" {
 
 extern AVInputFormat ff_mov_demuxer;
 extern AVInputFormat ff_matroska_demuxer;
+extern AVInputFormat ff_mp3_demuxer;
+extern AVInputFormat ff_flac_demuxer;
+extern AVInputFormat ff_wav_demuxer;
+extern AVInputFormat ff_aac_demuxer;
+extern AVInputFormat ff_ogg_demuxer;
 extern AVCodec ff_h264_decoder;
 extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
+extern AVCodec ff_mp3_decoder;
+extern AVCodec ff_flac_decoder;
+extern AVCodec ff_aac_decoder;
+extern AVCodec ff_vorbis_decoder;
 
 void avcodec_init() {
     av_register_input_format(&ff_mov_demuxer);
     av_register_input_format(&ff_matroska_demuxer);
+    av_register_input_format(&ff_mp3_demuxer);
+    av_register_input_format(&ff_flac_demuxer);
+    av_register_input_format(&ff_wav_demuxer);
+    av_register_input_format(&ff_aac_demuxer);
+    av_register_input_format(&ff_ogg_demuxer);
 
     avcodec_register(&ff_h264_decoder);
     avcodec_register(&ff_mpeg4_decoder);
     avcodec_register(&ff_vp9_decoder);
     avcodec_register(&ff_vp8_decoder);
+    avcodec_register(&ff_mp3_decoder);
+    avcodec_register(&ff_flac_decoder);
+    avcodec_register(&ff_aac_decoder);
+    avcodec_register(&ff_vorbis_decoder);
 
-    av_log_set_level(AV_LOG_WARNING);
+    av_log_set_level(AV_LOG_ERROR);
 }
 
 struct avcodec_decoder_struct {
@@ -78,6 +96,28 @@ static int64_t avcodec_decoder_seek_callback(void *d_void, int64_t offset, int w
     return 0;
 }
 
+static bool avcodec_decoder_is_audio(const avcodec_decoder d) {
+    if (!d->container) {
+        return false;
+    }
+    if (d->container->iformat == &ff_mp3_demuxer) {
+        return true;
+    }
+    if (d->container->iformat == &ff_flac_demuxer) {
+        return true;
+    }
+    if (d->container->iformat == &ff_wav_demuxer) {
+        return true;
+    }
+    if (d->container->iformat == &ff_aac_demuxer) {
+        return true;
+    }
+    if (d->container->iformat == &ff_ogg_demuxer) {
+        return true;
+    }
+    return false;
+}
+
 avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
     avcodec_decoder d = new struct avcodec_decoder_struct();
     memset(d, 0, sizeof(struct avcodec_decoder_struct));
@@ -111,6 +151,12 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
         return NULL;
     }
 
+    if (avcodec_decoder_is_audio(d)) {
+        // in this case, quit out fast since we won't be decoding this anyway
+        // (audio is metadata-only)
+        return d;
+    }
+
     AVCodecParameters *codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
         if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -125,6 +171,10 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
     }
 
     AVCodec *codec = avcodec_find_decoder(codec_params->codec_id);
+    if (!codec) {
+        avcodec_decoder_release(d);
+        return NULL;
+    }
 
     d->codec = avcodec_alloc_context3(codec);
 
@@ -178,12 +228,35 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d) {
     return orientation;
 }
 
+float avcodec_decoder_get_duration(const avcodec_decoder d) {
+    if (d->container) {
+        return d->container->duration / (float)(AV_TIME_BASE);
+    }
+    return 0;
+}
+
 const char *avcodec_decoder_get_description(const avcodec_decoder d) {
     if (d->container) {
         if (d->container->iformat == &ff_mov_demuxer) {
             return "MOV";
-        } else if (d->container->iformat == &ff_matroska_demuxer) {
+        }
+        if (d->container->iformat == &ff_matroska_demuxer) {
             return "WEBM";
+        }
+        if (d->container->iformat == &ff_mp3_demuxer) {
+            return "MP3";
+        }
+        if (d->container->iformat == &ff_flac_demuxer) {
+            return "FLAC";
+        }
+        if (d->container->iformat == &ff_wav_demuxer) {
+            return "WAV";
+        }
+        if (d->container->iformat == &ff_aac_demuxer) {
+            return "AAC";
+        }
+        if (d->container->iformat == &ff_ogg_demuxer) {
+            return "OGG";
         }
     }
     return "";
@@ -229,6 +302,15 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
 }
 
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
+    if (!d) {
+        return false;
+    }
+    if (!d->container) {
+        return false;
+    }
+    if (!d->codec) {
+        return false;
+    }
     AVPacket packet;
     bool done = false;
     bool success = false;

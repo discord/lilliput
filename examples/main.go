@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/discordapp/lilliput"
 )
@@ -62,8 +63,12 @@ func main() {
 	}
 
 	// print some basic info about the image
-	fmt.Printf("image type: %s\n", decoder.Description())
+	fmt.Printf("file type: %s\n", decoder.Description())
 	fmt.Printf("%dpx x %dpx\n", header.Width(), header.Height())
+
+	if decoder.Duration() != 0 {
+		fmt.Printf("duration: %.2f s\n", float64(decoder.Duration())/float64(time.Second))
+	}
 
 	// get ready to resize image,
 	// using 8192x8192 maximum resize buffer size

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"time"
 )
 
 var (
@@ -30,6 +31,10 @@ type Decoder interface {
 	// Description returns a string description of the image type, such as
 	// "PNG"
 	Description() string
+
+	// Duration returns the duration of the content. This property is 0 for
+	// static images and animated GIFs.
+	Duration() time.Duration
 
 	// DecodeTo fully decodes the image pixel data into f. Generally users should
 	// prefer instead using the ImageOps object to decode images.

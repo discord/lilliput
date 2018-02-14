@@ -15,6 +15,7 @@ import "C"
 import (
 	"errors"
 	"io"
+	"time"
 	"unsafe"
 )
 
@@ -276,6 +277,10 @@ func (d *openCVDecoder) Close() {
 
 func (d *openCVDecoder) Description() string {
 	return C.GoString(C.opencv_decoder_get_description(d.decoder))
+}
+
+func (d *openCVDecoder) Duration() time.Duration {
+	return time.Duration(0)
 }
 
 func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
