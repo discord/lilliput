@@ -208,6 +208,12 @@ int avcodec_decoder_get_height(const avcodec_decoder d) {
 }
 
 int avcodec_decoder_get_orientation(const avcodec_decoder d) {
+    if (!d->container) {
+        return CV_IMAGE_ORIENTATION_TL;
+    }
+    if (!d->codec) {
+        return CV_IMAGE_ORIENTATION_TL;
+    }
     CVImageOrientation orientation = CV_IMAGE_ORIENTATION_TL;
     AVDictionaryEntry *tag = av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
     if (!tag) {
