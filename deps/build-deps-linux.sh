@@ -6,6 +6,8 @@ BASEDIR=$(cd $(dirname "$0") && pwd)
 PREFIX="$BASEDIR/linux"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
+export CFLAGS="$CFLAGS -fPIC"
+export CXXFLAGS="$CXXFLAGS -fPIC"
 
 mkdir -p $PREFIX/include
 mkdir -p $PREFIX/lib
