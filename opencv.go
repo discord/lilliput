@@ -231,6 +231,11 @@ func (f *Framebuffer) PixelType() PixelType {
 }
 
 func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
+	// Check buffer length before accessing it
+	if len(buf) == 0 {
+		return nil, errors.New("Image buffer is empty")
+	}
+
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
 	// this next check is sort of silly since this array is 1-dimensional
