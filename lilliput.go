@@ -59,6 +59,11 @@ func isGIF(maybeGIF []byte) bool {
 // image data provided in buf. If the first few bytes of buf do not
 // point to a valid magic string, an error will be returned.
 func NewDecoder(buf []byte) (Decoder, error) {
+	// Check buffer length before accessing it
+	if len(buf) == 0 {
+		return nil, errors.New("Image buffer is empty")
+	}
+
 	isBufGIF := isGIF(buf)
 	if isBufGIF {
 		return newGifDecoder(buf)
