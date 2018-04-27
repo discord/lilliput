@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	ErrInvalidImage   = errors.New("unrecognized image format")
-	ErrDecodingFailed = errors.New("failed to decode image")
-	ErrBufTooSmall    = errors.New("buffer too small to hold image")
+	ErrInvalidImage     = errors.New("unrecognized image format")
+	ErrDecodingFailed   = errors.New("failed to decode image")
+	ErrBufTooSmall      = errors.New("buffer too small to hold image")
+	ErrBufEmpty         = errors.New("buffer is empty")
+	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
 
 	gif87Magic = []byte("GIF87a")
 	gif89Magic = []byte("GIF89a")
@@ -61,7 +63,7 @@ func isGIF(maybeGIF []byte) bool {
 func NewDecoder(buf []byte) (Decoder, error) {
 	// Check buffer length before accessing it
 	if len(buf) == 0 {
-		return nil, errors.New("Image buffer is empty")
+		return nil, ErrBufEmpty
 	}
 
 	isBufGIF := isGIF(buf)
