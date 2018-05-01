@@ -13,7 +13,6 @@ package lilliput
 import "C"
 
 import (
-	"errors"
 	"io"
 	"time"
 	"unsafe"
@@ -173,7 +172,7 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 // not large enough to hold the given dimensions.
 func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	if f.mat == nil {
-		return errors.New("Framebuffer contains no pixels")
+		return ErrFrameBufNoPixels
 	}
 
 	aspectIn := float64(f.width) / float64(f.height)
