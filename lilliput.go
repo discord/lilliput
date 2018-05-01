@@ -62,7 +62,7 @@ func isGIF(maybeGIF []byte) bool {
 func NewDecoder(buf []byte) (Decoder, error) {
 	// Check buffer length before accessing it
 	if len(buf) == 0 {
-		return nil, ErrBufTooSmall
+		return nil, ErrInvalidImage
 	}
 
 	isBufGIF := isGIF(buf)
