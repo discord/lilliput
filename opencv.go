@@ -26,6 +26,8 @@ const (
 	PngCompression = int(C.CV_IMWRITE_PNG_COMPRESSION)
 	WebpQuality    = int(C.CV_IMWRITE_WEBP_QUALITY)
 
+	JpegProgressive = int(C.CV_IMWRITE_JPEG_PROGRESSIVE)
+
 	OrientationTopLeft     = ImageOrientation(C.CV_IMAGE_ORIENTATION_TL)
 	OrientationTopRight    = ImageOrientation(C.CV_IMAGE_ORIENTATION_TR)
 	OrientationBottomRight = ImageOrientation(C.CV_IMAGE_ORIENTATION_BR)
