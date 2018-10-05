@@ -22,6 +22,7 @@ type avCodecDecoder struct {
 	decoder    C.avcodec_decoder
 	mat        C.opencv_mat
 	hasDecoded bool
+	maybeMP4   bool
 }
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
@@ -38,13 +39,21 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 	}
 
 	return &avCodecDecoder{
-		decoder: decoder,
-		mat:     mat,
+		decoder:  decoder,
+		mat:      mat,
+		maybeMP4: isMP4(buf),
 	}, nil
 }
 
 func (d *avCodecDecoder) Description() string {
-	return C.GoString(C.avcodec_decoder_get_description(d.decoder))
+	fmt := C.GoString(C.avcodec_decoder_get_description(d.decoder))
+
+	// differentiate MOV and MP4 based on magic
+	if fmt == "MOV" && d.maybeMP4 {
+		return "MP4"
+	}
+
+	return fmt
 }
 
 func (d *avCodecDecoder) Duration() time.Duration {
