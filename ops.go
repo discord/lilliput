@@ -87,26 +87,26 @@ func (o *ImageOps) decode(d Decoder) error {
 	return d.DecodeTo(active)
 }
 
-func (o *ImageOps) fit(d Decoder, width, height int) error {
+func (o *ImageOps) fit(d Decoder, width, height int) (bool, error) {
 	active := o.active()
 	secondary := o.secondary()
 	err := active.Fit(width, height, secondary)
 	if err != nil {
-		return err
+		return false, err
 	}
 	o.swap()
-	return nil
+	return true, nil
 }
 
-func (o *ImageOps) resize(d Decoder, width, height int) error {
+func (o *ImageOps) resize(d Decoder, width, height int) (bool, error) {
 	active := o.active()
 	secondary := o.secondary()
 	err := active.ResizeTo(width, height, secondary)
 	if err != nil {
-		return err
+		return false, err
 	}
 	o.swap()
-	return nil
+	return true, nil
 }
 
 func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
@@ -135,10 +135,6 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		return nil, err
 	}
 
-	if d.Description() == "GIF" {
-		o.Clear()
-	}
-
 	enc, err := NewEncoder(opt.FileType, d, dst)
 	if err != nil {
 		return nil, err
@@ -158,10 +154,17 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		o.normalizeOrientation(h.Orientation())
 
+		var swapped bool
 		if opt.ResizeMethod == ImageOpsFit {
-			o.fit(d, opt.Width, opt.Height)
+			swapped, err = o.fit(d, opt.Width, opt.Height)
 		} else if opt.ResizeMethod == ImageOpsResize {
-			o.resize(d, opt.Width, opt.Height)
+			swapped, err = o.resize(d, opt.Width, opt.Height)
+		} else {
+			swapped, err = false, nil
+		}
+
+		if err != nil {
+			return nil, err
 		}
 
 		var content []byte
@@ -182,6 +185,8 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		// content == nil and err == nil -- this is encoder telling us to do another frame
 
 		// for mulitple frames/gifs we need the decoded frame to be active again
-		o.swap()
+		if swapped {
+			o.swap()
+		}
 	}
 }
