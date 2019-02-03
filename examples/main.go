@@ -98,6 +98,10 @@ func main() {
 		resizeMethod = lilliput.ImageOpsResize
 	}
 
+	if outputWidth == header.Width() && outputHeight == header.Height() {
+		resizeMethod = lilliput.ImageOpsNoResize
+	}
+
 	opts := &lilliput.ImageOptions{
 		FileType:             outputType,
 		Width:                outputWidth,
