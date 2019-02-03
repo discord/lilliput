@@ -135,6 +135,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		return nil, err
 	}
 
+	if d.Description() == "GIF" {
+		o.Clear()
+	}
+
 	enc, err := NewEncoder(opt.FileType, d, dst)
 	if err != nil {
 		return nil, err
