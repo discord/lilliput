@@ -62,6 +62,7 @@ type Framebuffer struct {
 type openCVDecoder struct {
 	decoder       C.opencv_decoder
 	mat           C.opencv_mat
+	buf           []byte
 	hasReadHeader bool
 	hasDecoded    bool
 }
@@ -250,6 +251,7 @@ func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
 	return &openCVDecoder{
 		mat:     mat,
 		decoder: decoder,
+		buf:     buf,
 	}, nil
 }
 
@@ -274,6 +276,7 @@ func (d *openCVDecoder) Header() (*ImageHeader, error) {
 func (d *openCVDecoder) Close() {
 	C.opencv_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
+	d.buf = nil
 }
 
 func (d *openCVDecoder) Description() string {

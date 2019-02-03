@@ -23,6 +23,7 @@ import (
 type gifDecoder struct {
 	decoder    C.giflib_decoder
 	mat        C.opencv_mat
+	buf        []byte
 	frameIndex int
 }
 
@@ -64,6 +65,7 @@ func newGifDecoder(buf []byte) (*gifDecoder, error) {
 	return &gifDecoder{
 		decoder:    decoder,
 		mat:        mat,
+		buf:        buf,
 		frameIndex: 0,
 	}, nil
 }
@@ -91,6 +93,7 @@ func (d *gifDecoder) FrameHeader() (*ImageHeader, error) {
 func (d *gifDecoder) Close() {
 	C.giflib_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
+	d.buf = nil
 }
 
 func (d *gifDecoder) Description() string {
