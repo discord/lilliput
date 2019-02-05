@@ -173,6 +173,19 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
     return true;
 }
 
+static bool giflib_set_frame_gcb(GifFileType *gif, const GraphicsControlBlock *gcb) {
+    for (int i = 0; i < gif->ExtensionBlockCount; i++) {
+        ExtensionBlock *b = &gif->ExtensionBlocks[i];
+        if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
+            printf("setting gcb on block %d\n", i);
+            int res = EGifGCBToExtension(gcb, b->Bytes);
+            return res == GIF_OK;
+        }
+    }
+
+    return true;
+}
+
 static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d) {
     GifRecordType RecordType;
 
@@ -225,7 +238,7 @@ giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d) 
     return giflib_decoder_have_next_frame;
 }
 
-static bool giflib_decoder_render_frame(giflib_decoder d, const GraphicsControlBlock *gcb, opencv_mat mat) {
+static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *gcb, opencv_mat mat) {
     auto cvMat = static_cast<cv::Mat *>(mat);
     GifImageDesc desc = d->gif->Image;
     int transparency_index = gcb->TransparentColor;
@@ -385,6 +398,20 @@ static bool giflib_decoder_render_frame(giflib_decoder d, const GraphicsControlB
         }
 
         pixel_index += skip_right;
+    }
+
+    bool have_partial_frame = false;
+    have_partial_frame |= frame_height < buf_height;
+    have_partial_frame |= frame_width < buf_width;
+    have_partial_frame |= frame_left != 0;
+    have_partial_frame |= frame_top != 0;
+
+    if (have_partial_frame && transparency_index == -1) {
+        // make sure our pseudo partial frame impl can use transparency
+        // if no color is set, force the palette to have one
+        // evict the last color and make it transparency instead
+        gcb->TransparentColor = colorMap->ColorCount - 1;
+        giflib_set_frame_gcb(d->gif, gcb);
     }
 
     return true;
