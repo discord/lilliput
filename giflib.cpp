@@ -399,6 +399,11 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
         pixel_index += skip_right;
     }
 
+    // because we turn partial frames into full frames, we need to ensure that a transparency color
+    // is defined, so that the encoder can use it (we convert partial frames to full frames with
+    // a lot of transparency)
+
+    // let's check if we have a partial frame and whether no transparency is defined
     bool have_partial_frame = false;
     have_partial_frame |= frame_height < buf_height;
     have_partial_frame |= frame_width < buf_width;
