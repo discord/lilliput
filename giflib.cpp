@@ -177,7 +177,6 @@ static bool giflib_set_frame_gcb(GifFileType *gif, const GraphicsControlBlock *g
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
         ExtensionBlock *b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
-            printf("setting gcb on block %d\n", i);
             int res = EGifGCBToExtension(gcb, b->Bytes);
             return res == GIF_OK;
         }
