@@ -162,27 +162,29 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
     gcb->DelayTime = 0;
     gcb->TransparentColor = NO_TRANSPARENT_COLOR;
 
+    bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
         ExtensionBlock *b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
             int res = DGifExtensionToGCB(b->ByteCount, b->Bytes, gcb);
-            return res == GIF_OK;
+            success = res == GIF_OK;
         }
     }
 
-    return true;
+    return success;
 }
 
 static bool giflib_set_frame_gcb(GifFileType *gif, const GraphicsControlBlock *gcb) {
+    bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
         ExtensionBlock *b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
             int res = EGifGCBToExtension(gcb, b->Bytes);
-            return res == GIF_OK;
+            success = res == GIF_OK;
         }
     }
 
-    return true;
+    return success;
 }
 
 static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d) {
