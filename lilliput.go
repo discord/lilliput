@@ -74,22 +74,22 @@ func isMP4(maybeMP4 []byte) bool {
 }
 
 // DeanimateAPNG removes animation chunks from []bytes possibly containing a PNG
-func DeanimateAPNG(maybeApng []byte) []byte {
-	if !bytes.HasPrefix(maybeApng, pngMagic) {
-		return maybeApng
+func DeanimateAPNG(maybeAPNG []byte) []byte {
+	if !bytes.HasPrefix(maybeAPNG, pngMagic) {
+		return maybeAPNG
 	}
 
 	offset := len(pngMagic)
 	for {
-		if offset+8 > len(maybeApng) {
-			return maybeApng
+		if offset+8 > len(maybeAPNG) {
+			return maybeAPNG
 		}
-		chunkSize := binary.BigEndian.Uint32(maybeApng[offset:])
-		chunkType := maybeApng[offset+4 : offset+8]
+		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
+		chunkType := maybeAPNG[offset+4 : offset+8]
 		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
 			fullChunkSize := (int)(chunkSize) + 12
-			copy(maybeApng[offset:], maybeApng[offset+fullChunkSize:])
-			maybeApng = maybeApng[:len(maybeApng)-fullChunkSize]
+			copy(maybeAPNG[offset:], maybeAPNG[offset+fullChunkSize:])
+			maybeAPNG = maybeAPNG[:len(maybeAPNG)-fullChunkSize]
 			continue
 		}
 		offset += (int)(chunkSize) + 12
