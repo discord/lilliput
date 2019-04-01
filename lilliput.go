@@ -4,6 +4,7 @@ package lilliput
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"strings"
 	"time"
@@ -73,15 +74,15 @@ func isMP4(maybeMP4 []byte) bool {
 }
 
 // DeanimateAPNG removes animation chunks from []bytes possibly containing a PNG
-func DeanimateAPNG(maybeApng []byte) {
+func DeanimateAPNG(maybeApng []byte) []byte {
 	if !bytes.HasPrefix(maybeApng, pngMagic) {
-		return
+		return maybeApng
 	}
 
 	offset := len(pngMagic)
 	for {
 		if offset+8 > len(maybeApng) {
-			return
+			return maybeApng
 		}
 		chunkSize := binary.BigEndian.Uint32(maybeApng[offset:])
 		chunkType := maybeApng[offset+4 : offset+8]
