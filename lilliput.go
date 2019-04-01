@@ -19,6 +19,11 @@ var (
 	gif89Magic   = []byte("GIF89a")
 	mp42Magic    = []byte("ftypmp42")
 	mp4IsomMagic = []byte("ftypisom")
+	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+
+	pngActlChunkType = []byte{0x61, 0x63, 0x54, 0x4c}
+	pngFctlChunkType = []byte{0x66, 0x63, 0x54, 0x4c}
+	pngFdatChunkType = []byte{0x66, 0x64, 0x41, 0x54}
 )
 
 // A Decoder decompresses compressed image data.
@@ -65,6 +70,28 @@ func isMP4(maybeMP4 []byte) bool {
 
 	magic := maybeMP4[4:]
 	return bytes.HasPrefix(magic, mp42Magic) || bytes.HasPrefix(magic, mp4IsomMagic)
+}
+
+func DeanimateAPNG(maybeApng []byte) {
+	if !bytes.HasPrefix(maybeApng, pngMagic) {
+		return
+	}
+
+	offset := len(pngMagic)
+	for {
+		if offset+8 > len(maybeApng) {
+			return
+		}
+		chunkSize := binary.BigEndian.Uint32(maybeApng[offset:])
+		chunkType := maybeApng[offset+4 : offset+8]
+		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
+			fullChunkSize := (int)(chunkSize) + 12
+			copy(maybeApng[offset:], maybeApng[offset+fullChunkSize:])
+			maybeApng = maybeApng[:len(maybeApng)-fullChunkSize]
+			continue
+		}
+		offset += (int)(chunkSize) + 12
+	}
 }
 
 // NewDecoder returns a Decoder which can be used to decode
