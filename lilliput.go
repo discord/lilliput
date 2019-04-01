@@ -72,6 +72,7 @@ func isMP4(maybeMP4 []byte) bool {
 	return bytes.HasPrefix(magic, mp42Magic) || bytes.HasPrefix(magic, mp4IsomMagic)
 }
 
+// DeanimateAPNG removes animation chunks from []bytes possibly containing a PNG
 func DeanimateAPNG(maybeApng []byte) {
 	if !bytes.HasPrefix(maybeApng, pngMagic) {
 		return
