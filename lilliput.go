@@ -22,9 +22,12 @@ var (
 	mp4IsomMagic = []byte("ftypisom")
 	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
 
-	pngActlChunkType = []byte{0x61, 0x63, 0x54, 0x4c}
-	pngFctlChunkType = []byte{0x66, 0x63, 0x54, 0x4c}
-	pngFdatChunkType = []byte{0x66, 0x64, 0x41, 0x54}
+	pngActlChunkType     = []byte{0x61, 0x63, 0x54, 0x4c}
+	pngFctlChunkType     = []byte{0x66, 0x63, 0x54, 0x4c}
+	pngFdatChunkType     = []byte{0x66, 0x64, 0x41, 0x54}
+	pngChunkSizeFieldLen = 4
+	pngChunkTypeFieldLen = 4
+	pngChunkAllFieldsLen = 12
 )
 
 // A Decoder decompresses compressed image data.
@@ -81,18 +84,18 @@ func DeanimateAPNG(maybeAPNG []byte) []byte {
 
 	offset := len(pngMagic)
 	for {
-		if offset+8 > len(maybeAPNG) {
+		if offset+pngChunkAllFieldsLen > len(maybeAPNG) {
 			return maybeAPNG
 		}
 		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
-		chunkType := maybeAPNG[offset+4 : offset+8]
+		chunkType := maybeAPNG[offset+pngChunkSizeFieldLen : offset+pngChunkTypeFieldLen]
+		fullChunkSize := (int)(chunkSize) + pngChunkAllFieldsLen
 		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
-			fullChunkSize := (int)(chunkSize) + 12
 			copy(maybeAPNG[offset:], maybeAPNG[offset+fullChunkSize:])
 			maybeAPNG = maybeAPNG[:len(maybeAPNG)-fullChunkSize]
 			continue
 		}
-		offset += (int)(chunkSize) + 12
+		offset += fullChunkSize
 	}
 }
 
