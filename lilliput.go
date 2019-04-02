@@ -88,7 +88,7 @@ func DeanimateAPNG(maybeAPNG []byte) []byte {
 			return maybeAPNG
 		}
 		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
-		chunkType := maybeAPNG[offset+pngChunkSizeFieldLen : offset+pngChunkTypeFieldLen]
+		chunkType := maybeAPNG[offset+pngChunkSizeFieldLen : offset+pngChunkSizeFieldLen+pngChunkTypeFieldLen]
 		fullChunkSize := (int)(chunkSize) + pngChunkAllFieldsLen
 		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
 			copy(maybeAPNG[offset:], maybeAPNG[offset+fullChunkSize:])
