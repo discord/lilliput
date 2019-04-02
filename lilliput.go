@@ -92,7 +92,7 @@ func DeanimateAPNG(maybeAPNG []byte) []byte {
 		fullChunkSize := (int)(chunkSize) + pngChunkAllFieldsLen
 		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
 			if offset+fullChunkSize > len(maybeAPNG) {
-				return
+				return maybeAPNG
 			}
 			copy(maybeAPNG[offset:], maybeAPNG[offset+fullChunkSize:])
 			maybeAPNG = maybeAPNG[:len(maybeAPNG)-fullChunkSize]
