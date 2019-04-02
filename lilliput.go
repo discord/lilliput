@@ -4,7 +4,6 @@ package lilliput
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"strings"
 	"time"
@@ -21,13 +20,6 @@ var (
 	mp42Magic    = []byte("ftypmp42")
 	mp4IsomMagic = []byte("ftypisom")
 	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
-
-	pngActlChunkType     = []byte{0x61, 0x63, 0x54, 0x4c}
-	pngFctlChunkType     = []byte{0x66, 0x63, 0x54, 0x4c}
-	pngFdatChunkType     = []byte{0x66, 0x64, 0x41, 0x54}
-	pngChunkSizeFieldLen = 4
-	pngChunkTypeFieldLen = 4
-	pngChunkAllFieldsLen = 12
 )
 
 // A Decoder decompresses compressed image data.
@@ -74,27 +66,6 @@ func isMP4(maybeMP4 []byte) bool {
 
 	magic := maybeMP4[4:]
 	return bytes.HasPrefix(magic, mp42Magic) || bytes.HasPrefix(magic, mp4IsomMagic)
-}
-
-// DetectAPNG detects if a blob contains a PNG with animated segments
-func DetectAPNG(maybeAPNG []byte) bool {
-	if !bytes.HasPrefix(maybeAPNG, pngMagic) {
-		return false
-	}
-
-	offset := len(pngMagic)
-	for {
-		if offset+pngChunkAllFieldsLen > len(maybeAPNG) {
-			return false
-		}
-		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
-		chunkType := maybeAPNG[offset+pngChunkSizeFieldLen : offset+pngChunkSizeFieldLen+pngChunkTypeFieldLen]
-		fullChunkSize := (int)(chunkSize) + pngChunkAllFieldsLen
-		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
-			return true
-		}
-		offset += fullChunkSize
-	}
 }
 
 // NewDecoder returns a Decoder which can be used to decode
