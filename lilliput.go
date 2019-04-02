@@ -84,7 +84,7 @@ func DeanimateAPNG(maybeAPNG []byte) []byte {
 
 	offset := len(pngMagic)
 	for {
-		if offset > len(maybeAPNG) {
+		if offset+pngChunkAllFieldsLen > len(maybeAPNG) {
 			return maybeAPNG
 		}
 		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
