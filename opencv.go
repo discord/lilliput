@@ -110,7 +110,7 @@ func (h *ImageHeader) PixelType() PixelType {
 	return h.pixelType
 }
 
-// ImageOrientation returns the metadata-based image orientation.
+// Orientation returns the metadata-based image orientation.
 func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
 }
