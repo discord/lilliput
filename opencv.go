@@ -176,6 +176,14 @@ func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 // ratio if the given dimensions differ in ratio from the source. Returns an error
 // if the destination is not large enough to hold the given dimensions.
 func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
+	if width < 1 {
+		width = 1
+	}
+
+	if height < 1 {
+		height = 1
+	}
+
 	err := dst.resizeMat(width, height, f.pixelType)
 	if err != nil {
 		return err
@@ -207,6 +215,14 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 		// input is taller than output, so we'll need to shrink
 		heightPostCrop = int((float64(f.width) / aspectOut) + 0.5)
 		widthPostCrop = f.width
+	}
+
+	if widthPostCrop < 1 {
+		widthPostCrop = 1
+	}
+
+	if heightPostCrop < 1 {
+		heightPostCrop = 1
 	}
 
 	var left, top int
