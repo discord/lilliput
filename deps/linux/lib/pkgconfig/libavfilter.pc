@@ -1,0 +1,14 @@
+prefix=/src/deps/linux
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libavfilter
+Description: FFmpeg audio/video filtering library
+Version: 6.82.100
+Requires: libavutil >= 55.58.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavfilter -lm -pthread
+Libs.private: 
+Cflags: -I${includedir}
