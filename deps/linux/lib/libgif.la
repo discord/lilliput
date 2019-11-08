@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/home/brian_armstrong/lilliput/deps/linux/lib'
+libdir='/src/deps/linux/lib'
