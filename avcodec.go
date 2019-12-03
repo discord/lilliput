@@ -92,6 +92,10 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
+func (d *avCodecDecoder) SkipFrame() error {
+	return ErrSkipNotSupported
+}
+
 func (d *avCodecDecoder) Close() {
 	C.avcodec_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
