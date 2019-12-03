@@ -140,6 +140,19 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
+func (d *gifDecoder) SkipFrame() error {
+	nextFrameResult := int(C.giflib_decoder_decode_frame_header(d.decoder))
+
+	if nextFrameResult == C.giflib_decoder_eof {
+		return io.EOF
+	}
+	if nextFrameResult == C.giflib_decoder_error {
+		return ErrInvalidImage
+	}
+
+	return nil
+}
+
 func newGifEncoder(decodedBy Decoder, buf []byte) (*gifEncoder, error) {
 	// we must have a decoder since we can't build our own palettes
 	// so if we don't get a gif decoder, bail out

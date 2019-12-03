@@ -365,6 +365,10 @@ func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
+func (d *openCVDecoder) SkipFrame() error {
+	return ErrSkipNotSupported
+}
+
 func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
