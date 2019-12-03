@@ -126,7 +126,7 @@ func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
 	return e.Encode(nil, opt)
 }
 
-func (o *ImageOps) skipToEnd(d decoder) error {
+func (o *ImageOps) skipToEnd(d Decoder) error {
 	var err error
 	for {
 		err = d.SkipFrame()
