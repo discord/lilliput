@@ -141,7 +141,7 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 }
 
 func (d *gifDecoder) SkipFrame() error {
-	nextFrameResult := int(C.giflib_decoder_decode_frame_header(d.decoder))
+	nextFrameResult := int(C.giflib_decoder_skip_frame(d.decoder))
 
 	if nextFrameResult == C.giflib_decoder_eof {
 		return io.EOF

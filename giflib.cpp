@@ -423,6 +423,27 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
     return true;
 }
 
+giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d) {
+    giflib_decoder_frame_state seek = giflib_decoder_decode_frame_header(d);
+
+    if (seek != giflib_decoder_have_next_frame) {
+        return seek;
+    }
+
+    GifByteType *block;
+    while (true) {
+        if (DGifGetCodeNext(d->gif, &block) == GIF_ERROR) {
+            return giflib_decoder_error;
+        }
+
+        if (block == NULL) {
+            break;
+        }
+    }
+
+    return giflib_decoder_have_next_frame;
+}
+
 static int interlace_offset[] = { 0, 4, 2, 1 };
 static int interlace_jumps[] = { 8, 8, 4, 2 };
 
