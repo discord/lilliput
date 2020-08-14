@@ -95,3 +95,10 @@ cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --disable-cuda --disable-cuvid --disable-nvenc --disable-xlib
 make
 make install
+
+# Since go modules don't currently download symlinked files
+# (see https://github.com/golang/go/issues/39417)
+# we replace symlinks with copies of the target.
+# We use a `find -exec` with a separate file because POSIX sh
+# is that much more limited than bash.
+find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
