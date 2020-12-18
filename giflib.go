@@ -136,7 +136,7 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	if !ret {
 		return ErrDecodingFailed
 	}
-	f.duration = time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder) * 10 * time.Millisecond)
+	f.duration = time.Duration(int(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond)
 	d.frameIndex++
 	return nil
 }
