@@ -69,6 +69,7 @@ type Framebuffer struct {
 	width     int
 	height    int
 	pixelType PixelType
+	duration  time.Duration
 }
 
 type openCVDecoder struct {
@@ -262,6 +263,11 @@ func (f *Framebuffer) Height() int {
 // PixelType returns the PixelType information of the contained pixel data, if any.
 func (f *Framebuffer) PixelType() PixelType {
 	return f.pixelType
+}
+
+// Duration returns the length of time this frame plays out in an animated image
+func (f *Framebuffer) Duration() time.Duration {
+	return f.duration
 }
 
 func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
