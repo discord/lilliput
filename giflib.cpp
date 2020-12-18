@@ -9,6 +9,7 @@ struct giflib_decoder_struct {
     GifByteType *pixels;
     size_t pixel_len;
     int prev_frame_disposal;
+    int prev_frame_delay_time;
     int prev_frame_left;
     int prev_frame_top;
     int prev_frame_width;
@@ -108,6 +109,10 @@ int giflib_decoder_get_frame_width(const giflib_decoder d) {
 
 int giflib_decoder_get_frame_height(const giflib_decoder d) {
     return d->gif->Image.Height;
+}
+
+int giflib_decoder_get_prev_frame_delay(const giflib_decoder d) {
+    return d->prev_frame_delay_time;
 }
 
 void giflib_decoder_release(giflib_decoder d) {
@@ -530,6 +535,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     }
 
     d->prev_frame_disposal = gcb.DisposalMode;
+    d->prev_frame_delay_time = gcb.DelayTime;
     d->prev_frame_left = d->gif->Image.Left;
     d->prev_frame_top = d->gif->Image.Top;
     d->prev_frame_width = d->gif->Image.Width;

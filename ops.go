@@ -2,6 +2,7 @@ package lilliput
 
 import (
 	"io"
+	"time"
 )
 
 type ImageOpsSizeMethod int
@@ -39,6 +40,9 @@ type ImageOptions struct {
 
 	// MaxEncodeFrames controls the maximum number of frames that will be resized
 	MaxEncodeFrames int
+
+	// MaxEncodeDuration controls the maximum duration of animated image that will be resized
+	MaxEncodeDuration time.Duration
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -155,6 +159,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 	defer enc.Close()
 
 	frameCount := 0
+	duration := time.Duration(0)
 
 	for {
 		err = o.decode(d)
@@ -165,6 +170,16 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 			}
 			// io.EOF means we are out of frames, so we should signal to encoder to wrap up
 			emptyFrame = true
+		}
+
+		duration += o.active().Duration()
+
+		if opt.MaxEncodeDuration != 0 && duration > opt.MaxEncodeDuration {
+			err = o.skipToEnd(d)
+			if err != io.EOF {
+				return nil, err
+			}
+			return o.encodeEmpty(enc, opt.EncodeOptions)
 		}
 
 		o.normalizeOrientation(h.Orientation())
