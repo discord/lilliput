@@ -1,1 +1,1 @@
-package lilliput // import "github.com/discordapp/lilliput"
+package lilliput // import "github.com/discord/lilliput"
