@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/discordapp/lilliput"
+	"github.com/discord/lilliput"
 )
 
 var EncodeOptions = map[string]map[int]int{

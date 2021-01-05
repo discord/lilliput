@@ -19,7 +19,7 @@ example takes a user supplied filename and prints some basic info about the file
 It then resizes and transcodes the image (if flags are supplied) and saves the
 resulting file.
 
-To use the example, `go get github.com/discordapp/lilliput` and then run
+To use the example, `go get github.com/discord/lilliput` and then run
 `go build` from the examples/ directory.
 
 ## License
@@ -30,7 +30,7 @@ more info.
 
 ## Usage
 
-First, `import "github.com/discordapp/lilliput"`.
+First, `import "github.com/discord/lilliput"`.
 
 ### Decoder
 Lilliput is concerned with in-memory images, so the decoder requires image

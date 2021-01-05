@@ -23,7 +23,7 @@ rm -rf bzip2
 rm -rf ffmpeg
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone https://github.com/discordapp/lilliput-dep-source "$SRCDIR"
+    git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 mkdir -p $BASEDIR/libjpeg-turbo
