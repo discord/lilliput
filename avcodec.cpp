@@ -272,7 +272,10 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
     auto cvMat = static_cast<cv::Mat *>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
-    if (res >= 0 && frame->width == cvMat->cols && frame->height == cvMat->rows) {
+    if (res >= 0) {
+        if (frame->width != cvMat->cols || frame->height != cvMat->rows) {
+            return -1;
+        }
         int stepSize = 4 * frame->width;
         if (frame->width % 32 != 0) {
             int width = frame->width + 32 - (frame->width % 32);
