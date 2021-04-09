@@ -3,10 +3,10 @@
 #include <stdbool.h>
 
 struct giflib_decoder_struct {
-    GifFileType *gif;
-    const cv::Mat *mat;
+    GifFileType* gif;
+    const cv::Mat* mat;
     ptrdiff_t read_index;
-    GifByteType *pixels;
+    GifByteType* pixels;
     size_t pixel_len;
     int prev_frame_disposal;
     int prev_frame_delay_time;
@@ -32,24 +32,24 @@ typedef struct {
 } encoder_palette_lookup;
 
 struct giflib_encoder_struct {
-    GifFileType *gif;
-    uint8_t *dst;
+    GifFileType* gif;
+    uint8_t* dst;
     size_t dst_len;
     ptrdiff_t dst_offset;
 
     // palette lookup is a computational-saving structure to convert
     // (reduced-depth) RGB values into the frame's 256-entry palette
-    encoder_palette_lookup *palette_lookup;
+    encoder_palette_lookup* palette_lookup;
 
-    GifByteType *pixels;
+    GifByteType* pixels;
     size_t pixel_len;
 
-    ColorMapObject *frame_color_map;
-    ColorMapObject *prev_frame_color_map;
+    ColorMapObject* frame_color_map;
+    ColorMapObject* prev_frame_color_map;
 
     int prev_frame_disposal;
 
-    uint8_t *prev_frame_bgra;
+    uint8_t* prev_frame_bgra;
 
     bool have_written_first_frame;
 
@@ -59,14 +59,15 @@ struct giflib_encoder_struct {
     // for these later, so it makes sense to keep them separated
     // n.b. that even if we do that, giflib still uses hella mallocs
     // when building the decoder, so it would only save us on the encoder
-    std::vector<ExtensionBlock *> extension_blocks;
-    std::vector<GifByteType *> gif_bytes;
-    std::vector<ColorMapObject *> color_maps;
-    std::vector<GifColorType *> colors;
-    std::vector<SavedImage *> saved_images;
+    std::vector<ExtensionBlock*> extension_blocks;
+    std::vector<GifByteType*> gif_bytes;
+    std::vector<ColorMapObject*> color_maps;
+    std::vector<GifColorType*> colors;
+    std::vector<SavedImage*> saved_images;
 };
 
-int decode_func(GifFileType *gif, GifByteType *buf, int len) {
+int decode_func(GifFileType* gif, GifByteType* buf, int len)
+{
     auto d = static_cast<giflib_decoder>(gif->UserData);
     size_t buf_len = d->mat->total() - d->read_index;
     size_t read_len = (buf_len > len) ? len : buf_len;
@@ -75,13 +76,14 @@ int decode_func(GifFileType *gif, GifByteType *buf, int len) {
     return read_len;
 }
 
-giflib_decoder giflib_decoder_create(const opencv_mat buf) {
+giflib_decoder giflib_decoder_create(const opencv_mat buf)
+{
     giflib_decoder d = new struct giflib_decoder_struct();
     memset(d, 0, sizeof(struct giflib_decoder_struct));
-    d->mat = static_cast<const cv::Mat *>(buf);
+    d->mat = static_cast<const cv::Mat*>(buf);
 
     int error = 0;
-    GifFileType *gif = DGifOpen(d, decode_func, &error);
+    GifFileType* gif = DGifOpen(d, decode_func, &error);
     if (error) {
         delete d;
         return NULL;
@@ -91,31 +93,38 @@ giflib_decoder giflib_decoder_create(const opencv_mat buf) {
     return d;
 }
 
-int giflib_decoder_get_width(const giflib_decoder d) {
+int giflib_decoder_get_width(const giflib_decoder d)
+{
     return d->gif->SWidth;
 }
 
-int giflib_decoder_get_height(const giflib_decoder d) {
+int giflib_decoder_get_height(const giflib_decoder d)
+{
     return d->gif->SHeight;
 }
 
-int giflib_decoder_get_num_frames(const giflib_decoder d) {
+int giflib_decoder_get_num_frames(const giflib_decoder d)
+{
     return d->gif->ImageCount;
 }
 
-int giflib_decoder_get_frame_width(const giflib_decoder d) {
+int giflib_decoder_get_frame_width(const giflib_decoder d)
+{
     return d->gif->Image.Width;
 }
 
-int giflib_decoder_get_frame_height(const giflib_decoder d) {
+int giflib_decoder_get_frame_height(const giflib_decoder d)
+{
     return d->gif->Image.Height;
 }
 
-int giflib_decoder_get_prev_frame_delay(const giflib_decoder d) {
+int giflib_decoder_get_prev_frame_delay(const giflib_decoder d)
+{
     return d->prev_frame_delay_time;
 }
 
-void giflib_decoder_release(giflib_decoder d) {
+void giflib_decoder_release(giflib_decoder d)
+{
     if (d->pixels) {
         free(d->pixels);
     }
@@ -124,8 +133,9 @@ void giflib_decoder_release(giflib_decoder d) {
     delete d;
 }
 
-static bool giflib_decoder_read_extensions(giflib_decoder d) {
-    GifByteType *ExtData;
+static bool giflib_decoder_read_extensions(giflib_decoder d)
+{
+    GifByteType* ExtData;
     int ExtFunction;
 
     if (DGifGetExtension(d->gif, &ExtFunction, &ExtData) == GIF_ERROR) {
@@ -136,7 +146,9 @@ static bool giflib_decoder_read_extensions(giflib_decoder d) {
     if (ExtData != NULL) {
         int res = GifAddExtensionBlock(&d->gif->ExtensionBlockCount,
                                        &d->gif->ExtensionBlocks,
-                                       ExtFunction, ExtData[0], &ExtData[1]);
+                                       ExtFunction,
+                                       ExtData[0],
+                                       &ExtData[1]);
         if (res == GIF_ERROR) {
             return false;
         }
@@ -151,7 +163,8 @@ static bool giflib_decoder_read_extensions(giflib_decoder d) {
             int res = GifAddExtensionBlock(&d->gif->ExtensionBlockCount,
                                            &d->gif->ExtensionBlocks,
                                            CONTINUE_EXT_FUNC_CODE,
-                                           ExtData[0], &ExtData[1]);
+                                           ExtData[0],
+                                           &ExtData[1]);
             if (res == GIF_ERROR) {
                 return false;
             }
@@ -161,7 +174,8 @@ static bool giflib_decoder_read_extensions(giflib_decoder d) {
     return true;
 }
 
-static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
+static bool giflib_get_frame_gcb(GifFileType* gif, GraphicsControlBlock* gcb)
+{
     gcb->DisposalMode = DISPOSAL_UNSPECIFIED;
     gcb->UserInputFlag = false;
     gcb->DelayTime = 0;
@@ -169,7 +183,7 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
 
     bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
-        ExtensionBlock *b = &gif->ExtensionBlocks[i];
+        ExtensionBlock* b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
             int res = DGifExtensionToGCB(b->ByteCount, b->Bytes, gcb);
             success = res == GIF_OK;
@@ -179,10 +193,11 @@ static bool giflib_get_frame_gcb(GifFileType *gif, GraphicsControlBlock *gcb) {
     return success;
 }
 
-static bool giflib_set_frame_gcb(GifFileType *gif, const GraphicsControlBlock *gcb) {
+static bool giflib_set_frame_gcb(GifFileType* gif, const GraphicsControlBlock* gcb)
+{
     bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
-        ExtensionBlock *b = &gif->ExtensionBlocks[i];
+        ExtensionBlock* b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
             int res = EGifGCBToExtension(gcb, b->Bytes);
             success = res == GIF_OK;
@@ -192,7 +207,8 @@ static bool giflib_set_frame_gcb(GifFileType *gif, const GraphicsControlBlock *g
     return success;
 }
 
-static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d) {
+static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d)
+{
     GifRecordType RecordType;
 
     if (d->seek_clear_extensions) {
@@ -206,21 +222,21 @@ static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder 
         }
 
         switch (RecordType) {
-          case IMAGE_DESC_RECORD_TYPE:
-              // we are now at the next frame, so quit
-              return giflib_decoder_have_next_frame;
+        case IMAGE_DESC_RECORD_TYPE:
+            // we are now at the next frame, so quit
+            return giflib_decoder_have_next_frame;
 
-          case EXTENSION_RECORD_TYPE:
-              if (!giflib_decoder_read_extensions(d)) {
-                  return giflib_decoder_error;
-              }
-              break;
+        case EXTENSION_RECORD_TYPE:
+            if (!giflib_decoder_read_extensions(d)) {
+                return giflib_decoder_error;
+            }
+            break;
 
-          case TERMINATE_RECORD_TYPE:
-              break;
+        case TERMINATE_RECORD_TYPE:
+            break;
 
-          default:
-              break;
+        default:
+            break;
         }
     } while (RecordType != TERMINATE_RECORD_TYPE);
 
@@ -230,7 +246,8 @@ static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder 
 // get just the header without attempting to read its pixel data
 // this sets the image properties on d->gif->Image
 // includes dimensions and frame origin coordinates, color map
-giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d) {
+giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d)
+{
     giflib_decoder_frame_state seek = giflib_decoder_seek_next_frame(d);
 
     if (seek == giflib_decoder_eof || seek == giflib_decoder_error) {
@@ -244,8 +261,9 @@ giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d) 
     return giflib_decoder_have_next_frame;
 }
 
-static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *gcb, opencv_mat mat) {
-    auto cvMat = static_cast<cv::Mat *>(mat);
+static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* gcb, opencv_mat mat)
+{
+    auto cvMat = static_cast<cv::Mat*>(mat);
     GifImageDesc desc = d->gif->Image;
     int transparency_index = gcb->TransparentColor;
 
@@ -272,12 +290,14 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
     // we can't just cap these values because we have to skip the (unrenderable!) raster bits
     int skip_left = (frame_left < 0) ? -frame_left : 0;
     int skip_top = (frame_top < 0) ? -frame_top : 0;
-    int skip_right = (frame_left + frame_width > buf_width) ? (frame_left + frame_width - buf_width) : 0;
-    int skip_bottom = (frame_top + frame_height > buf_height) ? (frame_top + frame_height - buf_height) : 0;
+    int skip_right =
+      (frame_left + frame_width > buf_width) ? (frame_left + frame_width - buf_width) : 0;
+    int skip_bottom =
+      (frame_top + frame_height > buf_height) ? (frame_top + frame_height - buf_height) : 0;
 
-    ColorMapObject *globalColorMap = d->gif->SColorMap;
-    ColorMapObject *frameColorMap = desc.ColorMap;
-    ColorMapObject *colorMap = frameColorMap ? frameColorMap : globalColorMap;
+    ColorMapObject* globalColorMap = d->gif->SColorMap;
+    ColorMapObject* frameColorMap = desc.ColorMap;
+    ColorMapObject* colorMap = frameColorMap ? frameColorMap : globalColorMap;
 
     if (!colorMap) {
         fprintf(stderr, "encountered error, gif frame has no color map\n");
@@ -287,7 +307,7 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
     if (!d->have_read_first_frame) {
         // first frame -- draw the background
         for (size_t y = 0; y < buf_height; y++) {
-            uint8_t *dst = cvMat->data + y * cvMat->step;
+            uint8_t* dst = cvMat->data + y * cvMat->step;
             for (size_t x = 0; x < buf_width; x++) {
                 *dst++ = d->bg_blue;
                 *dst++ = d->bg_green;
@@ -333,7 +353,7 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
             prev_frame_width = (prev_frame_width < 0) ? 0 : prev_frame_width;
 
             for (int y = prev_frame_top; y < prev_frame_top + prev_frame_height; y++) {
-                uint8_t *dst = cvMat->data + y * cvMat->step + (prev_frame_left * 4);
+                uint8_t* dst = cvMat->data + y * cvMat->step + (prev_frame_left * 4);
                 for (int x = prev_frame_left; x < prev_frame_left + prev_frame_width; x++) {
                     *dst++ = d->bg_blue;
                     *dst++ = d->bg_green;
@@ -341,7 +361,8 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
                     *dst++ = d->bg_alpha;
                 }
             }
-        } else if (d->prev_frame_disposal == DISPOSE_PREVIOUS) {
+        }
+        else if (d->prev_frame_disposal == DISPOSE_PREVIOUS) {
             // TODO or maybe not to do
             // should we at least log this happened so that we know this exists?
             // tldr this crazy method requires you to walk back across all previous
@@ -388,7 +409,7 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
         // do actual column skipping here
         pixel_index += skip_left;
 
-        uint8_t *dst = cvMat->data + y * cvMat->step + (frame_left * 4);
+        uint8_t* dst = cvMat->data + y * cvMat->step + (frame_left * 4);
         for (int x = frame_left; x < frame_left + frame_width; x++) {
             // draw a single pixel in this iteration
             GifByteType palette_index = d->pixels[pixel_index++];
@@ -428,14 +449,15 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock *
     return true;
 }
 
-giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d) {
+giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d)
+{
     giflib_decoder_frame_state seek = giflib_decoder_decode_frame_header(d);
 
     if (seek != giflib_decoder_have_next_frame) {
         return seek;
     }
 
-    GifByteType *block;
+    GifByteType* block;
     while (true) {
         if (DGifGetCodeNext(d->gif, &block) == GIF_ERROR) {
             return giflib_decoder_error;
@@ -449,12 +471,13 @@ giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d) {
     return giflib_decoder_have_next_frame;
 }
 
-static int interlace_offset[] = { 0, 4, 2, 1 };
-static int interlace_jumps[] = { 8, 8, 4, 2 };
+static int interlace_offset[] = {0, 4, 2, 1};
+static int interlace_jumps[] = {8, 8, 4, 2};
 
 // decode the full frame and write it into mat
 // decode_frame_header *must* be called before this function
-bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
+bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat)
+{
     GifImageDesc desc = d->gif->Image;
 
     if (desc.Width <= 0) {
@@ -487,7 +510,7 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
         // only realloc if we need to size up
         // no point in shrinking, we'll free when decode has finished
         d->pixel_len = image_size;
-        d->pixels = (GifByteType *)(realloc(d->pixels, d->pixel_len * sizeof(GifPixelType)));
+        d->pixels = (GifByteType*)(realloc(d->pixels, d->pixel_len * sizeof(GifPixelType)));
     }
 
     if (d->pixels == NULL) {
@@ -496,16 +519,17 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     }
 
     if (desc.Interlace) {
-        for (int i = 0; i < sizeof(interlace_offset)/sizeof(int); i++) {
+        for (int i = 0; i < sizeof(interlace_offset) / sizeof(int); i++) {
             for (int j = interlace_offset[i]; j < desc.Height; j += interlace_jumps[i]) {
-                int res = DGifGetLine(d->gif, d->pixels + j*desc.Width, desc.Width);
+                int res = DGifGetLine(d->gif, d->pixels + j * desc.Width, desc.Width);
                 if (res == GIF_ERROR) {
                     fprintf(stderr, "encountered error, could not rasterize gif line\n");
                     return false;
                 }
             }
         }
-    } else {
+    }
+    else {
         int res = DGifGetLine(d->gif, d->pixels, image_size);
         if (res == GIF_ERROR) {
             fprintf(stderr, "encountered error, could not rasterize gif\n");
@@ -520,12 +544,14 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
         bool have_transparency = (gcb.TransparentColor != NO_TRANSPARENT_COLOR);
         if (have_transparency) {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 0;
-        } else if (d->gif->SColorMap && d->gif->SColorMap->Colors) {
+        }
+        else if (d->gif->SColorMap && d->gif->SColorMap->Colors) {
             d->bg_red = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Red;
             d->bg_green = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Green;
             d->bg_blue = d->gif->SColorMap->Colors[d->gif->SBackGroundColor].Blue;
             d->bg_alpha = 255;
-        } else {
+        }
+        else {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 255;
         }
     }
@@ -546,37 +572,43 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat) {
     return true;
 }
 
-ExtensionBlock *giflib_encoder_allocate_extension_blocks(giflib_encoder e, size_t count) {
-    ExtensionBlock *blocks = (ExtensionBlock*)(malloc(count * sizeof(ExtensionBlock)));
+ExtensionBlock* giflib_encoder_allocate_extension_blocks(giflib_encoder e, size_t count)
+{
+    ExtensionBlock* blocks = (ExtensionBlock*)(malloc(count * sizeof(ExtensionBlock)));
     e->extension_blocks.push_back(blocks);
     return blocks;
 }
 
-GifByteType *giflib_encoder_allocate_gif_bytes(giflib_encoder e, size_t count) {
-    GifByteType *bytes = (GifByteType*)(malloc(count * sizeof(GifByteType)));
+GifByteType* giflib_encoder_allocate_gif_bytes(giflib_encoder e, size_t count)
+{
+    GifByteType* bytes = (GifByteType*)(malloc(count * sizeof(GifByteType)));
     e->gif_bytes.push_back(bytes);
     return bytes;
 }
 
-ColorMapObject *giflib_encoder_allocate_color_maps(giflib_encoder e, size_t count) {
-    ColorMapObject *color_maps = (ColorMapObject*)(malloc(count * sizeof(ColorMapObject)));
+ColorMapObject* giflib_encoder_allocate_color_maps(giflib_encoder e, size_t count)
+{
+    ColorMapObject* color_maps = (ColorMapObject*)(malloc(count * sizeof(ColorMapObject)));
     e->color_maps.push_back(color_maps);
     return color_maps;
 }
 
-GifColorType *giflib_encoder_allocate_colors(giflib_encoder e, size_t count) {
-    GifColorType *colors = (GifColorType*)(malloc(count * sizeof(GifColorType)));
+GifColorType* giflib_encoder_allocate_colors(giflib_encoder e, size_t count)
+{
+    GifColorType* colors = (GifColorType*)(malloc(count * sizeof(GifColorType)));
     e->colors.push_back(colors);
     return colors;
 }
 
-SavedImage *giflib_encoder_allocate_saved_images(giflib_encoder e, size_t count) {
-    SavedImage *saved_images = (SavedImage*)(malloc(count * sizeof(SavedImage)));
+SavedImage* giflib_encoder_allocate_saved_images(giflib_encoder e, size_t count)
+{
+    SavedImage* saved_images = (SavedImage*)(malloc(count * sizeof(SavedImage)));
     e->saved_images.push_back(saved_images);
     return saved_images;
 }
 
-int encode_func(GifFileType *gif, const GifByteType *buf, int len) {
+int encode_func(GifFileType* gif, const GifByteType* buf, int len)
+{
     giflib_encoder e = static_cast<giflib_encoder>(gif->UserData);
     if (e->dst_offset + len > e->dst_len) {
         return 0;
@@ -586,14 +618,15 @@ int encode_func(GifFileType *gif, const GifByteType *buf, int len) {
     return len;
 }
 
-giflib_encoder giflib_encoder_create(void *buf, size_t buf_len) {
+giflib_encoder giflib_encoder_create(void* buf, size_t buf_len)
+{
     giflib_encoder e = new struct giflib_encoder_struct();
     memset(e, 0, sizeof(struct giflib_encoder_struct));
     e->dst = (uint8_t*)(buf);
     e->dst_len = buf_len;
 
     int error = 0;
-    GifFileType *gif_out = EGifOpen(e, encode_func, &error);
+    GifFileType* gif_out = EGifOpen(e, encode_func, &error);
     if (error) {
         fprintf(stderr, "encountered error opening gif, %d\n", error);
         delete e;
@@ -604,13 +637,15 @@ giflib_encoder giflib_encoder_create(void *buf, size_t buf_len) {
     // set up palette lookup table. we need 2^15 entries because we will be
     // using bit-crushed RGB values, 5 bits each. this is a reasonable compromise
     // between fidelity and computation/storage
-    e->palette_lookup = (encoder_palette_lookup*)(malloc((1 << 15) * sizeof(encoder_palette_lookup)));
+    e->palette_lookup =
+      (encoder_palette_lookup*)(malloc((1 << 15) * sizeof(encoder_palette_lookup)));
 
     return e;
 }
 
 // this function should be called just once when we know the global dimensions
-bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, int height) {
+bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, int height)
+{
     // all gifs will output as gif89
     EGifSetGifVersion(e->gif, true);
     e->gif->SWidth = width;
@@ -626,12 +661,19 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
     if (d->gif->SColorMap) {
         e->gif->SColorMap = giflib_encoder_allocate_color_maps(e, 1);
         memmove(e->gif->SColorMap, d->gif->SColorMap, sizeof(ColorMapObject));
-        e->gif->SColorMap->Colors = giflib_encoder_allocate_colors(e, e->gif->SColorMap->ColorCount);
-        memmove(e->gif->SColorMap->Colors, d->gif->SColorMap->Colors, e->gif->SColorMap->ColorCount * sizeof(GifColorType));
+        e->gif->SColorMap->Colors =
+          giflib_encoder_allocate_colors(e, e->gif->SColorMap->ColorCount);
+        memmove(e->gif->SColorMap->Colors,
+                d->gif->SColorMap->Colors,
+                e->gif->SColorMap->ColorCount * sizeof(GifColorType));
     }
 
-    int res = EGifPutScreenDesc(e->gif, e->gif->SWidth, e->gif->SHeight, e->gif->SColorResolution,
-                                e->gif->SBackGroundColor, e->gif->SColorMap);
+    int res = EGifPutScreenDesc(e->gif,
+                                e->gif->SWidth,
+                                e->gif->SHeight,
+                                e->gif->SColorResolution,
+                                e->gif->SBackGroundColor,
+                                e->gif->SColorMap);
     if (res == GIF_ERROR) {
         return false;
     }
@@ -639,11 +681,12 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
     return true;
 }
 
-static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d) {
+static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
+{
     // initialize frame with input gif's frame metadata
     // this includes, amongst other things, inter-frame delays
-    GifImageDesc *im_in = &d->gif->Image;
-    GifImageDesc *im_out = &e->gif->Image;
+    GifImageDesc* im_in = &d->gif->Image;
+    GifImageDesc* im_out = &e->gif->Image;
 
     // XXX we're just going to copy here, but this probably isn't right since
     // the decoder doesn't handle interlacing correctly. might be worthwhile to
@@ -656,8 +699,11 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
         e->frame_color_map = giflib_encoder_allocate_color_maps(e, 1);
         memmove(e->frame_color_map, im_in->ColorMap, sizeof(ColorMapObject));
         // copy all of the RGB color values from input frame palette to output frame palette
-        e->frame_color_map->Colors = giflib_encoder_allocate_colors(e, e->frame_color_map->ColorCount);
-        memmove(e->frame_color_map->Colors, im_in->ColorMap->Colors, e->frame_color_map->ColorCount * sizeof(GifColorType));
+        e->frame_color_map->Colors =
+          giflib_encoder_allocate_colors(e, e->frame_color_map->ColorCount);
+        memmove(e->frame_color_map->Colors,
+                im_in->ColorMap->Colors,
+                e->frame_color_map->ColorCount * sizeof(GifColorType));
     }
 
     // copy extension blocks specific to this frame
@@ -668,10 +714,11 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
         // TODO here and in global extension blocks, we should filter out worthless blocks
         // we're only really interested in ExtensionBlock.Function = GRAPHICS_EXT_FUNC_CODE
         // other values like COMMENT_ and PLAINTEXT_ are not essential to viewing the image
-        e->gif->ExtensionBlocks = giflib_encoder_allocate_extension_blocks(e, e->gif->ExtensionBlockCount);
+        e->gif->ExtensionBlocks =
+          giflib_encoder_allocate_extension_blocks(e, e->gif->ExtensionBlockCount);
         for (int i = 0; i < e->gif->ExtensionBlockCount; i++) {
-            ExtensionBlock *eb_in = &(d->gif->ExtensionBlocks[i]);
-            ExtensionBlock *eb_out = &(e->gif->ExtensionBlocks[i]);
+            ExtensionBlock* eb_in = &(d->gif->ExtensionBlocks[i]);
+            ExtensionBlock* eb_out = &(e->gif->ExtensionBlocks[i]);
             eb_out->ByteCount = eb_in->ByteCount;
             eb_out->Function = eb_in->Function;
             eb_out->Bytes = giflib_encoder_allocate_gif_bytes(e, eb_out->ByteCount);
@@ -685,7 +732,8 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
 // TODO this probably should be the euclidean distance
 // the manhattan distance will still be "good enough"
 // euclidean requires calculating pow(2) and sqrt()?
-static inline int rgb_distance(int r0, int g0, int b0, int r1, int g1, int b1) {
+static inline int rgb_distance(int r0, int g0, int b0, int r1, int g1, int b1)
+{
     int dist = 0;
     dist += (r0 > r1) ? r0 - r1 : r1 - r0;
     dist += (g0 > g1) ? g0 - g1 : g1 - g0;
@@ -693,9 +741,12 @@ static inline int rgb_distance(int r0, int g0, int b0, int r1, int g1, int b1) {
     return dist;
 }
 
-static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d, const opencv_mat opaque_frame) {
-    GifFileType *gif_out = e->gif;
-    auto frame = static_cast<const cv::Mat *>(opaque_frame);
+static bool giflib_encoder_render_frame(giflib_encoder e,
+                                        const giflib_decoder d,
+                                        const opencv_mat opaque_frame)
+{
+    GifFileType* gif_out = e->gif;
+    auto frame = static_cast<const cv::Mat*>(opaque_frame);
 
     // basic bounds checking - would this frame be wider than the global gif width?
     // if we do partial frames, we'll need to change this to account for top/left
@@ -709,7 +760,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
         return false;
     }
 
-    GifImageDesc *im_out = &gif_out->Image;
+    GifImageDesc* im_out = &gif_out->Image;
     // TODO some day consider making partial frames/make these not 0
     im_out->Left = 0;
     im_out->Top = 0;
@@ -721,12 +772,12 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     if (image_size > e->pixel_len) {
         // only realloc if we need to size up
         e->pixel_len = image_size;
-        e->pixels = (GifByteType *)(realloc(e->pixels, e->pixel_len * sizeof(GifPixelType)));
+        e->pixels = (GifByteType*)(realloc(e->pixels, e->pixel_len * sizeof(GifPixelType)));
     }
 
-    ColorMapObject *global_color_map = e->gif->SColorMap;
-    ColorMapObject *frame_color_map = e->frame_color_map;
-    ColorMapObject *color_map = frame_color_map ? frame_color_map : global_color_map;
+    ColorMapObject* global_color_map = e->gif->SColorMap;
+    ColorMapObject* frame_color_map = e->frame_color_map;
+    ColorMapObject* color_map = frame_color_map ? frame_color_map : global_color_map;
 
     if (!color_map) {
         fprintf(stderr, "encountered error, gif frame has no color map\n");
@@ -738,9 +789,11 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     bool clear_palette_lookup = true;
     // on the first frame, we will always clear
     if (e->have_written_first_frame) {
-        ColorMapObject *last_color_map = e->prev_frame_color_map;
+        ColorMapObject* last_color_map = e->prev_frame_color_map;
         if (last_color_map && last_color_map->ColorCount == color_map->ColorCount) {
-            int cmp = memcmp(last_color_map->Colors, color_map->Colors, color_map->ColorCount * sizeof(GifColorType));
+            int cmp = memcmp(last_color_map->Colors,
+                             color_map->Colors,
+                             color_map->ColorCount * sizeof(GifColorType));
             clear_palette_lookup = (cmp != 0);
         }
     }
@@ -756,7 +809,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
 
     // decide whether we can use transparency against the previous frame
     bool prev_frame_valid = e->have_written_first_frame &&
-            (e->prev_frame_disposal == DISPOSAL_UNSPECIFIED || e->prev_frame_disposal == DISPOSE_DO_NOT);
+      (e->prev_frame_disposal == DISPOSAL_UNSPECIFIED || e->prev_frame_disposal == DISPOSE_DO_NOT);
 
     // convenience names for these dimensions
     int frame_left = im_out->Left;
@@ -764,11 +817,11 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     int frame_width = im_out->Width;
     int frame_height = im_out->Height;
 
-    GifByteType *raster_out = e->pixels;
+    GifByteType* raster_out = e->pixels;
 
     int raster_index = 0;
     for (int y = frame_top; y < frame_top + frame_height; y++) {
-        uint8_t *src = frame->data + y * frame->step + (frame_left * 4);
+        uint8_t* src = frame->data + y * frame->step + (frame_left * 4);
         for (int x = frame_left; x < frame_left + frame_width; x++) {
             uint32_t B = *src++;
             uint32_t G = *src++;
@@ -799,15 +852,20 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 uint32_t G_center = (G & 0xf8) | 4;
                 uint32_t B_center = (B & 0xf8) | 4;
 
-                // we're calculating the best, so keep track of which palette entry has least distance
+                // we're calculating the best, so keep track of which palette entry has least
+                // distance
                 int count = color_map->ColorCount;
                 for (int i = 0; i < count; i++) {
                     if (i == transparency_index) {
                         // this index doesn't point to an actual color
                         continue;
                     }
-                    int dist = rgb_distance(R_center, G_center, B_center, color_map->Colors[i].Red,
-                                            color_map->Colors[i].Green, color_map->Colors[i].Blue);
+                    int dist = rgb_distance(R_center,
+                                            G_center,
+                                            B_center,
+                                            color_map->Colors[i].Red,
+                                            color_map->Colors[i].Green,
+                                            color_map->Colors[i].Blue);
                     if (dist < least_dist) {
                         least_dist = dist;
                         best_color = i;
@@ -815,10 +873,15 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
                 }
                 e->palette_lookup[crushed].present = 1;
                 e->palette_lookup[crushed].index = best_color;
-            } else {
+            }
+            else {
                 best_color = e->palette_lookup[crushed].index;
-                least_dist = rgb_distance(R, G, B, color_map->Colors[best_color].Red,
-                                          color_map->Colors[best_color].Green, color_map->Colors[best_color].Blue);
+                least_dist = rgb_distance(R,
+                                          G,
+                                          B,
+                                          color_map->Colors[best_color].Red,
+                                          color_map->Colors[best_color].Green,
+                                          color_map->Colors[best_color].Blue);
             }
 
             // now that we for sure know which palette entry to pick, we have one more test
@@ -851,9 +914,10 @@ static bool giflib_encoder_render_frame(giflib_encoder e, const giflib_decoder d
     return true;
 }
 
-static int giflib_encoder_write_extensions(giflib_encoder e) {
+static int giflib_encoder_write_extensions(giflib_encoder e)
+{
     if (e->gif->ExtensionBlocks) {
-        ExtensionBlock *ep;
+        ExtensionBlock* ep;
 
         for (int i = 0; i < e->gif->ExtensionBlockCount; i++) {
             ep = &e->gif->ExtensionBlocks[i];
@@ -865,7 +929,8 @@ static int giflib_encoder_write_extensions(giflib_encoder e) {
             if (EGifPutExtensionBlock(e->gif, ep->ByteCount, ep->Bytes) == GIF_ERROR) {
                 return false;
             }
-            if (i == e->gif->ExtensionBlockCount - 1 || (ep + 1)->Function != CONTINUE_EXT_FUNC_CODE) {
+            if (i == e->gif->ExtensionBlockCount - 1 ||
+                (ep + 1)->Function != CONTINUE_EXT_FUNC_CODE) {
                 if (EGifPutExtensionTrailer(e->gif) == GIF_ERROR) {
                     return false;
                 }
@@ -876,11 +941,14 @@ static int giflib_encoder_write_extensions(giflib_encoder e) {
     return true;
 }
 
-bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const opencv_mat opaque_frame) {
+bool giflib_encoder_encode_frame(giflib_encoder e,
+                                 const giflib_decoder d,
+                                 const opencv_mat opaque_frame)
+{
     giflib_encoder_setup_frame(e, d);
     giflib_encoder_render_frame(e, d, opaque_frame);
 
-    GifImageDesc *im_out = &e->gif->Image;
+    GifImageDesc* im_out = &e->gif->Image;
     int frame_height = im_out->Height;
     int frame_width = im_out->Width;
 
@@ -889,8 +957,13 @@ bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const
         return false;
     }
 
-    res = EGifPutImageDesc(e->gif, im_out->Left, im_out->Top, im_out->Width, im_out->Height,
-                           im_out->Interlace, e->frame_color_map);
+    res = EGifPutImageDesc(e->gif,
+                           im_out->Left,
+                           im_out->Top,
+                           im_out->Width,
+                           im_out->Height,
+                           im_out->Interlace,
+                           e->frame_color_map);
     if (res == GIF_ERROR) {
         return false;
     }
@@ -899,14 +972,15 @@ bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const
         /* Need to perform 4 passes on the images: */
         for (int i = 0; i < 4; i++) {
             for (int j = interlace_offset[i]; j < frame_height; j += interlace_jumps[i]) {
-                res = EGifPutLine(e->gif, e->pixels + j*frame_width, frame_width);
+                res = EGifPutLine(e->gif, e->pixels + j * frame_width, frame_width);
                 if (res == GIF_ERROR) {
                     fprintf(stderr, "encountered error, could not serialize gif line\n");
                     return false;
                 }
             }
         }
-    } else {
+    }
+    else {
         for (int i = 0; i < frame_height; i++) {
             res = EGifPutLine(e->gif, e->pixels + i * frame_width, frame_width);
             if (res == GIF_ERROR) {
@@ -920,7 +994,8 @@ bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const
     return true;
 }
 
-bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d) {
+bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d)
+{
     // XXX we need to pull these trailing blocks on d
     // does decoder's state machine allow that?
 
@@ -929,9 +1004,10 @@ bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d) {
     e->gif->ExtensionBlockCount = d->gif->ExtensionBlockCount;
     e->gif->ExtensionBlocks = NULL;
     if (e->gif->ExtensionBlockCount > 0) {
-        e->gif->ExtensionBlocks = giflib_encoder_allocate_extension_blocks(e, e->gif->ExtensionBlockCount);
+        e->gif->ExtensionBlocks =
+          giflib_encoder_allocate_extension_blocks(e, e->gif->ExtensionBlockCount);
         for (int i = 0; i < e->gif->ExtensionBlockCount; i++) {
-            ExtensionBlock *eb = &(e->gif->ExtensionBlocks[i]);
+            ExtensionBlock* eb = &(e->gif->ExtensionBlocks[i]);
             eb->ByteCount = d->gif->ExtensionBlocks[i].ByteCount;
             eb->Function = d->gif->ExtensionBlocks[i].Function;
             eb->Bytes = giflib_encoder_allocate_gif_bytes(e, eb->ByteCount);
@@ -953,7 +1029,8 @@ bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d) {
     return true;
 }
 
-void giflib_encoder_release(giflib_encoder e) {
+void giflib_encoder_release(giflib_encoder e)
+{
     // don't free dst -- we're borrowing it
 
     if (e->prev_frame_bgra) {
@@ -968,23 +1045,28 @@ void giflib_encoder_release(giflib_encoder e) {
         free(e->pixels);
     }
 
-    for (std::vector<ExtensionBlock *>::iterator it = e->extension_blocks.begin(); it != e->extension_blocks.end(); ++it) {
+    for (std::vector<ExtensionBlock*>::iterator it = e->extension_blocks.begin();
+         it != e->extension_blocks.end();
+         ++it) {
         free(*it);
     }
     e->extension_blocks.clear();
 
-    for (std::vector<GifByteType *>::iterator it = e->gif_bytes.begin(); it != e->gif_bytes.end(); ++it) {
+    for (std::vector<GifByteType*>::iterator it = e->gif_bytes.begin(); it != e->gif_bytes.end();
+         ++it) {
         free(*it);
     }
     e->gif_bytes.clear();
 
-    ColorMapObject *gif_scolor = NULL;
-    ColorMapObject *gif_last_color = NULL;
+    ColorMapObject* gif_scolor = NULL;
+    ColorMapObject* gif_last_color = NULL;
     if (e->gif) {
         gif_scolor = e->gif->SColorMap;
         gif_last_color = e->gif->Image.ColorMap;
     }
-    for (std::vector<ColorMapObject *>::iterator it = e->color_maps.begin(); it != e->color_maps.end(); ++it) {
+    for (std::vector<ColorMapObject*>::iterator it = e->color_maps.begin();
+         it != e->color_maps.end();
+         ++it) {
         if (gif_scolor && gif_scolor == *it) {
             // this is extremely unlikely to happen, but giflib transitions from
             // borrowing this ptr to owning it, and it's possible that it will try
@@ -1001,12 +1083,14 @@ void giflib_encoder_release(giflib_encoder e) {
     }
     e->color_maps.clear();
 
-    for (std::vector<GifColorType *>::iterator it = e->colors.begin(); it != e->colors.end(); ++it) {
+    for (std::vector<GifColorType*>::iterator it = e->colors.begin(); it != e->colors.end(); ++it) {
         free(*it);
     }
     e->colors.clear();
 
-    for (std::vector<SavedImage *>::iterator it = e->saved_images.begin(); it != e->saved_images.end(); ++it) {
+    for (std::vector<SavedImage*>::iterator it = e->saved_images.begin();
+         it != e->saved_images.end();
+         ++it) {
         free(*it);
     }
     e->saved_images.clear();
@@ -1024,6 +1108,7 @@ void giflib_encoder_release(giflib_encoder e) {
     delete e;
 }
 
-int giflib_encoder_get_output_length(giflib_encoder e) {
+int giflib_encoder_get_output_length(giflib_encoder e)
+{
     return e->dst_offset;
 }

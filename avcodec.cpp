@@ -29,7 +29,8 @@ extern AVCodec ff_flac_decoder;
 extern AVCodec ff_aac_decoder;
 extern AVCodec ff_vorbis_decoder;
 
-void avcodec_init() {
+void avcodec_init()
+{
     av_register_input_format(&ff_mov_demuxer);
     av_register_input_format(&ff_matroska_demuxer);
     av_register_input_format(&ff_mp3_demuxer);
@@ -51,15 +52,16 @@ void avcodec_init() {
 }
 
 struct avcodec_decoder_struct {
-    const cv::Mat *mat;
+    const cv::Mat* mat;
     ptrdiff_t read_index;
-    AVFormatContext *container;
-    AVCodecContext *codec;
-    AVIOContext *avio;
+    AVFormatContext* container;
+    AVCodecContext* codec;
+    AVIOContext* avio;
     int video_stream_index;
 };
 
-static int avcodec_decoder_read_callback(void *d_void, uint8_t *buf, int buf_size) {
+static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_size)
+{
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
     size_t buf_len = d->mat->total() - d->read_index;
     size_t read_len = (buf_len > buf_size) ? buf_size : buf_len;
@@ -68,9 +70,10 @@ static int avcodec_decoder_read_callback(void *d_void, uint8_t *buf, int buf_siz
     return read_len;
 }
 
-static int64_t avcodec_decoder_seek_callback(void *d_void, int64_t offset, int whence) {
+static int64_t avcodec_decoder_seek_callback(void* d_void, int64_t offset, int whence)
+{
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
-    uint8_t *to;
+    uint8_t* to;
     switch (whence) {
     case SEEK_SET:
         to = d->mat->data + offset;
@@ -96,7 +99,8 @@ static int64_t avcodec_decoder_seek_callback(void *d_void, int64_t offset, int w
     return 0;
 }
 
-static bool avcodec_decoder_is_audio(const avcodec_decoder d) {
+static bool avcodec_decoder_is_audio(const avcodec_decoder d)
+{
     if (!d->container) {
         return false;
     }
@@ -118,10 +122,11 @@ static bool avcodec_decoder_is_audio(const avcodec_decoder d) {
     return false;
 }
 
-avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
+avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
+{
     avcodec_decoder d = new struct avcodec_decoder_struct();
     memset(d, 0, sizeof(struct avcodec_decoder_struct));
-    d->mat = static_cast<const cv::Mat *>(buf);
+    d->mat = static_cast<const cv::Mat*>(buf);
 
     d->container = avformat_alloc_context();
     if (!d->container) {
@@ -129,8 +134,8 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
         return NULL;
     }
 
-    d->avio = avio_alloc_context(NULL, 0, 0, d, avcodec_decoder_read_callback,
-                                 NULL, avcodec_decoder_seek_callback);
+    d->avio = avio_alloc_context(
+      NULL, 0, 0, d, avcodec_decoder_read_callback, NULL, avcodec_decoder_seek_callback);
     if (!d->avio) {
         avcodec_decoder_release(d);
         return NULL;
@@ -157,7 +162,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
         return d;
     }
 
-    AVCodecParameters *codec_params = NULL;
+    AVCodecParameters* codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
         if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             codec_params = d->container->streams[i]->codecpar;
@@ -170,7 +175,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
         return NULL;
     }
 
-    AVCodec *codec = avcodec_find_decoder(codec_params->codec_id);
+    AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
     if (!codec) {
         avcodec_decoder_release(d);
         return NULL;
@@ -193,21 +198,24 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf) {
     return d;
 }
 
-int avcodec_decoder_get_width(const avcodec_decoder d) {
+int avcodec_decoder_get_width(const avcodec_decoder d)
+{
     if (d->codec) {
         return d->codec->width;
     }
     return 0;
 }
 
-int avcodec_decoder_get_height(const avcodec_decoder d) {
+int avcodec_decoder_get_height(const avcodec_decoder d)
+{
     if (d->codec) {
         return d->codec->height;
     }
     return 0;
 }
 
-int avcodec_decoder_get_orientation(const avcodec_decoder d) {
+int avcodec_decoder_get_orientation(const avcodec_decoder d)
+{
     if (!d->container) {
         return CV_IMAGE_ORIENTATION_TL;
     }
@@ -215,7 +223,8 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d) {
         return CV_IMAGE_ORIENTATION_TL;
     }
     CVImageOrientation orientation = CV_IMAGE_ORIENTATION_TL;
-    AVDictionaryEntry *tag = av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
+    AVDictionaryEntry* tag =
+      av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
     if (!tag) {
         return orientation;
     }
@@ -234,14 +243,16 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d) {
     return orientation;
 }
 
-float avcodec_decoder_get_duration(const avcodec_decoder d) {
+float avcodec_decoder_get_duration(const avcodec_decoder d)
+{
     if (d->container) {
         return d->container->duration / (float)(AV_TIME_BASE);
     }
     return 0;
 }
 
-const char *avcodec_decoder_get_description(const avcodec_decoder d) {
+const char* avcodec_decoder_get_description(const avcodec_decoder d)
+{
     if (d->container) {
         if (d->container->iformat == &ff_mov_demuxer) {
             return "MOV";
@@ -268,8 +279,9 @@ const char *avcodec_decoder_get_description(const avcodec_decoder d) {
     return "";
 }
 
-static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame *frame) {
-    auto cvMat = static_cast<cv::Mat *>(mat);
+static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
+{
+    auto cvMat = static_cast<cv::Mat*>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
@@ -285,11 +297,18 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
             return -1;
         }
 
-        struct SwsContext *sws = sws_getContext(frame->width, frame->height, (AVPixelFormat)(frame->format),
-                                                frame->width, frame->height, AV_PIX_FMT_BGRA,
-                                                0, NULL, NULL, NULL);
+        struct SwsContext* sws = sws_getContext(frame->width,
+                                                frame->height,
+                                                (AVPixelFormat)(frame->format),
+                                                frame->width,
+                                                frame->height,
+                                                AV_PIX_FMT_BGRA,
+                                                0,
+                                                NULL,
+                                                NULL,
+                                                NULL);
         int linesizes[] = {stepSize, 0, 0, 0};
-        uint8_t *data_ptrs[] = {cvMat->data, NULL, NULL, NULL};
+        uint8_t* data_ptrs[] = {cvMat->data, NULL, NULL, NULL};
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
         sws_freeContext(sws);
     }
@@ -297,13 +316,14 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
     return res;
 }
 
-static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket *packet) {
+static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket* packet)
+{
     int res = avcodec_send_packet(d->codec, packet);
     if (res < 0) {
         return res;
     }
 
-    AVFrame *frame = av_frame_alloc();
+    AVFrame* frame = av_frame_alloc();
     if (!frame) {
         return -1;
     }
@@ -314,7 +334,8 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
     return res;
 }
 
-bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
+bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
+{
     if (!d) {
         return false;
     }
@@ -337,7 +358,8 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
             if (res >= 0) {
                 success = true;
                 done = true;
-            } else if (res != AVERROR(EAGAIN)) {
+            }
+            else if (res != AVERROR(EAGAIN)) {
                 done = true;
             }
         }
@@ -346,7 +368,8 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat) {
     return success;
 }
 
-void avcodec_decoder_release(avcodec_decoder d) {
+void avcodec_decoder_release(avcodec_decoder d)
+{
     if (d->codec) {
         avcodec_free_context(&d->codec);
     }
