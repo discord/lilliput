@@ -6,8 +6,8 @@ extern "C" {
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 
 #ifdef __cplusplus
 }
@@ -28,6 +28,7 @@ extern AVCodec ff_mp3_decoder;
 extern AVCodec ff_flac_decoder;
 extern AVCodec ff_aac_decoder;
 extern AVCodec ff_vorbis_decoder;
+extern AVCodecParser ff_h264_parser;
 
 void avcodec_init()
 {
@@ -48,6 +49,8 @@ void avcodec_init()
     avcodec_register(&ff_aac_decoder);
     avcodec_register(&ff_vorbis_decoder);
 
+    av_register_codec_parser(&ff_h264_parser);
+
     av_log_set_level(AV_LOG_ERROR);
 }
 
@@ -56,6 +59,9 @@ struct avcodec_decoder_struct {
     ptrdiff_t read_index;
     AVFormatContext* container;
     AVCodecContext* codec;
+    AVCodecParameters* codec_params;
+    AVCodecParserContext* parser;
+    AVCodecContext* parser_codec_context;
     AVIOContext* avio;
     int video_stream_index;
 };
@@ -166,6 +172,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
     for (int i = 0; i < d->container->nb_streams; i++) {
         if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             codec_params = d->container->streams[i]->codecpar;
+            d->codec_params = codec_params;
             d->video_stream_index = i;
             break;
         }
@@ -182,6 +189,12 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
     }
 
     d->codec = avcodec_alloc_context3(codec);
+    d->parser = av_parser_init(codec_params->codec_id);
+
+    if (d->parser) {
+        d->parser_codec_context = avcodec_alloc_context3(codec);
+        d->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+    }
 
     res = avcodec_parameters_to_context(d->codec, codec_params);
     if (res < 0) {
@@ -334,6 +347,51 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
     return res;
 }
 
+bool avcodec_decoder_validate(const avcodec_decoder d, int max_width, int max_height)
+{
+    if (!d || !d->container || !d->codec || !d->parser) {
+        return true;
+    }
+
+    AVPacket packet;
+    bool done = false;
+    bool valid = true;
+
+    while (!done) {
+        int res = av_read_frame(d->container, &packet);
+        if (res < 0) {
+            break;
+        }
+
+        if (packet.stream_index == d->video_stream_index) {
+            d->parser_codec_context->extradata = d->codec_params->extradata;
+            d->parser_codec_context->extradata_size = d->codec_params->extradata_size;
+
+            uint8_t* outbuf;
+            int outbuf_size, in_size = packet.size;
+            uint8_t* buf = packet.data;
+
+            av_parser_parse2(d->parser,
+                             d->parser_codec_context,
+                             &outbuf,
+                             &outbuf_size,
+                             buf,
+                             in_size,
+                             AV_NOPTS_VALUE,
+                             AV_NOPTS_VALUE,
+                             0);
+
+            if (d->parser->coded_width > max_width || d->parser->coded_height > max_height) {
+                valid = false;
+                done = true;
+            }
+        }
+
+        av_packet_unref(&packet);
+    }
+    return valid;
+}
+
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
 {
     if (!d) {
@@ -376,6 +434,14 @@ void avcodec_decoder_release(avcodec_decoder d)
 
     if (d->container) {
         avformat_close_input(&d->container);
+    }
+
+    if (d->parser) {
+        av_parser_close(d->parser);
+    }
+
+    if (d->parser_codec_context) {
+        avcodec_free_context(&d->parser_codec_context);
     }
 
     if (d->avio) {

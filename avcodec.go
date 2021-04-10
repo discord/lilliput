@@ -92,6 +92,18 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
+func (d *avCodecDecoder) Validate(maxWidth int, maxHeight int) error {
+	if d.hasDecoded {
+		return io.EOF
+	}
+	ret := C.avcodec_decoder_validate(d.decoder, C.int(maxWidth), C.int(maxHeight))
+	d.hasDecoded = true
+	if !ret {
+		return ErrValidationFailed
+	}
+	return nil
+}
+
 func (d *avCodecDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
