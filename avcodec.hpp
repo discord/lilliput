@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-typedef struct avcodec_decoder_struct *avcodec_decoder;
+typedef struct avcodec_decoder_struct* avcodec_decoder;
 
 void avcodec_init();
 
@@ -18,7 +18,7 @@ int avcodec_decoder_get_height(const avcodec_decoder d);
 int avcodec_decoder_get_orientation(const avcodec_decoder d);
 float avcodec_decoder_get_duration(const avcodec_decoder d);
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat);
-const char *avcodec_decoder_get_description(const avcodec_decoder d);
+const char* avcodec_decoder_get_description(const avcodec_decoder d);
 
 #ifdef __cplusplus
 }
