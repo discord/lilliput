@@ -15,7 +15,6 @@ var (
 	ErrBufTooSmall      = errors.New("buffer too small to hold image")
 	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
 	ErrSkipNotSupported = errors.New("skip operation not supported by this decoder")
-	ErrValidationFailed = errors.New("image validation failed")
 
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")
@@ -49,13 +48,6 @@ type Decoder interface {
 	// SkipFrame skips a frame if the decoder supports multiple frames
 	// and returns io.EOF if the last frame has been reached
 	SkipFrame() error
-
-	// Validate does a lightweight decode of the image to verify that it doesn't
-	// contain anything naughty, in particular, excessively large video frames
-	// that can be embedded using alternate H264 sequence parameter sets. This
-	// may consume the compressed data, so only one of DecodeTo or Validate may
-	// be called on a given Decoder.
-	Validate(maxWidth int, maxHeight int) error
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

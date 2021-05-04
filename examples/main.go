@@ -24,14 +24,12 @@ func main() {
 	var outputHeight int
 	var outputFilename string
 	var stretch bool
-	var validate bool
 
 	flag.StringVar(&inputFilename, "input", "", "name of input file to resize/transcode")
 	flag.StringVar(&outputFilename, "output", "", "name of output file, also determines output type")
 	flag.IntVar(&outputWidth, "width", 0, "width of output file")
 	flag.IntVar(&outputHeight, "height", 0, "height of output file")
 	flag.BoolVar(&stretch, "stretch", false, "perform stretching resize instead of cropping")
-	flag.BoolVar(&validate, "validate", false, "validate instead of decoding, width/height used as maxes")
 	flag.Parse()
 
 	if inputFilename == "" {
@@ -55,16 +53,6 @@ func main() {
 		os.Exit(1)
 	}
 	defer decoder.Close()
-
-	if validate {
-		err = decoder.Validate(outputWidth, outputHeight)
-
-		if err != nil {
-			fmt.Printf("validation failed\n")
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
 
 	header, err := decoder.Header()
 	// this error is much more comprehensive and reflects

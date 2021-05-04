@@ -13,6 +13,7 @@ package lilliput
 import "C"
 
 import (
+	"errors"
 	"io"
 	"time"
 	"unsafe"
@@ -24,7 +25,17 @@ type avCodecDecoder struct {
 	buf        []byte
 	hasDecoded bool
 	maybeMP4   bool
+	validation int
 }
+
+const (
+	defaultMaxAVCodecFrameDimension = 4096
+	ValidationNotRun                = iota
+	ValidationCompleted
+	ValidationFailed
+)
+
+var ErrFrameSizeValidationFailed = errors.New("image frame size validation failed")
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
@@ -40,10 +51,11 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 	}
 
 	return &avCodecDecoder{
-		decoder:  decoder,
-		mat:      mat,
-		buf:      buf,
-		maybeMP4: isMP4(buf),
+		decoder:    decoder,
+		mat:        mat,
+		buf:        buf,
+		maybeMP4:   isMP4(buf),
+		validation: ValidationNotRun,
 	}, nil
 }
 
@@ -63,6 +75,9 @@ func (d *avCodecDecoder) Duration() time.Duration {
 }
 
 func (d *avCodecDecoder) Header() (*ImageHeader, error) {
+	if err := d.validateFrameSizes(defaultMaxAVCodecFrameDimension, defaultMaxAVCodecFrameDimension); err != nil {
+		return nil, err
+	}
 	return &ImageHeader{
 		width:       int(C.avcodec_decoder_get_width(d.decoder)),
 		height:      int(C.avcodec_decoder_get_height(d.decoder)),
@@ -92,15 +107,21 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func (d *avCodecDecoder) Validate(maxWidth int, maxHeight int) error {
+func (d *avCodecDecoder) validateFrameSizes(maxWidth int, maxHeight int) error {
 	if d.hasDecoded {
 		return io.EOF
 	}
-	ret := C.avcodec_decoder_validate(d.decoder, C.int(maxWidth), C.int(maxHeight))
-	d.hasDecoded = true
-	if !ret {
-		return ErrValidationFailed
+	if d.validation == ValidationCompleted {
+		return nil
 	}
+	if d.validation == ValidationFailed {
+		return ErrFrameSizeValidationFailed
+	}
+	ret := C.avcodec_decoder_validate_frame_sizes(d.decoder, C.int(maxWidth), C.int(maxHeight))
+	if !ret {
+		return ErrFrameSizeValidationFailed
+	}
+	d.validation = ValidationCompleted
 	return nil
 }
 

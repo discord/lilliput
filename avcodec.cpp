@@ -347,7 +347,7 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
     return res;
 }
 
-bool avcodec_decoder_validate(const avcodec_decoder d, int max_width, int max_height)
+bool avcodec_decoder_validate_frame_sizes(const avcodec_decoder d, int max_width, int max_height)
 {
     if (!d || !d->container || !d->codec || !d->parser) {
         return true;
@@ -389,6 +389,7 @@ bool avcodec_decoder_validate(const avcodec_decoder d, int max_width, int max_he
 
         av_packet_unref(&packet);
     }
+    av_seek_frame(d->container, -1, 0, (AVSEEK_FLAG_BACKWARD));
     return valid;
 }
 

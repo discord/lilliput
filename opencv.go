@@ -371,17 +371,6 @@ func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
-func (d *openCVDecoder) Validate(maxWidth int, maxHeight int) error {
-	header, err := d.Header()
-	if err != nil {
-		return err
-	}
-	if header.width > maxWidth || header.height > maxHeight {
-		return ErrValidationFailed
-	}
-	return nil
-}
-
 func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
