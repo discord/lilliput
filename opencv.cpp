@@ -156,7 +156,6 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
 {
     auto e_ptr = static_cast<cv::ImageEncoder*>(e);
     auto mat = static_cast<const cv::Mat*>(src);
-    e_ptr = 0;
     std::vector<int> params;
     for (size_t i = 0; i < opt_len; i++) {
         params.push_back(opt[i]);
