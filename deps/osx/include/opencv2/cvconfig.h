@@ -196,7 +196,7 @@
 /* #undef HAVE_VA_INTEL */
 
 /* Lapack */
-#define HAVE_LAPACK
+/* #undef HAVE_LAPACK */
 
 /* FP16 */
 /* #undef HAVE_FP16 */
