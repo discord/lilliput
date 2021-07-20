@@ -154,7 +154,6 @@ void opencv_encoder_release(opencv_encoder e)
 
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len)
 {
-    signal(SIGSEGV, SIG_DFL);
     auto e_ptr = static_cast<cv::ImageEncoder*>(e);
     auto mat = static_cast<const cv::Mat*>(src);
     e_ptr = 0;
