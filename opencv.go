@@ -1,6 +1,6 @@
 package lilliput
 
-// #cgo CFLAGS: -g -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
+// #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
 // #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
 // #cgo CXXFLAGS: -std=c++11
