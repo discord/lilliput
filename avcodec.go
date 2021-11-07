@@ -1,14 +1,20 @@
 package lilliput
 
-// #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
-// #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo amd64 CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
+// #cgo darwin,amd64 CFLAGS: -I${SRCDIR}/deps/osx/amd64/include
+// #cgo darwin,arm64 CFLAGS: -I${SRCDIR}/deps/osx/arm64/include
+// #cgo linux,amd64 CFLAGS: -I${SRCDIR}/deps/linux/amd64/include
+// #cgo linux,arm64 CFLAGS: -I${SRCDIR}/deps/linux/arm64/include
 // #cgo CXXFLAGS: -std=c++11
-// #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo darwin,amd64 CXXFLAGS: -I${SRCDIR}/deps/osx/amd64/include
+// #cgo darwin,arm64 CXXFLAGS: -I${SRCDIR}/deps/osx/arm64/include
+// #cgo linux,amd64 CXXFLAGS: -I${SRCDIR}/deps/linux/amd64/include
+// #cgo linux,arm64 CXXFLAGS: -I${SRCDIR}/deps/linux/arm64/include
 // #cgo LDFLAGS: -lswscale -lavformat -lavcodec -lavfilter -lavutil -lbz2 -lz
-// #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib
+// #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/deps/osx/amd64/lib
+// #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/deps/osx/arm64/lib
+// #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/deps/linux/amd64/lib
+// #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/deps/linux/arm64/lib
 // #include "avcodec.hpp"
 import "C"
 
