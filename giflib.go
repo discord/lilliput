@@ -1,14 +1,11 @@
 package lilliput
 
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
-// #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo linux CFLAGS: -I/usr/local/include -I/usr/local/include/opencv4
 // #cgo CXXFLAGS: -std=c++11
-// #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo linux CXXFLAGS: -I/usr/local/include -I/usr/local/include/opencv4
 // #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz -lgif
-// #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
+// #cgo linux LDFLAGS: -L/usr/local/lib -L/usr/local/lib/opencv4/3rdparty
 // #include "giflib.hpp"
 import "C"
 

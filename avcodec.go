@@ -1,14 +1,11 @@
 package lilliput
 
 // #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
-// #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo linux CFLAGS: -I/usr/local/include
 // #cgo CXXFLAGS: -std=c++11
-// #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo linux CXXFLAGS: -I/usr/local/include
 // #cgo LDFLAGS: -lswscale -lavformat -lavcodec -lavfilter -lavutil -lbz2 -lz
-// #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib
+// #cgo linux LDFLAGS: -L/usr/local/lib
 // #include "avcodec.hpp"
 import "C"
 
