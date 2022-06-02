@@ -190,6 +190,9 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 		return err
 	}
 	C.opencv_mat_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
+
+	dst.duration = f.duration
+
 	return nil
 }
 
@@ -245,6 +248,9 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 		return err
 	}
 	C.opencv_mat_resize(newMat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
+	
+	dst.duration = f.duration
+
 	return nil
 }
 
@@ -324,9 +330,6 @@ func (d *openCVDecoder) Header() (*ImageHeader, error) {
 	d.hasReadHeader = true
 
 	numFrames := 1
-	if detectAPNG(d.buf) {
-		numFrames = 2
-	}
 
 	return &ImageHeader{
 		width:       int(C.opencv_decoder_get_width(d.decoder)),

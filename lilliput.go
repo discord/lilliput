@@ -82,6 +82,10 @@ func NewDecoder(buf []byte) (Decoder, error) {
 		return nil, ErrInvalidImage
 	}
 
+	if detectAPNG(buf) {
+		return newApngDecoder(buf)
+	}
+
 	isBufGIF := isGIF(buf)
 	if isBufGIF {
 		return newGifDecoder(buf)
@@ -102,6 +106,16 @@ func NewDecoder(buf []byte) (Decoder, error) {
 func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
+	}
+
+	if strings.ToLower(ext) == ".apng" {
+		return newApngEncoder(decodedBy, dst)
+	}
+
+	header, err := decodedBy.Header()
+
+	if err == nil && strings.ToLower(ext) == ".png" && header.numFrames > 1 {
+		return newApngEncoder(decodedBy, dst)
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {
