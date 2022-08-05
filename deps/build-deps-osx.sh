@@ -3,7 +3,22 @@
 set -e
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX="$BASEDIR/osx"
+
+ARCH=$(uname -m)
+case $ARCH in
+  x86_64)
+    ARCH='amd64'
+    ;;
+  arm64)
+    ARCH='arm64'
+    ;;
+  *)
+    echo -n "unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+PREFIX="$BASEDIR/osx/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
