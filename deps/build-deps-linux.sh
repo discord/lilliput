@@ -58,7 +58,7 @@ cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
 cd $BUILDDIR/libwebp
-$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static
+$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static --enable-libwebpmux --enable-libwebpdemux
 make
 make install
 

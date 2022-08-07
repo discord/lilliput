@@ -8,4 +8,4 @@ Description: Library for the WebP graphics format
 Version: 0.6.0
 Cflags: -I${includedir}
 Libs: -L${libdir} -lwebp
-Libs.private: -lm -pthread 
+Libs.private: -lm  
