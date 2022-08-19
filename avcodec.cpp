@@ -21,6 +21,7 @@ extern AVInputFormat ff_wav_demuxer;
 extern AVInputFormat ff_aac_demuxer;
 extern AVInputFormat ff_ogg_demuxer;
 extern AVCodec ff_h264_decoder;
+extern AVCodec ff_hevc_decoder;
 extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
@@ -40,6 +41,7 @@ void avcodec_init()
     av_register_input_format(&ff_ogg_demuxer);
 
     avcodec_register(&ff_h264_decoder);
+    avcodec_register(&ff_hevc_decoder);
     avcodec_register(&ff_mpeg4_decoder);
     avcodec_register(&ff_vp9_decoder);
     avcodec_register(&ff_vp8_decoder);
