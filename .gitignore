@@ -1,0 +1,10 @@
+deps/build/
+deps/libjpeg-turbo/
+deps/zlib/
+deps/libpng/
+deps/libwebp/
+deps/giflib/
+deps/opencv
+deps/bzip2/
+deps/ffmpeg/
+deps/lilliput-dep-source/
