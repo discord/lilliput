@@ -1,1 +1,1 @@
-package lilliput // import "github.com/discord/lilliput"
+package lilliput // import "github.com/mnemonic-labs/lilliput"

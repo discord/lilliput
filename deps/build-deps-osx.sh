@@ -3,7 +3,22 @@
 set -e
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX="$BASEDIR/osx"
+
+ARCH=$(uname -m)
+case $ARCH in
+  x86_64)
+    ARCH='amd64'
+    ;;
+  arm64)
+    ARCH='arm64'
+    ;;
+  *)
+    echo -n "unspported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+PREFIX="$BASEDIR/osx/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
@@ -67,6 +82,7 @@ tar -xjf $SRCDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
 cd $BASEDIR/giflib
 patch -p1 < $SRCDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
 patch -p1 < $SRCDIR/0001-separate-image-header-and-allocation-phases.patch
+patch -p1 < $BASEDIR/patches/0002-disable-giflib-xmlto.patch
 mkdir -p $BUILDDIR/giflib
 cd $BUILDDIR/giflib
 $BASEDIR/giflib/configure --prefix=$PREFIX --disable-shared
@@ -77,9 +93,10 @@ mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-export-exif-orientation.patch
+patch -p1 < $BASEDIR/patches/0001-remove-invalid-flow-control.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DWITH_LAPACK=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DWITH_LAPACK=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DOPENCV_FP16_DISABLE=ON -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
 make opencv_core opencv_imgproc opencv_imgcodecs
 make install
 

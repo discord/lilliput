@@ -1,14 +1,21 @@
 package lilliput
 
-// #cgo CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
-// #cgo darwin CFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CFLAGS: -I${SRCDIR}/deps/linux/include
+// #cgo amd64 CFLAGS: -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx
+// #cgo darwin,amd64 CFLAGS: -I${SRCDIR}/deps/osx/amd64/include
+// #cgo darwin,arm64 CFLAGS: -I${SRCDIR}/deps/osx/arm64/include
+// #cgo linux,amd64 CFLAGS: -I${SRCDIR}/deps/linux/amd64/include
+// #cgo linux,arm64 CFLAGS: -I${SRCDIR}/deps/linux/arm64/include
 // #cgo CXXFLAGS: -std=c++11
-// #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
-// #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
-// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz -lgif
-// #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
+// #cgo darwin,amd64 CXXFLAGS: -I${SRCDIR}/deps/osx/amd64/include
+// #cgo darwin,arm64 CXXFLAGS: -I${SRCDIR}/deps/osx/arm64/include
+// #cgo linux,amd64 CXXFLAGS: -I${SRCDIR}/deps/linux/amd64/include
+// #cgo linux,arm64 CXXFLAGS: -I${SRCDIR}/deps/linux/arm64/include
+// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lz -lgif
+// #cgo amd64 LDFLAGS:  -lippicv
+// #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/deps/osx/amd64/lib -L${SRCDIR}/deps/osx/amd64/share/OpenCV/3rdparty/lib
+// #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/deps/osx/arm64/lib -L${SRCDIR}/deps/osx/arm64/share/OpenCV/3rdparty/lib
+// #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/deps/linux/amd64/lib -L${SRCDIR}/deps/linux/amd64/share/OpenCV/3rdparty/lib
+// #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/deps/linux/arm64/lib -L${SRCDIR}/deps/linux/arm64/share/OpenCV/3rdparty/lib
 // #include "giflib.hpp"
 import "C"
 

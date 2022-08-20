@@ -1,0 +1,42 @@
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index b9696ea..65e608c 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -1,13 +1,13 @@
+ SUFFIXES = .xml .html .txt .asc .1
+
+ .xml.html:
+-	xmlto xhtml-nochunks $<
++	#xmlto xhtml-nochunks $<
+
+ .xml.1:
+-	xmlto man $<
++	#xmlto man $<
+
+ .xml.txt:
+-	xmlto txt $<
++	#xmlto txt $<
+
+ .asc.html:
+ 	asciidoc $<
+diff --git a/doc/Makefile.in b/doc/Makefile.in
+index d44eb4b..9ce7e06 100644
+--- a/doc/Makefile.in
++++ b/doc/Makefile.in
+@@ -609,13 +609,13 @@ uninstall-man: uninstall-man1
+
+
+ .xml.html:
+-	xmlto xhtml-nochunks $<
++	#xmlto xhtml-nochunks $<
+
+ .xml.1:
+-	xmlto man $<
++	#xmlto man $<
+
+ .xml.txt:
+-	xmlto txt $<
++	#xmlto txt $<
+
+ .asc.html:
+ 	asciidoc $<

@@ -1,3 +1,3 @@
-module github.com/discord/lilliput
+module github.com/mnemonic-labs/lilliput
 
-go 1.15
+go 1.18
