@@ -123,8 +123,11 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 		return newGifEncoder(decodedBy, dst)
 	}
 
-	if strings.ToLower(ext) == ".webp" && decodedBy.Description() == "WEBP (Animated)" {
-		return newWebPEncoder(decodedBy, dst)
+	if strings.ToLower(ext) == ".webp" {
+		header, _ := decodedBy.Header()
+		if header != nil && header.numFrames > 1 {
+			return newWebPEncoder(decodedBy, dst)
+		}
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {

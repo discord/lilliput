@@ -38,7 +38,7 @@ func (d *WebPDecoder) Header() (*ImageHeader, error) {
 }
 
 func (d *WebPDecoder) Description() string {
-	return "WEBP (Animated)"
+	return "WEBP"
 }
 
 func (d *WebPDecoder) Duration() time.Duration {
