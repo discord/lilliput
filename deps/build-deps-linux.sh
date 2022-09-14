@@ -29,10 +29,9 @@ fi
 mkdir -p $BASEDIR/libjpeg-turbo
 tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
-autoreconf -fiv
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
-$BASEDIR/libjpeg-turbo/configure --enable-static --disable-shared --with-jpeg8 --prefix=$PREFIX
+cmake $BASEDIR/libjpeg-turbo -DENABLE_STATIC=1 -DENABLE_SHARED=0 -DWITH_JPEG8=1 -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 
