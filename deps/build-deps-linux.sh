@@ -27,7 +27,7 @@ if [ ! -d "$SRCDIR" ]; then
 fi
 
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-1.5.1.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
 autoreconf -fiv
 mkdir -p $BUILDDIR/libjpeg-turbo
