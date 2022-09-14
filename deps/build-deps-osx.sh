@@ -52,7 +52,7 @@ make
 make install
 
 mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-0.6.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-1.2.4.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
