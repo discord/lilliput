@@ -1,10 +1,10 @@
 prefix=/src/deps/linux
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
-includedir=${prefix}/include
+exec_prefix=/src/deps/linux
+libdir=/src/deps/linux/lib
+includedir=/src/deps/linux/include
 
 Name: libjpeg
 Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
-Version: 1.5.1
+Version: 2.1.4
 Libs: -L${libdir} -ljpeg
 Cflags: -I${includedir}
