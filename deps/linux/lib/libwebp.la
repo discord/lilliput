@@ -23,9 +23,9 @@ dependency_libs=' -lm'
 weak_library_names=''
 
 # Version information for libwebp.
-current=7
-age=0
-revision=0
+current=8
+age=1
+revision=5
 
 # Is this an already installed library?
 installed=yes
