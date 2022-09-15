@@ -27,8 +27,10 @@
  * @{
  */
 
-#include "avutil.h"
+#include <stddef.h>
+#include <stdint.h>
 #include "pixdesc.h"
+#include "pixfmt.h"
 #include "rational.h"
 
 /**
@@ -66,6 +68,20 @@ int av_image_get_linesize(enum AVPixelFormat pix_fmt, int width, int plane);
  * @return >= 0 in case of success, a negative error code otherwise
  */
 int av_image_fill_linesizes(int linesizes[4], enum AVPixelFormat pix_fmt, int width);
+
+/**
+ * Fill plane sizes for an image with pixel format pix_fmt and height height.
+ *
+ * @param size the array to be filled with the size of each image plane
+ * @param linesizes the array containing the linesize for each
+ *        plane, should be filled by av_image_fill_linesizes()
+ * @return >= 0 in case of success, a negative error code otherwise
+ *
+ * @note The linesize parameters have the type ptrdiff_t here, while they are
+ *       int for av_image_fill_linesizes().
+ */
+int av_image_fill_plane_sizes(size_t size[4], enum AVPixelFormat pix_fmt,
+                              int height, const ptrdiff_t linesizes[4]);
 
 /**
  * Fill plane data pointers for an image with pixel format pix_fmt and
@@ -109,6 +125,24 @@ int av_image_alloc(uint8_t *pointers[4], int linesizes[4],
 void av_image_copy_plane(uint8_t       *dst, int dst_linesize,
                          const uint8_t *src, int src_linesize,
                          int bytewidth, int height);
+
+/**
+ * Copy image data located in uncacheable (e.g. GPU mapped) memory. Where
+ * available, this function will use special functionality for reading from such
+ * memory, which may result in greatly improved performance compared to plain
+ * av_image_copy_plane().
+ *
+ * bytewidth must be contained by both absolute values of dst_linesize
+ * and src_linesize, otherwise the function behavior is undefined.
+ *
+ * @note The linesize parameters have the type ptrdiff_t here, while they are
+ *       int for av_image_copy_plane().
+ * @note On x86, the linesizes currently need to be aligned to the cacheline
+ *       size (i.e. 64) to get improved performance.
+ */
+void av_image_copy_plane_uc_from(uint8_t       *dst, ptrdiff_t dst_linesize,
+                                 const uint8_t *src, ptrdiff_t src_linesize,
+                                 ptrdiff_t bytewidth, int height);
 
 /**
  * Copy image in src_data to dst_data.
@@ -155,7 +189,7 @@ void av_image_copy_uc_from(uint8_t *dst_data[4],       const ptrdiff_t dst_lines
  * one call, use av_image_alloc().
  *
  * @param dst_data      data pointers to be filled in
- * @param dst_linesizes linesizes for the image in dst_data to be filled in
+ * @param dst_linesize  linesizes for the image in dst_data to be filled in
  * @param src           buffer which will contain or contains the actual image data, can be NULL
  * @param pix_fmt       the pixel format of the image
  * @param width         the width of the image in pixels
@@ -172,7 +206,11 @@ int av_image_fill_arrays(uint8_t *dst_data[4], int dst_linesize[4],
  * Return the size in bytes of the amount of data required to store an
  * image with the given parameters.
  *
- * @param[in] align the assumed linesize alignment
+ * @param pix_fmt  the pixel format of the image
+ * @param width    the width of the image in pixels
+ * @param height   the height of the image in pixels
+ * @param align    the assumed linesize alignment
+ * @return the buffer size in bytes, a negative error code in case of failure
  */
 int av_image_get_buffer_size(enum AVPixelFormat pix_fmt, int width, int height, int align);
 
@@ -185,7 +223,7 @@ int av_image_get_buffer_size(enum AVPixelFormat pix_fmt, int width, int height, 
  * @param dst           a buffer into which picture data will be copied
  * @param dst_size      the size in bytes of dst
  * @param src_data      pointers containing the source image data
- * @param src_linesizes linesizes for the image in src_data
+ * @param src_linesize  linesizes for the image in src_data
  * @param pix_fmt       the pixel format of the source image
  * @param width         the width of the source image in pixels
  * @param height        the height of the source image in pixels
@@ -237,6 +275,33 @@ int av_image_check_size2(unsigned int w, unsigned int h, int64_t max_pixels, enu
  * @return 0 if valid, a negative AVERROR code otherwise
  */
 int av_image_check_sar(unsigned int w, unsigned int h, AVRational sar);
+
+/**
+ * Overwrite the image data with black. This is suitable for filling a
+ * sub-rectangle of an image, meaning the padding between the right most pixel
+ * and the left most pixel on the next line will not be overwritten. For some
+ * formats, the image size might be rounded up due to inherent alignment.
+ *
+ * If the pixel format has alpha, the alpha is cleared to opaque.
+ *
+ * This can return an error if the pixel format is not supported. Normally, all
+ * non-hwaccel pixel formats should be supported.
+ *
+ * Passing NULL for dst_data is allowed. Then the function returns whether the
+ * operation would have succeeded. (It can return an error if the pix_fmt is
+ * not supported.)
+ *
+ * @param dst_data      data pointers to destination image
+ * @param dst_linesize  linesizes for the destination image
+ * @param pix_fmt       the pixel format of the image
+ * @param range         the color range of the image (important for colorspaces such as YUV)
+ * @param width         the width of the image in pixels
+ * @param height        the height of the image in pixels
+ * @return 0 if the image data was cleared, a negative AVERROR code otherwise
+ */
+int av_image_fill_black(uint8_t *dst_data[4], const ptrdiff_t dst_linesize[4],
+                        enum AVPixelFormat pix_fmt, enum AVColorRange range,
+                        int width, int height);
 
 /**
  * @}

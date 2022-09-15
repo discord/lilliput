@@ -19,7 +19,13 @@
 #ifndef AVDEVICE_AVDEVICE_H
 #define AVDEVICE_AVDEVICE_H
 
+#include "version_major.h"
+#ifndef HAVE_AV_CONFIG_H
+/* When included as part of the ffmpeg build, only include the major version
+ * to avoid unnecessary rebuilds. When included externally, keep including
+ * the full version information. */
 #include "version.h"
+#endif
 
 /**
  * @file
@@ -77,7 +83,7 @@ void avdevice_register_all(void);
  * if d is non-NULL, returns the next registered input audio/video device after d
  * or NULL if d is the last one.
  */
-AVInputFormat *av_input_audio_device_next(AVInputFormat  *d);
+const AVInputFormat *av_input_audio_device_next(const AVInputFormat  *d);
 
 /**
  * Video input devices iterator.
@@ -86,7 +92,7 @@ AVInputFormat *av_input_audio_device_next(AVInputFormat  *d);
  * if d is non-NULL, returns the next registered input audio/video device after d
  * or NULL if d is the last one.
  */
-AVInputFormat *av_input_video_device_next(AVInputFormat  *d);
+const AVInputFormat *av_input_video_device_next(const AVInputFormat  *d);
 
 /**
  * Audio output devices iterator.
@@ -95,7 +101,7 @@ AVInputFormat *av_input_video_device_next(AVInputFormat  *d);
  * if d is non-NULL, returns the next registered output audio/video device after d
  * or NULL if d is the last one.
  */
-AVOutputFormat *av_output_audio_device_next(AVOutputFormat *d);
+const AVOutputFormat *av_output_audio_device_next(const AVOutputFormat *d);
 
 /**
  * Video output devices iterator.
@@ -104,7 +110,7 @@ AVOutputFormat *av_output_audio_device_next(AVOutputFormat *d);
  * if d is non-NULL, returns the next registered output audio/video device after d
  * or NULL if d is the last one.
  */
-AVOutputFormat *av_output_video_device_next(AVOutputFormat *d);
+const AVOutputFormat *av_output_video_device_next(const AVOutputFormat *d);
 
 typedef struct AVDeviceRect {
     int x;      /**< x coordinate of top left corner */
@@ -321,6 +327,7 @@ int avdevice_dev_to_app_control_message(struct AVFormatContext *s,
                                         enum AVDevToAppMessageType type,
                                         void *data, size_t data_size);
 
+#if FF_API_DEVICE_CAPABILITIES
 /**
  * Following API allows user to probe device capabilities (supported codecs,
  * pixel formats, sample formats, resolutions, channel counts, etc).
@@ -416,6 +423,7 @@ typedef struct AVDeviceCapabilitiesQuery {
 /**
  * AVOption table used by devices to implement device capabilities API. Should not be used by a user.
  */
+attribute_deprecated
 extern const AVOption av_device_capabilities[];
 
 /**
@@ -435,6 +443,7 @@ extern const AVOption av_device_capabilities[];
  *
  * @return >= 0 on success, negative otherwise.
  */
+attribute_deprecated
 int avdevice_capabilities_create(AVDeviceCapabilitiesQuery **caps, AVFormatContext *s,
                                  AVDictionary **device_options);
 
@@ -444,7 +453,9 @@ int avdevice_capabilities_create(AVDeviceCapabilitiesQuery **caps, AVFormatConte
  * @param caps Device capabilities data to be freed.
  * @param s    Context of the device.
  */
+attribute_deprecated
 void avdevice_capabilities_free(AVDeviceCapabilitiesQuery **caps, AVFormatContext *s);
+#endif
 
 /**
  * Structure describes basic parameters of the device.
@@ -452,6 +463,8 @@ void avdevice_capabilities_free(AVDeviceCapabilitiesQuery **caps, AVFormatContex
 typedef struct AVDeviceInfo {
     char *device_name;                   /**< device name, format depends on device */
     char *device_description;            /**< human friendly name */
+    enum AVMediaType *media_types;       /**< array indicating what media types(s), if any, a device can provide. If null, cannot provide any */
+    int nb_media_types;                  /**< length of media_types array, 0 if device cannot provide any media types */
 } AVDeviceInfo;
 
 /**
@@ -502,9 +515,9 @@ void avdevice_free_list_devices(AVDeviceInfoList **device_list);
  * @return count of autodetected devices, negative on error.
  * @note device argument takes precedence over device_name when both are set.
  */
-int avdevice_list_input_sources(struct AVInputFormat *device, const char *device_name,
+int avdevice_list_input_sources(const AVInputFormat *device, const char *device_name,
                                 AVDictionary *device_options, AVDeviceInfoList **device_list);
-int avdevice_list_output_sinks(struct AVOutputFormat *device, const char *device_name,
+int avdevice_list_output_sinks(const AVOutputFormat *device, const char *device_name,
                                AVDictionary *device_options, AVDeviceInfoList **device_list);
 
 /**
