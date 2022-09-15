@@ -45,6 +45,8 @@ make install
 
 mkdir -p $BASEDIR/libpng
 tar -xzf $SRCDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
+cd $BASEDIR/libpng
+patch -Np1 -i $SRCDIR/libpng-1.6.29-apng.patch
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
 CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --disable-unversioned-links --disable-unversioned-libpng-pc --enable-intel-sse
