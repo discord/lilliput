@@ -31,23 +31,6 @@ extern AVCodec ff_vorbis_decoder;
 
 void avcodec_init()
 {
-    av_register_input_format(&ff_mov_demuxer);
-    av_register_input_format(&ff_matroska_demuxer);
-    av_register_input_format(&ff_mp3_demuxer);
-    av_register_input_format(&ff_flac_demuxer);
-    av_register_input_format(&ff_wav_demuxer);
-    av_register_input_format(&ff_aac_demuxer);
-    av_register_input_format(&ff_ogg_demuxer);
-
-    avcodec_register(&ff_h264_decoder);
-    avcodec_register(&ff_mpeg4_decoder);
-    avcodec_register(&ff_vp9_decoder);
-    avcodec_register(&ff_vp8_decoder);
-    avcodec_register(&ff_mp3_decoder);
-    avcodec_register(&ff_flac_decoder);
-    avcodec_register(&ff_aac_decoder);
-    avcodec_register(&ff_vorbis_decoder);
-
     av_log_set_level(AV_LOG_ERROR);
 }
 
@@ -175,7 +158,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         return NULL;
     }
 
-    AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
+    const AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
     if (!codec) {
         avcodec_decoder_release(d);
         return NULL;
