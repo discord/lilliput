@@ -48,6 +48,9 @@ static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_siz
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
     size_t buf_len = d->mat->total() - d->read_index;
     size_t read_len = (buf_len > buf_size) ? buf_size : buf_len;
+    if (read_len == 0) {
+        return AVERROR_EOF;
+    }
     memmove(buf, d->mat->data + d->read_index, read_len);
     d->read_index += read_len;
     return read_len;
