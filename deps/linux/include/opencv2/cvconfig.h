@@ -78,10 +78,10 @@
 /* #undef HAVE_GSTREAMER */
 
 /* GTK+ 2.0 Thread support */
-#define HAVE_GTHREAD
+/* #undef HAVE_GTHREAD */
 
 /* GTK+ 2.x toolkit */
-#define HAVE_GTK
+/* #undef HAVE_GTK */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 /* #undef HAVE_INTTYPES_H */
@@ -103,7 +103,7 @@
 #define HAVE_JPEG
 
 /* libpng/png.h needs to be included */
-#define HAVE_LIBPNG_PNG_H
+/* #undef HAVE_LIBPNG_PNG_H */
 
 /* GDCM DICOM codec */
 /* #undef HAVE_GDCM */
