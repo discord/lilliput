@@ -62,15 +62,12 @@ make
 make install
 
 mkdir -p $BASEDIR/giflib
-tar -xjf $SRCDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
-cd $BASEDIR/giflib
-patch -p1 < $SRCDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
-patch -p1 < $SRCDIR/0001-separate-image-header-and-allocation-phases.patch
+tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
-cd $BUILDDIR/giflib
-$BASEDIR/giflib/configure --prefix=$PREFIX --disable-shared
+cd $BASEDIR/giflib
 make
-make install
+cp libgif.a "$PREFIX/lib"
+cp gif_lib.h "$PREFIX/include"
 
 mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
@@ -83,7 +80,7 @@ make
 make install
 
 mkdir -p $BASEDIR/bzip2
-tar -xvf $SRCDIR/bzip2-1.0.6.tar.gz -C $BASEDIR/bzip2 --strip-components 1
+tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
 make PREFIX=$PREFIX install
 
