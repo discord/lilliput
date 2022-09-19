@@ -7,6 +7,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libavutil/display.h>
 #include <libavutil/imgutils.h>
 
 #ifdef __cplusplus
@@ -211,10 +212,16 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     CVImageOrientation orientation = CV_IMAGE_ORIENTATION_TL;
     AVDictionaryEntry* tag =
       av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
-    if (!tag) {
-        return orientation;
+    int rotation = 0;
+    if (tag) {
+        rotation = atoi(tag->value);
+    } else {
+        const uint8_t* side_data =
+          av_stream_get_side_data(d->container->streams[d->video_stream_index], AV_PKT_DATA_DISPLAYMATRIX, NULL);
+        if (side_data) {
+            rotation = -av_display_rotation_get((const int32_t*)side_data);
+        }
     }
-    int rotation = atoi(tag->value);
     switch (rotation) {
     case 90:
         orientation = CV_IMAGE_ORIENTATION_RT;
