@@ -219,7 +219,7 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
         const uint8_t* side_data =
           av_stream_get_side_data(d->container->streams[d->video_stream_index], AV_PKT_DATA_DISPLAYMATRIX, NULL);
         if (side_data) {
-            rotation = -av_display_rotation_get((const int32_t*)side_data);
+            rotation = (360 - av_display_rotation_get((const int32_t*)side_data)) % 360;
         }
     }
     switch (rotation) {
