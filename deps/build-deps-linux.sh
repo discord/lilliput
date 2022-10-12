@@ -27,12 +27,11 @@ if [ ! -d "$SRCDIR" ]; then
 fi
 
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-1.5.1.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
-autoreconf -fiv
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
-$BASEDIR/libjpeg-turbo/configure --enable-static --disable-shared --with-jpeg8 --prefix=$PREFIX
+cmake $BASEDIR/libjpeg-turbo -DENABLE_STATIC=1 -DENABLE_SHARED=0 -DWITH_JPEG8=1 -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 
@@ -45,15 +44,15 @@ make
 make install
 
 mkdir -p $BASEDIR/libpng
-tar -xzf $SRCDIR/libpng-1.6.29.tar.gz -C $BASEDIR/libpng --strip-components 1
+tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --enable-intel-sse
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --disable-unversioned-links --disable-unversioned-libpng-pc --enable-intel-sse
 make
 make install
 
 mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-0.6.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-1.2.4.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
@@ -63,15 +62,12 @@ make
 make install
 
 mkdir -p $BASEDIR/giflib
-tar -xjf $SRCDIR/giflib-5.1.4.tar.bz2 -C $BASEDIR/giflib --strip-components 1
-cd $BASEDIR/giflib
-patch -p1 < $SRCDIR/0001-initialize-SColorMap-to-fix-ownership-issue.patch
-patch -p1 < $SRCDIR/0001-separate-image-header-and-allocation-phases.patch
+tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
-cd $BUILDDIR/giflib
-$BASEDIR/giflib/configure --prefix=$PREFIX --disable-shared
+cd $BASEDIR/giflib
 make
-make install
+cp libgif.a "$PREFIX/lib"
+cp gif_lib.h "$PREFIX/include"
 
 mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
@@ -84,12 +80,12 @@ make
 make install
 
 mkdir -p $BASEDIR/bzip2
-tar -xvf $SRCDIR/bzip2-1.0.6.tar.gz -C $BASEDIR/bzip2 --strip-components 1
+tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
 make PREFIX=$PREFIX install
 
 mkdir -p $BASEDIR/ffmpeg
-tar -xjf $SRCDIR/ffmpeg-3.3.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
+tar -xjf $SRCDIR/ffmpeg-5.1.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --disable-cuda --disable-cuvid --disable-nvenc --disable-xlib

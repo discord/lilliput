@@ -106,14 +106,23 @@ typedef struct AVBufferSrcParameters {
     AVBufferRef *hw_frames_ctx;
 
     /**
-     * Audio only, the audio sampling rate in samples per secon.
+     * Audio only, the audio sampling rate in samples per second.
      */
     int sample_rate;
+
+#if FF_API_OLD_CHANNEL_LAYOUT
+    /**
+     * Audio only, the audio channel layout
+     * @deprecated use ch_layout
+     */
+    attribute_deprecated
+    uint64_t channel_layout;
+#endif
 
     /**
      * Audio only, the audio channel layout
      */
-    uint64_t channel_layout;
+    AVChannelLayout ch_layout;
 } AVBufferSrcParameters;
 
 /**
@@ -193,6 +202,14 @@ av_warn_unused_result
 int av_buffersrc_add_frame_flags(AVFilterContext *buffer_src,
                                  AVFrame *frame, int flags);
 
+/**
+ * Close the buffer source after EOF.
+ *
+ * This is similar to passing NULL to av_buffersrc_add_frame_flags()
+ * except it takes the timestamp of the EOF, i.e. the timestamp of the end
+ * of the last frame.
+ */
+int av_buffersrc_close(AVFilterContext *ctx, int64_t pts, unsigned flags);
 
 /**
  * @}

@@ -7,6 +7,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libavutil/display.h>
 #include <libavutil/imgutils.h>
 
 #ifdef __cplusplus
@@ -31,23 +32,6 @@ extern AVCodec ff_vorbis_decoder;
 
 void avcodec_init()
 {
-    av_register_input_format(&ff_mov_demuxer);
-    av_register_input_format(&ff_matroska_demuxer);
-    av_register_input_format(&ff_mp3_demuxer);
-    av_register_input_format(&ff_flac_demuxer);
-    av_register_input_format(&ff_wav_demuxer);
-    av_register_input_format(&ff_aac_demuxer);
-    av_register_input_format(&ff_ogg_demuxer);
-
-    avcodec_register(&ff_h264_decoder);
-    avcodec_register(&ff_mpeg4_decoder);
-    avcodec_register(&ff_vp9_decoder);
-    avcodec_register(&ff_vp8_decoder);
-    avcodec_register(&ff_mp3_decoder);
-    avcodec_register(&ff_flac_decoder);
-    avcodec_register(&ff_aac_decoder);
-    avcodec_register(&ff_vorbis_decoder);
-
     av_log_set_level(AV_LOG_ERROR);
 }
 
@@ -65,6 +49,9 @@ static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_siz
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
     size_t buf_len = d->mat->total() - d->read_index;
     size_t read_len = (buf_len > buf_size) ? buf_size : buf_len;
+    if (read_len == 0) {
+        return AVERROR_EOF;
+    }
     memmove(buf, d->mat->data + d->read_index, read_len);
     d->read_index += read_len;
     return read_len;
@@ -175,7 +162,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         return NULL;
     }
 
-    AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
+    const AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
     if (!codec) {
         avcodec_decoder_release(d);
         return NULL;
@@ -225,10 +212,16 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     CVImageOrientation orientation = CV_IMAGE_ORIENTATION_TL;
     AVDictionaryEntry* tag =
       av_dict_get(d->container->streams[d->video_stream_index]->metadata, "rotate", NULL, 0);
-    if (!tag) {
-        return orientation;
+    int rotation = 0;
+    if (tag) {
+        rotation = atoi(tag->value);
+    } else {
+        const uint8_t* side_data =
+          av_stream_get_side_data(d->container->streams[d->video_stream_index], AV_PKT_DATA_DISPLAYMATRIX, NULL);
+        if (side_data) {
+            rotation = (360 - (int)(av_display_rotation_get((const int32_t*)side_data))) % 360;
+        }
     }
-    int rotation = atoi(tag->value);
     switch (rotation) {
     case 90:
         orientation = CV_IMAGE_ORIENTATION_RT;
