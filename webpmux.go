@@ -27,6 +27,8 @@ type WebPEncoder struct {
 	lastTime	C.int
 }
 
+var webpAnimationDecodingEnabled bool = true
+
 func (d *WebPDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
 		width: 			int(d.info.canvas_width),
@@ -46,7 +48,7 @@ func (d *WebPDecoder) Duration() time.Duration {
 }
 
 func (d *WebPDecoder) HasMore() bool {
-	return C.WebPAnimDecoderHasMoreFrames(d.decoder) != 0
+	return C.WebPAnimDecoderHasMoreFrames(d.decoder) != 0 && (webpAnimationDecodingEnabled || d.lastTime == C.int(0))
 }
 
 func (d *WebPDecoder) DecodeTo(f *Framebuffer) error {
@@ -98,22 +100,37 @@ func (d *WebPDecoder) Close() {
 }
 
 func (e *WebPEncoder) Encode(frame *Framebuffer, opt map[int]int) ([]byte, error) {
-	if e.encoder == nil {
-		e.encoder = C.webpmux_create_encoder(C.int(frame.width), C.int(frame.height))
+	if webpAnimationDecodingEnabled {
 		if e.encoder == nil {
-			return nil, ErrBufTooSmall
+			e.encoder = C.webpmux_create_encoder(C.int(frame.width), C.int(frame.height))
+			if e.encoder == nil {
+				return nil, ErrBufTooSmall
+			}
 		}
-	}
-	
-	if frame == nil {
-		e.Close()
+		
+		if frame == nil {
+			e.Close()
+			return e.buffer[:e.size], nil
+		}
+
+		C.webpmux_encoder_add_frame(e.encoder, frame.mat, e.lastTime, C.int(opt[WebpQuality]))
+		e.lastTime += C.int(frame.duration / time.Millisecond)
+
+		return nil, nil
+	} else {
+		if e.lastTime != C.int(0) {
+			return nil, nil
+		}
+
+		res := C.webpmux_encode_single_frame(e.encoder, frame.mat, C.int(opt[WebpQuality]), unsafe.Pointer(&e.buffer[0]), C.size_t(cap(e.buffer)))
+
+		if res == 0 {
+			return nil, ErrDecodingFailed
+		}
+
+		e.size = int(res)
 		return e.buffer[:e.size], nil
 	}
-
-	C.webpmux_encoder_add_frame(e.encoder, frame.mat, e.lastTime, C.int(opt[WebpQuality]))
-	e.lastTime += C.int(frame.duration / time.Millisecond)
-
-	return nil, nil
 }
 
 func (e *WebPEncoder) Close() {
@@ -143,4 +160,8 @@ func newWebPEncoder(decodedBy Decoder, dstBuf []byte) (*WebPEncoder, error) {
 		buffer:   dstBuf,
 		lastTime: 0,
 	}, nil
+}
+
+func SetWebPAnimDecodingEnabled(enabled bool) {
+	webpAnimationDecodingEnabled = enabled
 }

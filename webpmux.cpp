@@ -87,4 +87,29 @@ size_t webpmux_encoder_write(WebPAnimEncoder* enc, void* buf, size_t size, int t
     WebPAnimEncoderDelete(enc);
     return total;
 }
+
+size_t webpmux_encode_single_frame(WebPAnimEncoder* enc, opencv_mat mat, int quality, void* buf, size_t size)
+{
+    auto m = static_cast<cv::Mat*>(mat);
+    WebPConfig config;
+    WebPConfigPreset(&config, WEBP_PRESET_PHOTO, quality);
+    WebPPicture frame;
+    WebPPictureInit(&frame);
+    frame.width = m->cols;
+    frame.height = m->rows;
+    frame.use_argb = true;
+    frame.argb = (uint32_t*)m->data;
+    frame.argb_stride = m->cols;
+    WebPMemoryWriter writer;
+    WebPMemoryWriterInit(&writer);
+    writer.mem = (uint8_t*)buf;
+    writer.max_size = size;
+    frame.writer = WebPMemoryWrite;
+    frame.custom_ptr = &writer;
+    if (!WebPEncode(&config, &frame)) {
+        return 0;
+    }
+    return size < writer.size ? size : writer.size;
+}
+
 }

@@ -15,6 +15,7 @@ int webpmux_decoder_read_data(WebPAnimDecoder* dec, opencv_mat mat);
 int webpmux_decoder_skip_frame(WebPAnimDecoder* dec);
 int webpmux_encoder_add_frame(WebPAnimEncoder* enc, opencv_mat mat, int timestamp, int quality);
 size_t webpmux_encoder_write(WebPAnimEncoder* enc, void* buf, size_t size, int timestamp);
+size_t webpmux_encode_single_frame(WebPAnimEncoder* enc, opencv_mat mat, int quality, void* buf, size_t size);
 
 #ifdef __cplusplus
 }
