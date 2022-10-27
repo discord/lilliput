@@ -300,6 +300,9 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
                                                 NULL,
                                                 NULL,
                                                 NULL);
+        const int *src_coeffs = sws_getCoefficients(frame->colorspace);
+        const int *dst_coeffs = sws_getCoefficients(0);
+        sws_setColorspaceDetails(sws, src_coeffs, 0, dst_coeffs, 1, 0, (1 << 16), (1 << 16));
         int linesizes[] = {stepSize, 0, 0, 0};
         uint8_t* data_ptrs[] = {cvMat->data, NULL, NULL, NULL};
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
