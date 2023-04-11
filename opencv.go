@@ -15,6 +15,7 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"time"
 	"unsafe"
@@ -45,9 +46,10 @@ const (
 )
 
 var (
-	pngActlChunkType = []byte{0x61, 0x63, 0x54, 0x4c}
-	pngFctlChunkType = []byte{0x66, 0x63, 0x54, 0x4c}
-	pngFdatChunkType = []byte{0x66, 0x64, 0x41, 0x54}
+	pngActlChunkType = []byte{byte('a'), byte('c'), byte('T'), byte('L')}
+	pngFctlChunkType = []byte{byte('f'), byte('c'), byte('T'), byte('L')}
+	pngFdatChunkType = []byte{byte('f'), byte('d'), byte('A'), byte('T')}
+	pngIendChunkType = []byte{byte('I'), byte('E'), byte('N'), byte('D')}
 )
 
 // PixelType describes the base pixel type of the image.
@@ -55,11 +57,12 @@ type PixelType int
 
 // ImageHeader contains basic decoded image metadata.
 type ImageHeader struct {
-	width       int
-	height      int
-	pixelType   PixelType
-	orientation ImageOrientation
-	numFrames   int
+	width         int
+	height        int
+	pixelType     PixelType
+	orientation   ImageOrientation
+	numFrames     int
+	contentLength int
 }
 
 // Framebuffer contains an array of raw, decoded pixel data.
@@ -118,6 +121,15 @@ func (h *ImageHeader) Orientation() ImageOrientation {
 
 func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
+}
+
+// Some images have extra padding bytes at the end that aren't needed.
+// In the worst case, this might be unwanted data that the user intended
+// to crop (e.g. "acropalypse" bug).
+// This function returns the length of the necessary image data. Data
+// past this point can be safely truncated `data[:h.ContentLength()]`
+func (h *ImageHeader) ContentLength() int {
+	return h.contentLength
 }
 
 // NewFramebuffer creates the backing store for a pixel frame buffer.
@@ -293,25 +305,89 @@ func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
 	}, nil
 }
 
-// detectAPNG detects if a blob contains a PNG with animated segments
-func detectAPNG(maybeAPNG []byte) bool {
-	if !bytes.HasPrefix(maybeAPNG, pngMagic) {
+// chunk format https://www.w3.org/TR/PNG-Structure.html
+// TLDR: 4 bytes length, 4 bytes type, variable data, 4 bytes CRC
+// length is only the "data" field; does not include itself, the type or the CRC
+type pngChunkIter struct {
+	png        []byte
+	iterOffset int
+}
+
+func makePngChunkIter(png []byte) (*pngChunkIter, error) {
+	if !bytes.HasPrefix(png, pngMagic) {
+		return nil, errors.New("Image is not PNG")
+	}
+
+	return &pngChunkIter{
+		png: png, iterOffset: 0,
+	}, nil
+}
+
+func (it *pngChunkIter) hasSpaceForChunk() bool {
+	return it.iterOffset+pngChunkAllFieldsLen <= len(it.png)
+}
+
+// byte offset of the next chunk. might be past the end of the data
+// for the last chunk, or if the chunk is malformed
+func (it *pngChunkIter) nextChunkOffset() int {
+	chunkDataSize := (int)(binary.BigEndian.Uint32(it.png[it.iterOffset:]))
+	return it.iterOffset + chunkDataSize + pngChunkAllFieldsLen
+}
+
+func (it *pngChunkIter) next() bool {
+	if it.iterOffset < len(pngMagic) {
+		// move to the first chunk by skipping png magic prefix
+		it.iterOffset = len(pngMagic)
+		return it.hasSpaceForChunk()
+	}
+	if !it.hasSpaceForChunk() {
 		return false
 	}
 
-	offset := len(pngMagic)
-	for {
-		if offset+pngChunkAllFieldsLen > len(maybeAPNG) {
-			return false
+	it.iterOffset = it.nextChunkOffset()
+	return it.hasSpaceForChunk()
+}
+
+func (it *pngChunkIter) chunkType() []byte {
+	return it.png[it.iterOffset+4 : it.iterOffset+8]
+}
+
+func detectContentLength(png []byte) int {
+	chunkIter, err := makePngChunkIter(png)
+	if err != nil {
+		// This is not a png, take all the data
+		return len(png)
+	}
+
+	for chunkIter.next() {
+		chunkType := chunkIter.chunkType()
+		if bytes.Equal(chunkType, pngIendChunkType) {
+			eofOffset := chunkIter.nextChunkOffset()
+			if eofOffset > len(png) {
+				eofOffset = len(png)
+			}
+			return eofOffset
 		}
-		chunkSize := binary.BigEndian.Uint32(maybeAPNG[offset:])
-		chunkType := maybeAPNG[offset+pngChunkSizeFieldLen : offset+pngChunkSizeFieldLen+pngChunkTypeFieldLen]
-		fullChunkSize := (int)(chunkSize) + pngChunkAllFieldsLen
+	}
+	// Didn't find IEND. File is malformed but let's continue anyway
+	return len(png)
+}
+
+// detectAPNG detects if a blob contains a PNG with animated segments
+func detectAPNG(maybeAPNG []byte) bool {
+	chunkIter, err := makePngChunkIter(maybeAPNG)
+	if err != nil {
+		// This is not a png at all :)
+		return false
+	}
+
+	for chunkIter.next() {
+		chunkType := chunkIter.chunkType()
 		if bytes.Equal(chunkType, pngActlChunkType) || bytes.Equal(chunkType, pngFctlChunkType) || bytes.Equal(chunkType, pngFdatChunkType) {
 			return true
 		}
-		offset += fullChunkSize
 	}
+	return false
 }
 
 func (d *openCVDecoder) Header() (*ImageHeader, error) {
@@ -329,11 +405,12 @@ func (d *openCVDecoder) Header() (*ImageHeader, error) {
 	}
 
 	return &ImageHeader{
-		width:       int(C.opencv_decoder_get_width(d.decoder)),
-		height:      int(C.opencv_decoder_get_height(d.decoder)),
-		pixelType:   PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
-		orientation: ImageOrientation(C.opencv_decoder_get_orientation(d.decoder)),
-		numFrames:   numFrames,
+		width:         int(C.opencv_decoder_get_width(d.decoder)),
+		height:        int(C.opencv_decoder_get_height(d.decoder)),
+		pixelType:     PixelType(C.opencv_decoder_get_pixel_type(d.decoder)),
+		orientation:   ImageOrientation(C.opencv_decoder_get_orientation(d.decoder)),
+		numFrames:     numFrames,
+		contentLength: detectContentLength(d.buf),
 	}, nil
 }
 
