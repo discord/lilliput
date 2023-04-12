@@ -43,6 +43,9 @@ const (
 	pngChunkSizeFieldLen = 4
 	pngChunkTypeFieldLen = 4
 	pngChunkAllFieldsLen = 12
+
+	jpegEOISegmentType byte = 0xD9
+	jpegSOSSegmentType byte = 0xDA
 )
 
 var (
@@ -50,6 +53,20 @@ var (
 	pngFctlChunkType = []byte{byte('f'), byte('c'), byte('T'), byte('L')}
 	pngFdatChunkType = []byte{byte('f'), byte('d'), byte('A'), byte('T')}
 	pngIendChunkType = []byte{byte('I'), byte('E'), byte('N'), byte('D')}
+
+	// Helpful: https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
+	jpegUnsizedSegmentTypes = map[byte]bool{
+		0xD0:               true, // RST segments
+		0xD1:               true,
+		0xD2:               true,
+		0xD3:               true,
+		0xD4:               true,
+		0xD5:               true,
+		0xD6:               true,
+		0xD7:               true, // end RST segments
+		0xD8:               true, // SOI
+		jpegEOISegmentType: true,
+	}
 )
 
 // PixelType describes the base pixel type of the image.
@@ -352,7 +369,7 @@ func (it *pngChunkIter) chunkType() []byte {
 	return it.png[it.iterOffset+4 : it.iterOffset+8]
 }
 
-func detectContentLength(png []byte) int {
+func detectContentLengthPNG(png []byte) int {
 	chunkIter, err := makePngChunkIter(png)
 	if err != nil {
 		// This is not a png, take all the data
@@ -371,6 +388,95 @@ func detectContentLength(png []byte) int {
 	}
 	// Didn't find IEND. File is malformed but let's continue anyway
 	return len(png)
+}
+
+func detectContentLengthJPEG(jpeg []byte) int {
+	// check if this is maybe jpeg
+	jpegPrefix := []byte{0xFF, 0xD8, 0xFF}
+	if !bytes.HasPrefix(jpeg, jpegPrefix) {
+		// Not jpeg if it doesn't begin with SOI
+		return len(jpeg)
+	}
+
+	// Iterate through jpeg segments
+	idx := 0
+	for {
+		if idx+1 >= len(jpeg) {
+			break
+		}
+		if jpeg[idx] != 0xFF {
+			// not valid jpeg
+			break
+		}
+
+		// Segments are at least 2 bytes big
+		nextSegmentStart := idx + 2
+
+		// find current segment type
+		segmentType := jpeg[idx+1]
+		if segmentType == jpegEOISegmentType {
+			// EOI means the end of image content
+			return nextSegmentStart
+		} else if segmentType == 0xFF {
+			// Some handling for padding
+			idx++
+			continue
+		}
+
+		if _, isUnsized := jpegUnsizedSegmentTypes[segmentType]; isUnsized {
+			idx = nextSegmentStart
+			continue
+		}
+
+		if idx+3 >= len(jpeg) {
+			// not enough data to continue
+			break
+		}
+		// 2 bytes size includes itself
+		nextSegmentStart += (int)(binary.BigEndian.Uint16(jpeg[idx+2:]))
+
+		if segmentType == jpegSOSSegmentType {
+			// start of scan means that ECS data follows
+			// ECS data does not start with 0xFF marker
+			// scan through ECS to find next segment which starts with 0xFF
+			for ; nextSegmentStart < len(jpeg); nextSegmentStart++ {
+				if jpeg[nextSegmentStart] != 0xFF {
+					continue
+				}
+
+				if nextSegmentStart+1 >= len(jpeg) {
+					nextSegmentStart = len(jpeg)
+					break
+				}
+				peek := jpeg[nextSegmentStart+1]
+				if peek == 0xFF {
+					// there can be padding bytes which are repeated 0xFF
+					continue
+				}
+				// 0 means this is a raw 0xFF in the ECS data
+				// RST segment types are also a continuation of ECS data
+				if peek != 0 && (peek < 0xD0 || peek > 0xD7) {
+					// Reached the end of ECS!
+					break
+				}
+			}
+		}
+		idx = nextSegmentStart
+	}
+
+	// if we didn't find EOI, fallback to the full length
+	return len(jpeg)
+}
+
+func detectContentLength(img []byte) int {
+	// both of these short circuit if the correct prefix isn't detected
+	// so we can just call both with little cost for simpler code
+	jpegLength := detectContentLengthJPEG(img)
+	pngLength := detectContentLengthPNG(img)
+	if jpegLength < pngLength {
+		return jpegLength
+	}
+	return pngLength
 }
 
 // detectAPNG detects if a blob contains a PNG with animated segments

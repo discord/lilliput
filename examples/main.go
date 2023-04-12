@@ -65,6 +65,7 @@ func main() {
 	// print some basic info about the image
 	fmt.Printf("file type: %s\n", decoder.Description())
 	fmt.Printf("%dpx x %dpx\n", header.Width(), header.Height())
+	fmt.Printf("content length: %d\n", header.ContentLength())
 
 	if decoder.Duration() != 0 {
 		fmt.Printf("duration: %.2f s\n", float64(decoder.Duration())/float64(time.Second))
