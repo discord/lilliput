@@ -32,7 +32,7 @@ func TestAPNG(t *testing.T) {
 	}
 }
 
-func TestContentLengthPNG_ExtraData(t *testing.T) {
+func TestContentLength_PNG_ExtraData(t *testing.T) {
 	pngNoMagic := []byte{
 		0, 0, 0, 0, // size
 		byte('I'), byte('H'), byte('D'), byte('R'), // type
@@ -59,7 +59,7 @@ func TestContentLengthPNG_ExtraData(t *testing.T) {
 	}
 }
 
-func TestContentLengthPNG_IEND(t *testing.T) {
+func TestContentLength_PNG_IEND(t *testing.T) {
 	pngNoMagic := []byte{
 		0, 0, 0, 0, // size
 		byte('I'), byte('H'), byte('D'), byte('R'), // type
@@ -81,6 +81,52 @@ func TestContentLengthPNG_IEND(t *testing.T) {
 	end := detectContentLength(png)
 	if end != expectedLength {
 		t.Fatalf(`end = "%d", expected "%d"`, end, expectedLength)
+	}
+}
+
+func TestContentLength_JPEG_ExtraData(t *testing.T) {
+	jpeg := []byte{
+		0xFF, 0xD8, // SOI
+		0xFF, 0xE7, 0x00, 0x04, 0xFF, 0xD9, // made up segment
+		0xFF, 0xDA, 0x00, 0x04, 0x00, 0x00, // SOS
+		0x00, 0x01, 0xD9, 0xFF, 0xD5, 0xD5, // ECS data
+		0xFF, 0xD9, // EOI
+	}
+	result := detectContentLength(jpeg)
+	if result != len(jpeg) {
+		t.Fatalf(`Expected jpeg content length %d, got %d`, len(jpeg), result)
+	}
+
+	extraStuff := []byte{0xFF, 0xC2, 0x00, 0x02}
+	jpeg = append(jpeg, extraStuff...)
+
+	result = detectContentLength(jpeg)
+	if result != len(jpeg)-len(extraStuff) {
+		t.Fatalf(`Expected jpeg content length %d, got %d`, len(jpeg)-len(extraStuff), result)
+	}
+}
+
+func TestContentLength_JPEG_EntropyCoding(t *testing.T) {
+	jpeg := []byte{
+		0xFF, 0xD8, // SOI
+		0xFF, 0xE7, 0x00, 0x04, 0xFF, 0xD9, // made up data
+		0xFF, 0xDA, 0x00, 0x02, // SOS
+		0x02, 0x01, 0xFF, 0x00, 0xD9, // ECS data
+		0xFF, 0xFF, // padding
+		0xFF, 0xD9, // EOI
+		0x01, // extra
+	}
+	result := detectContentLength(jpeg)
+	if result != len(jpeg)-1 {
+		t.Fatalf(`Expected jpeg content length %d, got %d`, len(jpeg)-1, result)
+	}
+}
+
+func TestContentLength_Unrecognized(t *testing.T) {
+	data := make([]byte, 128)
+	result := detectContentLength(data)
+	if result != len(data) {
+		t.Fatalf(`Expected data content length %d, got %d`, len(data), result)
 	}
 }
 
