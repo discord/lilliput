@@ -72,21 +72,23 @@ func newGifDecoder(buf []byte) (*gifDecoder, error) {
 
 func (d *gifDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
-		width:       int(C.giflib_decoder_get_width(d.decoder)),
-		height:      int(C.giflib_decoder_get_height(d.decoder)),
-		pixelType:   PixelType(C.CV_8UC4),
-		orientation: OrientationTopLeft,
-		numFrames:   int(C.giflib_decoder_get_num_frames(d.decoder)),
+		width:         int(C.giflib_decoder_get_width(d.decoder)),
+		height:        int(C.giflib_decoder_get_height(d.decoder)),
+		pixelType:     PixelType(C.CV_8UC4),
+		orientation:   OrientationTopLeft,
+		numFrames:     int(C.giflib_decoder_get_num_frames(d.decoder)),
+		contentLength: len(d.buf),
 	}, nil
 }
 
 func (d *gifDecoder) FrameHeader() (*ImageHeader, error) {
 	return &ImageHeader{
-		width:       int(C.giflib_decoder_get_frame_width(d.decoder)),
-		height:      int(C.giflib_decoder_get_frame_height(d.decoder)),
-		pixelType:   PixelType(C.CV_8UC4),
-		orientation: OrientationTopLeft,
-		numFrames:   1,
+		width:         int(C.giflib_decoder_get_frame_width(d.decoder)),
+		height:        int(C.giflib_decoder_get_frame_height(d.decoder)),
+		pixelType:     PixelType(C.CV_8UC4),
+		orientation:   OrientationTopLeft,
+		numFrames:     1,
+		contentLength: len(d.buf),
 	}, nil
 }
 
