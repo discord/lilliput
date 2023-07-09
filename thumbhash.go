@@ -24,7 +24,7 @@ type thumbhashEncoder struct {
 
 func newThumbhashEncoder(decodedBy Decoder, buf []byte) (*thumbhashEncoder, error) {
 	buf = buf[:1]
-	enc := C.thumbhash_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
+	enc := C.thumbhash_encoder_create(mat, unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}

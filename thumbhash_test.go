@@ -74,6 +74,7 @@ func TestThumbhash(t *testing.T) {
 	checkImage("IQgSLYZ6iHePh4h1eFeHh4dwgwg3", "data/coast.jpg", ops, 100, 75, dst)
 	checkImage("YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw==", "data/firefox.png", ops, 97, 100, dst)
 	checkImage("mYqDBQQnxnj0JoLYdN7f8JhpuDeHiHdwZw==", "data/opera.png", ops, 100, 100, dst)
+	checkImage("mYqDBQQnxnj0JoLYdN7f8JhpuDeHiHdwZw==", "/tmp/lena.jpg", ops, 512, 512, dst)
 
-	checkImage("VvYRNQRod313B4h3eHhYiHeAiQUo", "data/large-sunrise.png", ops, 67, 100, dst) // resize first
+	checkImage("VvYRNQRod313B4h3eHhYiHeAiQUo", "data/large-sunrise.png", ops, 1300, 1942, dst)
 }
