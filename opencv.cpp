@@ -177,6 +177,13 @@ void opencv_mat_resize(const opencv_mat src,
                interpolation);
 }
 
+void opencv_mat_to_rgba(const opencv_mat src, opencv_mat dst, int code)
+{
+    cv::cvtColor(*static_cast<const cv::Mat*>(src),
+               *static_cast<cv::Mat*>(dst),
+               code);
+}
+
 opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height)
 {
     auto ret = new cv::Mat;
@@ -200,6 +207,18 @@ int opencv_mat_get_height(const opencv_mat mat)
 {
     auto cvMat = static_cast<const cv::Mat*>(mat);
     return cvMat->rows;
+}
+
+int opencv_mat_get_channels(const opencv_mat mat)
+{
+    auto cvMat = static_cast<const cv::Mat*>(mat);
+    return opencv_type_channels(cvMat->type());
+}
+
+int opencv_mat_get_depth(const opencv_mat mat)
+{
+    auto cvMat = static_cast<const cv::Mat*>(mat);
+    return opencv_type_depth(cvMat->type());
 }
 
 void* opencv_mat_get_data(const opencv_mat mat)

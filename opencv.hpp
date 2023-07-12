@@ -25,6 +25,11 @@ typedef enum CVImageOrientation {
     CV_IMAGE_ORIENTATION_LB = 8  ///< Rotate 270 CW
 } CVImageOrientation;
 
+typedef enum CVColorConversionCodes {
+    CV_COLOR_RGB2RGBA = 0,
+    CV_COLOR_GRAY2RGBA = 9
+} CVColorConversionCodes;
+
 typedef void* opencv_mat;
 typedef void* opencv_decoder;
 typedef void* opencv_encoder;
@@ -60,8 +65,11 @@ void opencv_mat_resize(const opencv_mat src,
                        int interpolation);
 opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height);
 void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_mat mat);
+void opencv_mat_to_rgba(const opencv_mat src, opencv_mat dst, int code);
 int opencv_mat_get_width(const opencv_mat mat);
 int opencv_mat_get_height(const opencv_mat mat);
+int opencv_mat_get_channels(const opencv_mat mat);
+int opencv_mat_get_depth(const opencv_mat mat);
 void* opencv_mat_get_data(const opencv_mat mat);
 
 opencv_encoder opencv_encoder_create(const char* ext, opencv_mat dst);
