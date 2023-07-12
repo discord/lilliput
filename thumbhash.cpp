@@ -109,13 +109,19 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     float row_ratio = static_cast<float>(orig_h) / h;
     float col_ratio = static_cast<float>(orig_w) / w;
 
-    float avg_r = 0.0;
-    float avg_g = 0.0;
-    float avg_b = 0.0;
-    float avg_a = 0.0;
     bool has_alpha = false;
+    std::vector<float> l, p, q, a;
+    l.reserve(w * h);
+    p.reserve(w * h);
+    q.reserve(w * h);
+    a.reserve(w * h);
 
     if (frame->type() == CV_8UC4) {
+        float avg_r = 0.0;
+        float avg_g = 0.0;
+        float avg_b = 0.0;
+        float avg_a = 0.0;
+
         // 4 channels (BGRA)
         for (int i = 0; i < h; ++i) {
             for (int j = 0; j < w; ++j) {
@@ -129,37 +135,13 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
                 avg_a += alpha;
             }
         }
+        if (avg_a > 0.0f) {
+            avg_r /= avg_a;
+            avg_g /= avg_a;
+            avg_b /= avg_a;
+        }
         has_alpha = avg_a < static_cast<float>(w * h);
-    }
-    else if (frame->type() == CV_8UC3 || frame->type() == CV_8U) {
-        // No alpha, no need to compute averages.
-    }
-    else {
-        return -1;
-    }
-    if (avg_a > 0.0f) {
-        avg_r /= avg_a;
-        avg_g /= avg_a;
-        avg_b /= avg_a;
-    }
 
-    size_t l_limit = has_alpha ? 5 : 7; // Use fewer luminance bits if there's alpha
-
-    size_t lx = std::max(static_cast<size_t>(std::round(static_cast<float>(l_limit * w) /
-                                                        static_cast<float>(std::max(w, h)))),
-                         static_cast<size_t>(1));
-    size_t ly = std::max(static_cast<size_t>(std::round(static_cast<float>(l_limit * h) /
-                                                        static_cast<float>(std::max(w, h)))),
-                         static_cast<size_t>(1));
-
-    std::vector<float> l, p, q, a;
-    l.reserve(w * h);
-    p.reserve(w * h);
-    q.reserve(w * h);
-    a.reserve(w * h);
-
-    if (frame->type() == CV_8UC4) {
-        // 4 channels (BGRA)
         for (int i = 0; i < h; ++i) {
             for (int j = 0; j < w; ++j) {
                 size_t orig_i = static_cast<size_t>(i * row_ratio);
@@ -214,6 +196,15 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
         // Unsupported format
         return -1;
     }
+
+    size_t l_limit = has_alpha ? 5 : 7; // Use fewer luminance bits if there's alpha
+
+    size_t lx = std::max(static_cast<size_t>(std::round(static_cast<float>(l_limit * w) /
+                                                        static_cast<float>(std::max(w, h)))),
+                         static_cast<size_t>(1));
+    size_t ly = std::max(static_cast<size_t>(std::round(static_cast<float>(l_limit * h) /
+                                                        static_cast<float>(std::max(w, h)))),
+                         static_cast<size_t>(1));
 
     float l_dc, l_scale, p_dc, p_scale, q_dc, q_scale, a_dc, a_scale;
     std::vector<float> l_ac, p_ac, q_ac, a_ac;
