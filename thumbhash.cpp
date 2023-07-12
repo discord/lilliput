@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <tuple>
 
-typedef std::vector<float> FloatArray;
-
 static constexpr size_t MAX_DIMENSION = 100;
 static constexpr float PI = 3.14159265f;
 
@@ -28,17 +26,18 @@ thumbhash_encoder thumbhash_encoder_create(void* buf, size_t buf_len)
     return e;
 }
 
-static std::tuple<float, FloatArray, float> encode_channel(const FloatArray& channel,
-                                                           size_t nx,
-                                                           size_t ny,
-                                                           size_t w,
-                                                           size_t h)
+static std::tuple<float, std::vector<float>, float> encode_channel(
+  const std::vector<float>& channel,
+  size_t nx,
+  size_t ny,
+  size_t w,
+  size_t h)
 {
     float dc = 0.0f;
-    FloatArray ac;
+    std::vector<float> ac;
     ac.reserve(nx * ny / 2);
     float scale = 0.0f;
-    FloatArray fx(w, 0.0f);
+    std::vector<float> fx(w, 0.0f);
     for (size_t cy = 0; cy < ny; ++cy) {
         size_t cx = 0;
         while (cx * ny < nx * (ny - cy)) {
@@ -153,7 +152,7 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
                                                         static_cast<float>(std::max(w, h)))),
                          static_cast<size_t>(1));
 
-    FloatArray l, p, q, a;
+    std::vector<float> l, p, q, a;
     l.reserve(w * h);
     p.reserve(w * h);
     q.reserve(w * h);
@@ -217,7 +216,7 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     }
 
     float l_dc, l_scale, p_dc, p_scale, q_dc, q_scale, a_dc, a_scale;
-    FloatArray l_ac, p_ac, q_ac, a_ac;
+    std::vector<float> l_ac, p_ac, q_ac, a_ac;
     std::tie(l_dc, l_ac, l_scale) = encode_channel(
       l, std::max(lx, static_cast<size_t>(3)), std::max(ly, static_cast<size_t>(3)), w, h);
     std::tie(p_dc, p_ac, p_scale) = encode_channel(p, 3, 3, w, h);
