@@ -7,6 +7,7 @@
 
 typedef std::vector<float> FloatArray;
 
+static constexpr size_t MAX_DIMENSION = 100;
 static constexpr float PI = 3.14159265f;
 
 struct thumbhash_encoder_struct {
@@ -74,11 +75,16 @@ static std::tuple<float, FloatArray, float> encode_channel(const FloatArray& cha
 
 // This C++ thumbhash encode function is based on the rust reference
 // implementation found here:
-// 
+//
 // https://github.com/evanw/thumbhash/blob/main/rust/src/lib.rs
 //
-// We modified the logic to make it work with OpenCV mat as input frame and to
-// handle both 3 and 4 channel images.
+// We modified the logic in the following ways:
+//
+// - Make it work with OpenCV mat as input frame
+// - Handle images with or without an alpha channel
+// - Handle grayscale images
+// - Perform simple downscaling of large images. We don't need very many pixels
+//   to get a good hash.
 int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
 {
     auto frame = static_cast<const cv::Mat*>(opaque_frame);
@@ -87,19 +93,17 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     size_t orig_h = frame->rows;
     size_t w = orig_w, h = orig_h;
 
-    // Downsample the image if it's too large 
-    if(orig_w > 100 || orig_h > 100)
-    {
-        float aspectRatio = static_cast<float>(orig_w) / orig_h;
-        if(orig_w > orig_h)
-        {
-            w = 100;
-            h = static_cast<size_t>(w / aspectRatio);
+    // We don't need very many pixels to get a good hash. Downsample the image
+    // when its dimensions exceed the limit.
+    if (orig_w > MAX_DIMENSION || orig_h > MAX_DIMENSION) {
+        float aspect_ratio = static_cast<float>(orig_w) / orig_h;
+        if (orig_w > orig_h) {
+            w = MAX_DIMENSION;
+            h = static_cast<size_t>(w / aspect_ratio);
         }
-        else
-        {
-            h = 100;
-            w = static_cast<size_t>(h * aspectRatio);
+        else {
+            h = MAX_DIMENSION;
+            w = static_cast<size_t>(h * aspect_ratio);
         }
     }
 
@@ -110,24 +114,9 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     float avg_g = 0.0;
     float avg_b = 0.0;
     float avg_a = 0.0;
+    bool has_alpha = false;
 
-    // Check the type of cv::Mat and adjust the pixel reading process accordingly
-    if (frame->type() == CV_8UC3) {
-        // 3 channels (BGR)
-        for (int i = 0; i < h; ++i) {
-            for (int j = 0; j < w; ++j) {
-                size_t orig_i = static_cast<size_t>(i * row_ratio);
-                size_t orig_j = static_cast<size_t>(j * col_ratio);
-                const cv::Vec3b& pixel = frame->at<cv::Vec3b>(orig_i, orig_j);
-                float alpha = 1.0f; // Assume fully opaque for CV_8UC3
-                avg_b += (alpha / 255.0f) * static_cast<float>(pixel[0]); // B
-                avg_g += (alpha / 255.0f) * static_cast<float>(pixel[1]); // G
-                avg_r += (alpha / 255.0f) * static_cast<float>(pixel[2]); // R
-                avg_a += alpha;
-            }
-        }
-    }
-    else if (frame->type() == CV_8UC4) {
+    if (frame->type() == CV_8UC4) {
         // 4 channels (BGRA)
         for (int i = 0; i < h; ++i) {
             for (int j = 0; j < w; ++j) {
@@ -141,6 +130,10 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
                 avg_a += alpha;
             }
         }
+        has_alpha = avg_a < static_cast<float>(w * h);
+    }
+    else if (frame->type() == CV_8UC3 || frame->type() == CV_8U) {
+        // No alpha, no need to compute averages.
     }
     else {
         return -1;
@@ -151,7 +144,6 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
         avg_b /= avg_a;
     }
 
-    bool has_alpha = avg_a < static_cast<float>(w * h);
     size_t l_limit = has_alpha ? 5 : 7; // Use fewer luminance bits if there's alpha
 
     size_t lx = std::max(static_cast<size_t>(std::round(static_cast<float>(l_limit * w) /
@@ -167,28 +159,7 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     q.reserve(w * h);
     a.reserve(w * h);
 
-    if (frame->type() == CV_8UC3) {
-        // 3 channels (BGR)
-        for (int i = 0; i < h; ++i) {
-            for (int j = 0; j < w; ++j) {
-                size_t orig_i = static_cast<size_t>(i * row_ratio);
-                size_t orig_j = static_cast<size_t>(j * col_ratio);
-                const cv::Vec3b& pixel = frame->at<cv::Vec3b>(orig_i, orig_j);
-                float alpha = 1.0f; // Assume fully opaque for CV_8UC3
-                float b =
-                  avg_b * (1.0f - alpha) + (alpha / 255.0f) * static_cast<float>(pixel[0]); // B
-                float g =
-                  avg_g * (1.0f - alpha) + (alpha / 255.0f) * static_cast<float>(pixel[1]); // G
-                float r =
-                  avg_r * (1.0f - alpha) + (alpha / 255.0f) * static_cast<float>(pixel[2]); // R
-                l.push_back((r + g + b) / 3.0f);
-                p.push_back((r + g) / 2.0f - b);
-                q.push_back(r - g);
-                a.push_back(alpha);
-            }
-        }
-    }
-    else if (frame->type() == CV_8UC4) {
+    if (frame->type() == CV_8UC4) {
         // 4 channels (BGRA)
         for (int i = 0; i < h; ++i) {
             for (int j = 0; j < w; ++j) {
@@ -206,6 +177,37 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
                 p.push_back((r + g) / 2.0f - b);
                 q.push_back(r - g);
                 a.push_back(alpha);
+            }
+        }
+    }
+    else if (frame->type() == CV_8UC3) {
+        // 3 channels (BGR)
+        for (int i = 0; i < h; ++i) {
+            for (int j = 0; j < w; ++j) {
+                size_t orig_i = static_cast<size_t>(i * row_ratio);
+                size_t orig_j = static_cast<size_t>(j * col_ratio);
+                const cv::Vec3b& pixel = frame->at<cv::Vec3b>(orig_i, orig_j);
+                float b = (1.0f / 255.0f) * static_cast<float>(pixel[0]); // B
+                float g = (1.0f / 255.0f) * static_cast<float>(pixel[1]); // G
+                float r = (1.0f / 255.0f) * static_cast<float>(pixel[2]); // R
+                l.push_back((r + g + b) / 3.0f);
+                p.push_back((r + g) / 2.0f - b);
+                q.push_back(r - g);
+                a.push_back(1.0f);
+            }
+        }
+    }
+    else if (frame->type() == CV_8U) {
+        for (int i = 0; i < h; ++i) {
+            for (int j = 0; j < w; ++j) {
+                size_t orig_i = static_cast<size_t>(i * row_ratio);
+                size_t orig_j = static_cast<size_t>(j * col_ratio);
+                uchar pixel = frame->at<uchar>(orig_i, orig_j);
+                float l_val = static_cast<float>(pixel) / 255.0f;
+                l.push_back(l_val);
+                p.push_back(0.0f);
+                q.push_back(0.0f);
+                a.push_back(1.0f);
             }
         }
     }

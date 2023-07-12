@@ -2,14 +2,12 @@ package lilliput
 
 import (
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"testing"
 )
 
 func TestThumbhash(t *testing.T) {
 	checkImage := func(expectedB64Hash, filePath string, ops *ImageOps, dst []byte) {
-		fmt.Printf("checking image %q\n", filePath)
 		inputBuf, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			t.Fatalf("failed to read input file %q: %v", filePath, err)
@@ -80,5 +78,5 @@ func TestThumbhash(t *testing.T) {
 	checkImage("EwiCBQAnwnjzJpHIZAAAAAAAuDeHiHdwZw==", "data/opera-gray-alpha.png", ops, dst)
 
 	// Test downsampling.
-	checkImage("VvYRNQRod313B4h3eHhYiHeAiQUo", "data/large-sunrise.jpg", ops, dst)
+	checkImage("VvYRNQRod3x3B4iHeHhYiHeAeQUo", "data/large-sunrise.jpg", ops, dst)
 }
