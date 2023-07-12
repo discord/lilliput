@@ -2,12 +2,14 @@ package lilliput
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
 
 func TestThumbhash(t *testing.T) {
-	checkImage := func(expectedB64Hash, filePath string, ops *ImageOps, width int, height int, dst []byte) {
+	checkImage := func(expectedB64Hash, filePath string, ops *ImageOps, dst []byte) {
+		fmt.Printf("checking image %q\n", filePath)
 		inputBuf, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			t.Fatalf("failed to read input file %q: %v", filePath, err)
@@ -24,16 +26,11 @@ func TestThumbhash(t *testing.T) {
 			t.Fatalf("error reading image header of %q: %v", filePath, err)
 		}
 
-		resizeMethod := ImageOpsResize
-		if width == header.Width() && height == header.Height() {
-			resizeMethod = ImageOpsNoResize
-		}
-
 		opts := &ImageOptions{
 			FileType:             ".thumbhash",
-			Width:                width,
-			Height:               height,
-			ResizeMethod:         resizeMethod,
+			Width:                header.width,
+			Height:               header.height,
+			ResizeMethod:         ImageOpsNoResize,
 			NormalizeOrientation: true,
 		}
 		hash, err := ops.Transform(decoder, opts, dst)
@@ -65,16 +62,23 @@ func TestThumbhash(t *testing.T) {
 	// This is not very surprising given the heavy reliance on floating point
 	// math. The differences were likely rounding errors. The decoded images
 	// from those hashes were visually identical.
-	checkImage("1QcSHQRnh493V4dIh4eXh1h4kJUI", "data/sunrise.jpg", ops, 75, 100, dst)
-	checkImage("3PcNNYSFeXh/d3eld0iHZoZgVwh2", "data/sunset.jpg", ops, 100, 75, dst)
-	checkImage("3OcRJYB4d3h/iIeHeEh3eIhw+j3A", "data/field.jpg", ops, 100, 75, dst)
-	checkImage("HBkSHYSIeHiPiHh8eJd4eTN0EEQG", "data/fall.jpg", ops, 100, 66, dst)
-	checkImage("VggKDYAW6lZvdYd6d2iZh/p4GE/k", "data/street.jpg", ops, 100, 75, dst)
-	checkImage("2fcZFIB3iId/h3iJh4aIYJ2V8g==", "data/mountain.jpg", ops, 100, 58, dst)
-	checkImage("IQgSLYZ6iHePh4h1eFeHh4dwgwg3", "data/coast.jpg", ops, 100, 75, dst)
-	checkImage("YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw==", "data/firefox.png", ops, 97, 100, dst)
-	checkImage("mYqDBQQnxnj0JoLYdN7f8JhpuDeHiHdwZw==", "data/opera.png", ops, 100, 100, dst)
-	checkImage("mYqDBQQnxnj0JoLYdN7f8JhpuDeHiHdwZw==", "/tmp/lena.jpg", ops, 512, 512, dst)
+	checkImage("1QcSHQRnh493V4dIh4eXh1h4kJUI", "data/sunrise.jpg", ops, dst)
+	checkImage("3PcNNYSFeXh/d3eld0iHZoZgVwh2", "data/sunset.jpg", ops, dst)
+	checkImage("3OcRJYB4d3h/iIeHeEh3eIhw+j3A", "data/field.jpg", ops, dst)
+	checkImage("HBkSHYSIeHiPiHh8eJd4eTN0EEQG", "data/fall.jpg", ops, dst)
+	checkImage("VggKDYAW6lZvdYd6d2iZh/p4GE/k", "data/street.jpg", ops, dst)
+	checkImage("2fcZFIB3iId/h3iJh4aIYJ2V8g==", "data/mountain.jpg", ops, dst)
+	checkImage("IQgSLYZ6iHePh4h1eFeHh4dwgwg3", "data/coast.jpg", ops, dst)
+	checkImage("YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw==", "data/firefox.png", ops, dst)
+	checkImage("mYqDBQQnxnj0JoLYdN7f8JhpuDeHiHdwZw==", "data/opera.png", ops, dst)
 
-	checkImage("VvYRNQRod313B4h3eHhYiHeAiQUo", "data/large-sunrise.png", ops, 1300, 1942, dst)
+	// Test other image formats, bit depths, and color spaces.
+	checkImage("YJqGPQw7oFlslqhGafOE+Q6oJ1h2iHBlVw==", "data/firefox-16bit.png", ops, dst)
+	checkImage("YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw==", "data/firefox-16bit-alpha.png", ops, dst)
+	checkImage("FwgOBwAxOWl4l3aQpFiIN5iHBgAAAAAA", "data/firefox-gray.jpg", ops, dst)
+	checkImage("4AeKBQA7oFl7lqhmaDBp92yJJ1h2iHB2Rw==", "data/firefox-gray-alpha.webp", ops, dst)
+	checkImage("EwiCBQAnwnjzJpHIZAAAAAAAuDeHiHdwZw==", "data/opera-gray-alpha.png", ops, dst)
+
+	// Test downsampling.
+	checkImage("VvYRNQRod313B4h3eHhYiHeAiQUo", "data/large-sunrise.jpg", ops, dst)
 }
