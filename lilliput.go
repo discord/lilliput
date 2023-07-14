@@ -16,11 +16,13 @@ var (
 	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
 	ErrSkipNotSupported = errors.New("skip operation not supported by this decoder")
 
-	gif87Magic   = []byte("GIF87a")
-	gif89Magic   = []byte("GIF89a")
-	mp42Magic    = []byte("ftypmp42")
-	mp4IsomMagic = []byte("ftypisom")
-	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	gif87Magic    = []byte("GIF87a")
+	gif89Magic    = []byte("GIF89a")
+	mp42Magic     = []byte("ftypmp42")
+	mp4IsomMagic  = []byte("ftypisom")
+	pngMagic      = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	riffMagic     = []byte("RIFF")
+	webPAnimMagic = []byte("WEBPVP8X")
 )
 
 // A Decoder decompresses compressed image data.
@@ -73,6 +75,18 @@ func isMP4(maybeMP4 []byte) bool {
 	return bytes.HasPrefix(magic, mp42Magic) || bytes.HasPrefix(magic, mp4IsomMagic)
 }
 
+func isWebPAnim(maybeWebP []byte) bool {
+	if len(maybeWebP) < 16 {
+		return false
+	}
+
+	if !bytes.HasPrefix(maybeWebP, riffMagic) {
+		return false
+	}
+	magic := maybeWebP[8:]
+	return bytes.HasPrefix(magic, webPAnimMagic)
+}
+
 // NewDecoder returns a Decoder which can be used to decode
 // image data provided in buf. If the first few bytes of buf do not
 // point to a valid magic string, an error will be returned.
@@ -85,6 +99,11 @@ func NewDecoder(buf []byte) (Decoder, error) {
 	isBufGIF := isGIF(buf)
 	if isBufGIF {
 		return newGifDecoder(buf)
+	}
+
+	isAnimWebP := isWebPAnim(buf)
+	if isAnimWebP {
+		return newWebPDecoder(buf)
 	}
 
 	maybeDecoder, err := newOpenCVDecoder(buf)
@@ -102,6 +121,13 @@ func NewDecoder(buf []byte) (Decoder, error) {
 func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
+	}
+
+	if strings.ToLower(ext) == ".webp" {
+		header, _ := decodedBy.Header()
+		if header != nil && header.numFrames > 1 {
+			return newWebPEncoder(decodedBy, dst)
+		}
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {

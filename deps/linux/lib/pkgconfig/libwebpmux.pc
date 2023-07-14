@@ -1,0 +1,12 @@
+prefix=/src/deps/linux
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libwebpmux
+Description: Library for manipulating the WebP graphics format container
+Version: 0.6.0
+Requires: libwebp >= 0.2.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lwebpmux
+Libs.private: -lm

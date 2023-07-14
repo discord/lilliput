@@ -173,6 +173,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		}
 
 		duration += o.active().Duration()
+		o.secondary().duration = o.active().duration
 
 		if opt.MaxEncodeDuration != 0 && duration > opt.MaxEncodeDuration {
 			err = o.skipToEnd(d)
