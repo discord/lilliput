@@ -16,9 +16,6 @@ struct thumbhash_encoder_struct {
 thumbhash_encoder thumbhash_encoder_create(void* buf, size_t buf_len)
 {
     thumbhash_encoder e = new struct thumbhash_encoder_struct();
-    if (!e) {
-        return NULL;
-    }
     memset(e, 0, sizeof(struct thumbhash_encoder_struct));
     e->dst = (uint8_t*)(buf);
     e->dst_len = buf_len;
