@@ -1,0 +1,11 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	"name": "lilliput linux/amd64",
+	"image": "--platform=linux/amd64 golang:1.20",
+	"features": {
+		"ghcr.io/eliises/devcontainer-features/devcontainers-cli:1": {}
+	},
+	"workspaceMount": "source=${localWorkspaceFolder},target=/go/src/github.com/discord/lilliput,type=bind",
+	"workspaceFolder": "/go/src/github.com/discord/lilliput"
+}

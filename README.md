@@ -273,3 +273,16 @@ OSX. In order to automate this process, lilliput ships with build scripts alongs
 compressed archives of the sources of its dependencies. These build scripts are provided
 for [OSX](deps/build-deps-osx.sh) and [Linux](deps/build-deps-linux.sh).
 
+## Dev Container Support for linux/amd64
+
+For contributors using Visual Studio Code, this repository offers a
+[.devcontainer configuration](https://code.visualstudio.com/docs/devcontainers/containers)
+specifically tailored for the linux/amd64 platform. This ensures compatibility with the
+prebuilt native dependencies and provides a consistent development environment, even when
+developing on other platforms (i.e. Apple Silicon).
+
+To utilize this:
+  1. Ensure you have VSCode installed.
+  1. Install the `Dev Containers` extension from the VSCode marketplace.
+  1. Clone the repository, open the project in VSCode, and when prompted, choose to `Reopen in Container`. Alternatively, use the command palette (Ctrl+Shift+P or Cmd+Shift+P) and select `Dev Containers: Open Folder in Container`.
+
