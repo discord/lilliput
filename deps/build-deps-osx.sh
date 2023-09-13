@@ -26,6 +26,9 @@ if [ ! -d "$SRCDIR" ]; then
     git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
+echo '\n--------------------'
+echo 'Building libjpeg-turbo'
+echo '--------------------\n'
 mkdir -p $BASEDIR/libjpeg-turbo
 tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
@@ -35,6 +38,9 @@ cmake $BASEDIR/libjpeg-turbo -DENABLE_STATIC=1 -DENABLE_SHARED=0 -DWITH_JPEG8=1 
 make
 make install
 
+echo '\n--------------------'
+echo 'Building zlib'
+echo '--------------------\n'
 mkdir -p $BASEDIR/zlib
 tar -xzf $SRCDIR/zlib-1.2.11.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
@@ -43,6 +49,9 @@ $BASEDIR/zlib/configure --prefix=$PREFIX --static
 make
 make install
 
+echo '\n--------------------'
+echo 'Building libpng'
+echo '--------------------\n'
 mkdir -p $BASEDIR/libpng
 tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
@@ -51,8 +60,11 @@ $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --en
 make
 make install
 
+echo '\n--------------------'
+echo 'Building libwebp'
+echo '--------------------\n'
 mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-1.2.4.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-a35ea50d-2023-09-12.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
@@ -61,6 +73,9 @@ $BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static
 make
 make install
 
+echo '\n--------------------'
+echo 'Building giflib'
+echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
 tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
@@ -69,6 +84,9 @@ make
 cp libgif.a "$PREFIX/lib"
 cp gif_lib.h "$PREFIX/include"
 
+echo '\n--------------------'
+echo 'Building opencv'
+echo '--------------------\n'
 mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
@@ -79,11 +97,17 @@ cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=
 make opencv_core opencv_imgproc opencv_imgcodecs
 make install
 
+echo '\n--------------------'
+echo 'Building bzip2'
+echo '--------------------\n'
 mkdir -p $BASEDIR/bzip2
 tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
 make PREFIX=$PREFIX install
 
+echo '\n--------------------'
+echo 'Building ffmpeg'
+echo '--------------------\n'
 mkdir -p $BASEDIR/ffmpeg
 tar -xjf $SRCDIR/ffmpeg-5.1.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
