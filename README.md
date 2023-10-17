@@ -11,7 +11,7 @@ Lilliput supports resizing JPEG, PNG, WEBP and animated GIFs. It can also conver
 Lilliput also has some support for getting the first frame from MOV and WEBM
 videos.
 
-**Lilliput presently only supports OSX and Linux.**
+**Lilliput presently only supports OSX Intel and Linux.**
 
 ## Example
 Lilliput comes with a [fully working example](examples/main.go) that runs on the command line. The
