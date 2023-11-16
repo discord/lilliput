@@ -48,6 +48,10 @@ type Decoder interface {
 	// SkipFrame skips a frame if the decoder supports multiple frames
 	// and returns io.EOF if the last frame has been reached
 	SkipFrame() error
+
+	// IsStreamable indicates whether the content is optimized for streaming. This is true
+	// for static images and animated GIFs.
+	IsStreamable() bool
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

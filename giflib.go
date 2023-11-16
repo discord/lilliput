@@ -102,6 +102,10 @@ func (d *gifDecoder) Description() string {
 	return "GIF"
 }
 
+func (d *gifDecoder) IsStreamable() bool {
+	return true
+}
+
 func (d *gifDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
