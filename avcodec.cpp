@@ -109,6 +109,49 @@ static bool avcodec_decoder_is_audio(const avcodec_decoder d)
     return false;
 }
 
+bool avcodec_decoder_is_streamable(const opencv_mat mat) {
+    const int64_t probeBytesLimit = 32 * 1024; // Define the probe limit
+    const size_t atomHeaderSize = 8;
+    int64_t bytesRead = 0;
+    const cv::Mat* buf = static_cast<const cv::Mat*>(mat);
+    size_t bufSize = buf->total();
+
+    while (bytesRead < probeBytesLimit && bytesRead < static_cast<int64_t>(bufSize)) {
+        // Check if there's enough buffer left for another atom header
+        if (bufSize - bytesRead < atomHeaderSize) {
+            break;
+        }
+
+        // Read atom size and type
+        uint32_t atomSize = (buf->data[bytesRead] << 24) | (buf->data[bytesRead + 1] << 16) |
+                            (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
+        std::string atomType(reinterpret_cast<const char*>(&buf->data[bytesRead + 4]), 4);
+
+        bytesRead += atomHeaderSize;
+
+        // Check for 'moov' atom
+        if (atomType == "moov") {
+            return true;
+        }
+
+        // Check for 'mdat' atom
+        if (atomType == "mdat") {
+            return false;
+        }
+
+        // Calculate next atom position
+        int64_t nextAtomPosition = static_cast<int64_t>(atomSize) - atomHeaderSize;
+        if (bytesRead + nextAtomPosition > probeBytesLimit || bytesRead + nextAtomPosition > static_cast<int64_t>(bufSize)) {
+            break;
+        }
+
+        // Move to the next atom position
+        bytesRead += nextAtomPosition;
+    }
+
+    return false;
+}
+
 avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
 {
     avcodec_decoder d = new struct avcodec_decoder_struct();

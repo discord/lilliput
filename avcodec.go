@@ -13,8 +13,6 @@ package lilliput
 import "C"
 
 import (
-	"bytes"
-	"encoding/binary"
 	"io"
 	"time"
 	"unsafe"
@@ -24,11 +22,12 @@ const probeBytesLimit = 32 * 1024
 const atomHeaderSize = 8
 
 type avCodecDecoder struct {
-	decoder    C.avcodec_decoder
-	mat        C.opencv_mat
-	buf        []byte
-	hasDecoded bool
-	maybeMP4   bool
+	decoder      C.avcodec_decoder
+	mat          C.opencv_mat
+	buf          []byte
+	hasDecoded   bool
+	maybeMP4     bool
+	isStreamable bool
 }
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
@@ -44,11 +43,14 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
+	isStreamable := C.avcodec_decoder_is_streamable(mat)
+
 	return &avCodecDecoder{
-		decoder:  decoder,
-		mat:      mat,
-		buf:      buf,
-		maybeMP4: isMP4(buf),
+		decoder:      decoder,
+		mat:          mat,
+		buf:          buf,
+		maybeMP4:     isMP4(buf),
+		isStreamable: bool(isStreamable),
 	}, nil
 }
 
@@ -64,48 +66,7 @@ func (d *avCodecDecoder) Description() string {
 }
 
 func (d *avCodecDecoder) IsStreamable() bool {
-	var atomSize uint32
-	var atomType [4]byte
-	bytesRead := int64(0)
-
-	reader := bytes.NewReader(d.buf)
-
-	// Read atoms within the probe limit
-	for bytesRead < probeBytesLimit && bytesRead < int64(len(d.buf)) {
-		// Read atom header
-		err := binary.Read(reader, binary.BigEndian, &atomSize)
-		if err != nil {
-			break
-		}
-		err = binary.Read(reader, binary.BigEndian, &atomType)
-		if err != nil {
-			break
-		}
-		bytesRead += int64(atomHeaderSize)
-
-		// Check for 'moov' atom
-		if string(atomType[:]) == "moov" {
-			return true
-		}
-
-		if string(atomType[:]) == "mdat" {
-			// 'mdat' encountered before 'moov'
-			return false
-		}
-
-		// Skip to next atom (if the atom is not 'moov' or 'mdat')
-		nextAtomPosition := int64(atomSize) - atomHeaderSize
-		if bytesRead+nextAtomPosition > probeBytesLimit {
-			// If the next atom position exceeds the probe limit or the length of data, stop
-			break
-		}
-
-		// Move the reader to the next atom position
-		reader.Seek(nextAtomPosition, 1)
-		bytesRead += nextAtomPosition
-	}
-
-	return false
+	return d.isStreamable
 }
 
 func (d *avCodecDecoder) Duration() time.Duration {
