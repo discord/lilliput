@@ -125,17 +125,18 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
         // Read atom size and type
         uint32_t atomSize = (buf->data[bytesRead] << 24) | (buf->data[bytesRead + 1] << 16) |
                             (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
-        std::string atomType(reinterpret_cast<const char*>(&buf->data[bytesRead + 4]), 4);
+
+        // Read atom type
+        char atomType[4];
+        memcpy(atomType, &buf->data[bytesRead + 4], 4);
 
         bytesRead += atomHeaderSize;
 
-        // Check for 'moov' atom
-        if (atomType == "moov") {
+        // Check for 'moov' and 'mdat' atoms using byte comparison
+        if (memcmp(atomType, "moov", 4) == 0) {
             return true;
         }
-
-        // Check for 'mdat' atom
-        if (atomType == "mdat") {
+        if (memcmp(atomType, "mdat", 4) == 0) {
             return false;
         }
 
