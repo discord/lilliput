@@ -18,6 +18,7 @@ int avcodec_decoder_get_height(const avcodec_decoder d);
 int avcodec_decoder_get_orientation(const avcodec_decoder d);
 float avcodec_decoder_get_duration(const avcodec_decoder d);
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat);
+bool avcodec_decoder_is_streamable(const opencv_mat buf);
 const char* avcodec_decoder_get_description(const avcodec_decoder d);
 
 #ifdef __cplusplus

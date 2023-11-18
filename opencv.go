@@ -530,6 +530,10 @@ func (d *openCVDecoder) Description() string {
 	return C.GoString(C.opencv_decoder_get_description(d.decoder))
 }
 
+func (d *openCVDecoder) IsStreamable() bool {
+	return true
+}
+
 func (d *openCVDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }

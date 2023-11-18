@@ -18,12 +18,16 @@ import (
 	"unsafe"
 )
 
+const probeBytesLimit = 32 * 1024
+const atomHeaderSize = 8
+
 type avCodecDecoder struct {
-	decoder    C.avcodec_decoder
-	mat        C.opencv_mat
-	buf        []byte
-	hasDecoded bool
-	maybeMP4   bool
+	decoder      C.avcodec_decoder
+	mat          C.opencv_mat
+	buf          []byte
+	hasDecoded   bool
+	maybeMP4     bool
+	isStreamable bool
 }
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
@@ -39,11 +43,14 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
+	isStreamable := C.avcodec_decoder_is_streamable(mat)
+
 	return &avCodecDecoder{
-		decoder:  decoder,
-		mat:      mat,
-		buf:      buf,
-		maybeMP4: isMP4(buf),
+		decoder:      decoder,
+		mat:          mat,
+		buf:          buf,
+		maybeMP4:     isMP4(buf),
+		isStreamable: bool(isStreamable),
 	}, nil
 }
 
@@ -56,6 +63,10 @@ func (d *avCodecDecoder) Description() string {
 	}
 
 	return fmt
+}
+
+func (d *avCodecDecoder) IsStreamable() bool {
+	return d.isStreamable
 }
 
 func (d *avCodecDecoder) Duration() time.Duration {
