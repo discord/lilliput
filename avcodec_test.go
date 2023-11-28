@@ -11,14 +11,7 @@ func TestIsStreamable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open test file: %v", err)
 	}
-
-	stdAvCodecDecoder, err := newAVCodecDecoder(stdMp4)
-	if err != nil {
-		t.Fatalf("failed to create decoder: %v", err)
-	}
-	defer stdAvCodecDecoder.Close()
-
-	if stdAvCodecDecoder.IsStreamable() {
+	if isStreamable(createMatFromBytes(stdMp4)) {
 		t.Fatalf("expected file to not be streamable")
 	}
 
@@ -27,15 +20,26 @@ func TestIsStreamable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open test file: %v", err)
 	}
-
-	webAvCodecDecoder, err := newAVCodecDecoder(webMp4)
-	if err != nil {
-		t.Fatalf("failed to create decoder: %v", err)
-	}
-	defer webAvCodecDecoder.Close()
-
-	if !webAvCodecDecoder.IsStreamable() {
+	if !isStreamable(createMatFromBytes(webMp4)) {
 		t.Fatalf("expected file to be streamable")
+	}
+
+	// MP4 with a big atom
+	bigAtomMp4, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_big_atom.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	if isStreamable(createMatFromBytes(bigAtomMp4)) {
+		t.Fatalf("expected file to not be streamable")
+	}
+
+	// MP4 with a zero-length atom
+	zeroLengthAtomMp4, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_zero_length_atom.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	if isStreamable(createMatFromBytes(zeroLengthAtomMp4)) {
+		t.Fatalf("expected file to not be streamable")
 	}
 }
 

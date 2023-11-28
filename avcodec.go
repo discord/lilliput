@@ -31,8 +31,7 @@ type avCodecDecoder struct {
 }
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
-	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
-
+	mat := createMatFromBytes(buf)
 	if mat == nil {
 		return nil, ErrBufTooSmall
 	}
@@ -43,15 +42,21 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		return nil, ErrInvalidImage
 	}
 
-	isStreamable := C.avcodec_decoder_is_streamable(mat)
-
 	return &avCodecDecoder{
 		decoder:      decoder,
 		mat:          mat,
 		buf:          buf,
 		maybeMP4:     isMP4(buf),
-		isStreamable: bool(isStreamable),
+		isStreamable: isStreamable(mat),
 	}, nil
+}
+
+func createMatFromBytes(buf []byte) C.opencv_mat {
+	return C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+}
+
+func isStreamable(mat C.opencv_mat) bool {
+	return bool(C.avcodec_decoder_is_streamable(mat))
 }
 
 func (d *avCodecDecoder) Description() string {
