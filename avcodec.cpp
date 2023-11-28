@@ -122,7 +122,7 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
                             (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
 
         // Validate atom size
-        if (atomSize < atomHeaderSize || atomSize + bytesRead > bufSize || atomSize > probeBytesLimit - bytesRead) {
+        if (atomSize < atomHeaderSize || atomSize + bytesRead > bufSize) {
             break;
         }
 
