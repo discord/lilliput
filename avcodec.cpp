@@ -115,8 +115,9 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
     int64_t bytesRead = 0;
     const cv::Mat* buf = static_cast<const cv::Mat*>(mat);
     size_t bufSize = buf->total();
+    size_t peekSize = MIN(bufSize, probeBytesLimit);
 
-    while (bytesRead + atomHeaderSize <= probeBytesLimit && bytesRead + atomHeaderSize <= static_cast<int64_t>(bufSize)) {
+    while(bytesRead + atomHeaderSize <= peekSize) {
         // Read atom size and type
         uint32_t atomSize = (buf->data[bytesRead] << 24) | (buf->data[bytesRead + 1] << 16) |
                             (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
