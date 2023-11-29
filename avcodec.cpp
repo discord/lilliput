@@ -115,22 +115,21 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
     int64_t bytesRead = 0;
     const cv::Mat* buf = static_cast<const cv::Mat*>(mat);
     size_t bufSize = buf->total();
+    size_t peekSize = MIN(bufSize, probeBytesLimit);
 
-    while (bytesRead < probeBytesLimit && bytesRead < static_cast<int64_t>(bufSize)) {
-        // Check if there's enough buffer left for another atom header
-        if (bufSize - bytesRead < atomHeaderSize) {
-            break;
-        }
-
+    while(bytesRead + atomHeaderSize <= peekSize) {
         // Read atom size and type
         uint32_t atomSize = (buf->data[bytesRead] << 24) | (buf->data[bytesRead + 1] << 16) |
                             (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
 
+        // Validate atom size
+        if (atomSize < atomHeaderSize || atomSize + bytesRead > bufSize) {
+            break;
+        }
+
         // Read atom type
         char atomType[4];
         memcpy(atomType, &buf->data[bytesRead + 4], 4);
-
-        bytesRead += atomHeaderSize;
 
         // Check for 'moov' and 'mdat' atoms using byte comparison
         if (memcmp(atomType, "moov", 4) == 0) {
@@ -140,14 +139,8 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
             return false;
         }
 
-        // Calculate next atom position
-        int64_t nextAtomPosition = static_cast<int64_t>(atomSize) - atomHeaderSize;
-        if (bytesRead + nextAtomPosition > probeBytesLimit || bytesRead + nextAtomPosition > static_cast<int64_t>(bufSize)) {
-            break;
-        }
-
         // Move to the next atom position
-        bytesRead += nextAtomPosition;
+        bytesRead += atomSize; // Atom size includes the header size
     }
 
     return false;
