@@ -106,6 +106,10 @@ func (d *gifDecoder) IsStreamable() bool {
 	return true
 }
 
+func (d *gifDecoder) HasSubtitles() bool {
+	return false
+}
+
 func (d *gifDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
