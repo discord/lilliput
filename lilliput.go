@@ -52,6 +52,9 @@ type Decoder interface {
 	// IsStreamable indicates whether the content is optimized for streaming. This is true
 	// for static images and animated GIFs.
 	IsStreamable() bool
+
+	// HasSubtitles indicates whether the content has one or more subtitle tracks.
+	HasSubtitles() bool
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.
