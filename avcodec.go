@@ -28,6 +28,7 @@ type avCodecDecoder struct {
 	hasDecoded   bool
 	maybeMP4     bool
 	isStreamable bool
+	hasSubtitles bool
 }
 
 func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
@@ -48,11 +49,16 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		buf:          buf,
 		maybeMP4:     isMP4(buf),
 		isStreamable: isStreamable(mat),
+		hasSubtitles: hasSubtitles(decoder),
 	}, nil
 }
 
 func createMatFromBytes(buf []byte) C.opencv_mat {
 	return C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+}
+
+func hasSubtitles(d C.avcodec_decoder) bool {
+	return bool(C.avcodec_decoder_has_subtitles(d))
 }
 
 func isStreamable(mat C.opencv_mat) bool {
@@ -68,6 +74,10 @@ func (d *avCodecDecoder) Description() string {
 	}
 
 	return fmt
+}
+
+func (d *avCodecDecoder) HasSubtitles() bool {
+	return d.hasSubtitles
 }
 
 func (d *avCodecDecoder) IsStreamable() bool {

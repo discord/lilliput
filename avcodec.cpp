@@ -309,6 +309,16 @@ const char* avcodec_decoder_get_description(const avcodec_decoder d)
     return "";
 }
 
+bool avcodec_decoder_has_subtitles(const avcodec_decoder d) {
+    for (unsigned int i = 0; i < d->container->nb_streams; i++) {
+        AVStream* stream = d->container->streams[i];
+        if (stream->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
 {
     auto cvMat = static_cast<cv::Mat*>(mat);
