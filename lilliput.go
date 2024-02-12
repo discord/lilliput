@@ -56,6 +56,9 @@ type Decoder interface {
 
 	// HasSubtitles indicates whether the content has one or more subtitle tracks.
 	HasSubtitles() bool
+
+	// ICC returns the ICC color profile, if any
+	ICC() []byte
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

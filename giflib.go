@@ -110,6 +110,10 @@ func (d *gifDecoder) HasSubtitles() bool {
 	return false
 }
 
+func (d *gifDecoder) ICC() []byte {
+	return []byte{}
+}
+
 func (d *gifDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
