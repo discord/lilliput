@@ -6,7 +6,7 @@ package lilliput
 // #cgo CXXFLAGS: -std=c++11
 // #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
-// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz -lgif
+// #cgo LDFLAGS:  -lopencv_core -lopencv_imgproc -lwebp -lwebpmux
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
 // #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
 // #include "webp.hpp"
@@ -27,6 +27,7 @@ type webpDecoder struct {
 type webpEncoder struct {
 	encoder C.webp_encoder
 	dstBuf  []byte
+	icc     []byte
 }
 
 func newWebpDecoder(buf []byte) (*webpDecoder, error) {
@@ -49,7 +50,6 @@ func newWebpDecoder(buf []byte) (*webpDecoder, error) {
 }
 
 func (d *webpDecoder) Header() (*ImageHeader, error) {
-	C.webp_decoder_read_header(d.decoder)
 	return &ImageHeader{
 		width:         int(C.webp_decoder_get_width(d.decoder)),
 		height:        int(C.webp_decoder_get_height(d.decoder)),
@@ -82,6 +82,12 @@ func (d *webpDecoder) IsStreamable() bool {
 	return false
 }
 
+func (d *webpDecoder) ICC() []byte {
+	iccDst := make([]byte, 8192)
+	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
+	return iccDst[:iccLength]
+}
+
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
@@ -104,7 +110,8 @@ func (d *webpDecoder) SkipFrame() error {
 
 func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
-	enc := C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)))
+	icc := decodedBy.ICC()
+	enc := C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)))
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
@@ -112,6 +119,7 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	return &webpEncoder{
 		encoder:    enc,
 		dstBuf:     dstBuf,
+		icc:        icc,
 	}, nil
 }
 
