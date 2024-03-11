@@ -1,0 +1,82 @@
+// Package lilliput resizes and encodes images from
+// compressed images
+package lilliput
+
+import (
+	"io/ioutil"
+	"testing"
+)
+
+func TestNewDecoder(t *testing.T) {
+	tests := []struct {
+		name           string
+		sourceFilePath string
+		wantHeight     int
+		wantWidth      int
+		wantErr        bool
+	}{
+		{
+			name:           "Standard MP4",
+			sourceFilePath: "testdata/big_buck_bunny_480p_10s_std.mp4",
+			wantHeight:     480,
+			wantWidth:      720,
+			wantErr:        false,
+		},
+		{
+			name:           "Progressive Download MP4",
+			sourceFilePath: "testdata/big_buck_bunny_480p_10s_web.mp4",
+			wantHeight:     480,
+			wantWidth:      720,
+			wantErr:        false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sourceFileData, err := ioutil.ReadFile(tt.sourceFilePath)
+			if err != nil {
+				t.Fatalf("Failed to read source file: %v", err)
+			}
+			dec, err := NewDecoder(sourceFileData)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewDecoder() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			header, err := dec.Header()
+			if err != nil {
+				t.Errorf("Failed to get header: %v", err)
+			}
+			if header.Width() != tt.wantWidth {
+				t.Errorf("Expected width to be %v, got %v", tt.wantWidth, header.Width())
+			}
+			if header.Height() != tt.wantHeight {
+				t.Errorf("Expected width to be %v, got %v", tt.wantHeight, header.Height())
+			}
+			if dec.Duration() <= 0 {
+				t.Errorf("Expected duration to be greater than 0, got %v", dec.Duration())
+			}
+		})
+	}
+}
+
+func BenchmarkNewDecoder(b *testing.B) {
+	sourceFilePath := "testdata/big_buck_bunny_480p_10s_web.mp4"
+	sourceFileData, err := ioutil.ReadFile(sourceFilePath)
+	if err != nil {
+		b.Fatalf("Failed to read source file: %v", err)
+	}
+
+	b.ResetTimer() // Start timing after setup
+
+	for i := 0; i < b.N; i++ {
+		dec, err := NewDecoder(sourceFileData)
+		if err != nil {
+			b.Fatalf("Failed to create decoder: %v", err)
+		}
+		if dec != nil {
+			defer dec.Close()
+		}
+		if _, err := dec.Header(); err != nil {
+			b.Fatalf("Failed to get header: %v", err)
+		}
+	}
+}

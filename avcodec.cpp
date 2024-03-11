@@ -174,18 +174,13 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         return NULL;
     }
 
-    res = avformat_find_stream_info(d->container, NULL);
-    if (res < 0) {
-        avcodec_decoder_release(d);
-        return NULL;
-    }
-
     if (avcodec_decoder_is_audio(d)) {
         // in this case, quit out fast since we won't be decoding this anyway
         // (audio is metadata-only)
         return d;
     }
 
+    // perform a quick search for the video stream index in the container
     AVCodecParameters* codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
         if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -194,9 +189,34 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
             break;
         }
     }
-    if (!codec_params) {
-        avcodec_decoder_release(d);
-        return NULL;
+
+    // call avformat_find_stream_info only if no header was found (i.e. mpeg-ts),
+    // or if the duration, width, or height are unknown.
+    // this is an expensive operation that could involve frame decoding, perform judiciously.
+    if (!codec_params ||
+        codec_params->width <= 0 ||
+        codec_params->height <= 0 ||
+        d->container->duration <= 0) {
+        res = avformat_find_stream_info(d->container, NULL);
+        if (res < 0) {
+            avcodec_decoder_release(d);
+            return NULL;
+        }
+
+        // repeat the search for the video stream index
+        if (!codec_params) {
+            for (int i = 0; i < d->container->nb_streams; i++) {
+                if (d->container->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                    codec_params = d->container->streams[i]->codecpar;
+                    d->video_stream_index = i;
+                    break;
+                }
+            }
+            if (!codec_params) {
+                avcodec_decoder_release(d);
+                return NULL;
+            }
+        }
     }
 
     const AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
