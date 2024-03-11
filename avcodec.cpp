@@ -339,37 +339,37 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d) {
     return false;
 }
 
-static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
-{
+static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame) {
     auto cvMat = static_cast<cv::Mat*>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
-        if (frame->width != cvMat->cols || frame->height != cvMat->rows) {
-            return -1;
-        }
-        int stepSize = 4 * frame->width;
-        if (frame->width % 32 != 0) {
-            int width = frame->width + 32 - (frame->width % 32);
+        // Calculate the step size based on the cv::Mat's width
+        int stepSize = 4 * cvMat->cols; // Assuming the cv::Mat is in BGRA format, which has 4 channels
+        if (cvMat->cols % 32 != 0) {
+            int width = cvMat->cols + 32 - (cvMat->cols % 32);
             stepSize = 4 * width;
         }
         if (!opencv_mat_set_row_stride(mat, stepSize)) {
             return -1;
         }
 
-        struct SwsContext* sws = sws_getContext(frame->width,
-                                                frame->height,
-                                                (AVPixelFormat)(frame->format),
-                                                frame->width,
-                                                frame->height,
-                                                AV_PIX_FMT_BGRA,
-                                                0,
-                                                NULL,
-                                                NULL,
-                                                NULL);
-        int linesizes[] = {stepSize, 0, 0, 0};
-        uint8_t* data_ptrs[] = {cvMat->data, NULL, NULL, NULL};
-        sws_scale(sws, frame->data, frame->linesize, 0, frame->height, data_ptrs, linesizes);
+        // Create SwsContext for converting the frame format and scaling
+        struct SwsContext* sws = sws_getContext(
+            frame->width, frame->height, (AVPixelFormat)(frame->format), // Source dimensions and format
+            cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA, // Destination dimensions and format
+            SWS_BILINEAR, // Specify the scaling algorithm; you can choose another according to your needs
+            NULL, NULL, NULL);
+
+        // The linesizes and data pointers for the destination
+        int dstLinesizes[4];
+        av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, cvMat->cols);
+        uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
+
+        // Perform the scaling and format conversion
+        sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesizes);
+
+        // Free the SwsContext
         sws_freeContext(sws);
     }
 
