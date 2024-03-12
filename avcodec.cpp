@@ -363,7 +363,7 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
 
         // The linesizes and data pointers for the destination
         int dstLinesizes[4];
-        av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, cvMat->cols);
+        av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, stepSize / 4);
         uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
 
         // Perform the scaling and format conversion
