@@ -9,11 +9,12 @@ import (
 
 func TestNewDecoder(t *testing.T) {
 	tests := []struct {
-		name           string
-		sourceFilePath string
-		wantHeight     int
-		wantWidth      int
-		wantErr        bool
+		name                 string
+		sourceFilePath       string
+		wantHeight           int
+		wantWidth            int
+		wantErr              bool
+		wantNegativeDuration bool
 	}{
 		{
 			name:           "Standard MP4",
@@ -27,6 +28,32 @@ func TestNewDecoder(t *testing.T) {
 			sourceFilePath: "testdata/big_buck_bunny_480p_10s_web.mp4",
 			wantHeight:     480,
 			wantWidth:      720,
+			wantErr:        false,
+		},
+		{
+			name:           "Audio-only MP3",
+			sourceFilePath: "testdata/tos-intro-3s.mp3",
+			wantErr:        false,
+		},
+		{
+			name:           "Audio-only OGG",
+			sourceFilePath: "testdata/tos-intro-3s.ogg",
+			wantErr:        false,
+		},
+		{
+			name:                 "Audio-only AAC",
+			sourceFilePath:       "testdata/tos-intro-3s.aac",
+			wantErr:              false,
+			wantNegativeDuration: true,
+		},
+		{
+			name:           "Audio-only FLAC",
+			sourceFilePath: "testdata/tos-intro-3s.flac",
+			wantErr:        false,
+		},
+		{
+			name:           "Audio-only WAV",
+			sourceFilePath: "testdata/tos-intro-3s.wav",
 			wantErr:        false,
 		},
 	}
@@ -51,7 +78,10 @@ func TestNewDecoder(t *testing.T) {
 			if header.Height() != tt.wantHeight {
 				t.Errorf("Expected width to be %v, got %v", tt.wantHeight, header.Height())
 			}
-			if dec.Duration() <= 0 {
+			if tt.wantNegativeDuration && dec.Duration() > 0 {
+				t.Errorf("Expected duration to be less than 0, got %v", dec.Duration())
+			}
+			if !tt.wantNegativeDuration && dec.Duration() <= 0 {
 				t.Errorf("Expected duration to be greater than 0, got %v", dec.Duration())
 			}
 		})

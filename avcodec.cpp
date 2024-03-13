@@ -174,12 +174,6 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         return NULL;
     }
 
-    if (avcodec_decoder_is_audio(d)) {
-        // in this case, quit out fast since we won't be decoding this anyway
-        // (audio is metadata-only)
-        return d;
-    }
-
     // perform a quick search for the video stream index in the container
     AVCodecParameters* codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
@@ -193,14 +187,19 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
     // call avformat_find_stream_info only if no header was found (i.e. mpeg-ts),
     // or if the duration, width, or height are unknown.
     // this is an expensive operation that could involve frame decoding, perform judiciously.
-    if (!codec_params ||
-        codec_params->width <= 0 ||
-        codec_params->height <= 0 ||
+    bool isAudioOnly = avcodec_decoder_is_audio(d);
+    if ((!isAudioOnly && (!codec_params || codec_params->width <= 0 || codec_params->height <= 0)) ||
         d->container->duration <= 0) {
         res = avformat_find_stream_info(d->container, NULL);
         if (res < 0) {
             avcodec_decoder_release(d);
             return NULL;
+        }
+
+        if (isAudioOnly) {
+            // in this case, quit out fast since we won't be decoding this anyway
+            // (audio is metadata-only)
+            return d;
         }
 
         // repeat the search for the video stream index
