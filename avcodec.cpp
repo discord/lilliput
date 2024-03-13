@@ -188,8 +188,7 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
     // or if the duration, width, or height are unknown.
     // this is an expensive operation that could involve frame decoding, perform judiciously.
     bool isAudioOnly = avcodec_decoder_is_audio(d);
-    if (!codec_params ||
-        (!isAudioOnly && (codec_params->width <= 0 || codec_params->height <= 0)) ||
+    if ((!isAudioOnly && (!codec_params || codec_params->width <= 0 || codec_params->height <= 0)) ||
         d->container->duration <= 0) {
         res = avformat_find_stream_info(d->container, NULL);
         if (res < 0) {
