@@ -174,12 +174,6 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         return NULL;
     }
 
-    if (avcodec_decoder_is_audio(d)) {
-        // in this case, quit out fast since we won't be decoding this anyway
-        // (audio is metadata-only)
-        return d;
-    }
-
     // perform a quick search for the video stream index in the container
     AVCodecParameters* codec_params = NULL;
     for (int i = 0; i < d->container->nb_streams; i++) {
@@ -201,6 +195,12 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf)
         if (res < 0) {
             avcodec_decoder_release(d);
             return NULL;
+        }
+
+        if (avcodec_decoder_is_audio(d)) {
+            // in this case, quit out fast since we won't be decoding this anyway
+            // (audio is metadata-only)
+            return d;
         }
 
         // repeat the search for the video stream index
