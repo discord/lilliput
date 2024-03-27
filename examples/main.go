@@ -24,12 +24,14 @@ func main() {
 	var outputHeight int
 	var outputFilename string
 	var stretch bool
+	var encodeTimeoutOption string
 
 	flag.StringVar(&inputFilename, "input", "", "name of input file to resize/transcode")
 	flag.StringVar(&outputFilename, "output", "", "name of output file, also determines output type")
 	flag.IntVar(&outputWidth, "width", 0, "width of output file")
 	flag.IntVar(&outputHeight, "height", 0, "height of output file")
 	flag.BoolVar(&stretch, "stretch", false, "perform stretching resize instead of cropping")
+	flag.StringVar(&encodeTimeoutOption, "timeout", "60s", "encode timeout for videos")
 	flag.Parse()
 
 	if inputFilename == "" {
@@ -77,7 +79,7 @@ func main() {
 	defer ops.Close()
 
 	// create a buffer to store the output image, 50MB in this case
-	outputImg := make([]byte, 50*1024*1024)
+	outputImg := make([]byte, 500*1024*1024)
 
 	// use user supplied filename to guess output type if provided
 	// otherwise don't transcode (use existing type)
@@ -103,6 +105,11 @@ func main() {
 		resizeMethod = lilliput.ImageOpsNoResize
 	}
 
+	encodeTimeout, err := time.ParseDuration(encodeTimeoutOption)
+	if err != nil {
+		fmt.Printf("error parsing duration, %s\n", err);
+		os.Exit(1)
+	}
 	opts := &lilliput.ImageOptions{
 		FileType:             outputType,
 		Width:                outputWidth,
@@ -110,14 +117,17 @@ func main() {
 		ResizeMethod:         resizeMethod,
 		NormalizeOrientation: true,
 		EncodeOptions:        EncodeOptions[outputType],
+		EncodeTimeout:        encodeTimeout,
 	}
 
+	transformStartTime := time.Now()
 	// resize and transcode image
 	outputImg, err = ops.Transform(decoder, opts, outputImg)
 	if err != nil {
 		fmt.Printf("error transforming image, %s\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("transformed in %s\n", time.Since(transformStartTime).String());
 
 	// image has been resized, now write file out
 	if outputFilename == "" {

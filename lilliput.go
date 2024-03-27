@@ -15,6 +15,7 @@ var (
 	ErrBufTooSmall      = errors.New("buffer too small to hold image")
 	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
 	ErrSkipNotSupported = errors.New("skip operation not supported by this decoder")
+	ErrEncodeTimeout    = errors.New("encode timed out")
 
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")
