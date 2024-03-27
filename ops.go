@@ -43,6 +43,9 @@ type ImageOptions struct {
 
 	// MaxEncodeDuration controls the maximum duration of animated image that will be resized
 	MaxEncodeDuration time.Duration
+
+	// This is a best effort timeout when encoding multiple frames
+	EncodeTimeout time.Duration
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -160,6 +163,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 	frameCount := 0
 	duration := time.Duration(0)
+	encodeTimeoutTime := time.Now().Add(opt.EncodeTimeout)
 
 	for {
 		err = o.decode(d)
@@ -220,6 +224,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 				return nil, err
 			}
 			return o.encodeEmpty(enc, opt.EncodeOptions)
+		}
+
+		if time.Now().After(encodeTimeoutTime) {
+			return nil, ErrEncodeTimeout
 		}
 
 		// content == nil and err == nil -- this is encoder telling us to do another frame
