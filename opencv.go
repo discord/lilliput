@@ -538,6 +538,10 @@ func (d *openCVDecoder) HasSubtitles() bool {
 	return false
 }
 
+func (d *openCVDecoder) ICC() []byte {
+	return []byte{}
+}
+
 func (d *openCVDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
