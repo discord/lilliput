@@ -84,6 +84,10 @@ func (d *avCodecDecoder) IsStreamable() bool {
 	return d.isStreamable
 }
 
+func (d *avCodecDecoder) ICC() []byte {
+	return []byte{}
+}
+
 func (d *avCodecDecoder) Duration() time.Duration {
 	return time.Duration(float64(C.avcodec_decoder_get_duration(d.decoder)) * float64(time.Second))
 }

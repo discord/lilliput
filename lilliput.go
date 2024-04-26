@@ -19,6 +19,7 @@ var (
 
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")
+	webpMagic    = []byte("RIFF")
 	mp42Magic    = []byte("ftypmp42")
 	mp4IsomMagic = []byte("ftypisom")
 	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
@@ -56,6 +57,9 @@ type Decoder interface {
 
 	// HasSubtitles indicates whether the content has one or more subtitle tracks.
 	HasSubtitles() bool
+
+	// ICC returns the ICC color profile, if any
+	ICC() []byte
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.
@@ -70,6 +74,10 @@ type Encoder interface {
 
 func isGIF(maybeGIF []byte) bool {
 	return bytes.HasPrefix(maybeGIF, gif87Magic) || bytes.HasPrefix(maybeGIF, gif89Magic)
+}
+
+func isWebp(maybeWebp []byte) bool {
+	return bytes.HasPrefix(maybeWebp, webpMagic)
 }
 
 func isMP4(maybeMP4 []byte) bool {
@@ -95,6 +103,11 @@ func NewDecoder(buf []byte) (Decoder, error) {
 		return newGifDecoder(buf)
 	}
 
+	isBufWebp := isWebp(buf)
+	if isBufWebp {
+		return newWebpDecoder(buf)
+	}
+
 	maybeDecoder, err := newOpenCVDecoder(buf)
 	if err == nil {
 		return maybeDecoder, nil
@@ -110,6 +123,10 @@ func NewDecoder(buf []byte) (Decoder, error) {
 func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
+	}
+
+	if strings.ToLower(ext) == ".webp" {
+		return newWebpEncoder(decodedBy, dst)
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {
