@@ -19,9 +19,9 @@ import (
 )
 
 type webpDecoder struct {
-	decoder    C.webp_decoder
-	mat        C.opencv_mat
-	buf        []byte
+	decoder C.webp_decoder
+	mat     C.opencv_mat
+	buf     []byte
 }
 
 type webpEncoder struct {
@@ -43,9 +43,9 @@ func newWebpDecoder(buf []byte) (*webpDecoder, error) {
 	}
 
 	return &webpDecoder{
-		decoder:    decoder,
-		mat:        mat,
-		buf:        buf,
+		decoder: decoder,
+		mat:     mat,
+		buf:     buf,
 	}, nil
 }
 
@@ -89,6 +89,10 @@ func (d *webpDecoder) ICC() []byte {
 }
 
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
+	if f == nil {
+		return io.EOF
+	}
+
 	h, err := d.Header()
 	if err != nil {
 		return err
@@ -111,15 +115,20 @@ func (d *webpDecoder) SkipFrame() error {
 func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
 	icc := decodedBy.ICC()
-	enc := C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)))
+	var enc C.webp_encoder
+	if len(icc) > 0 {
+		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)))
+	} else {
+		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), nil, 0)
+	}
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
 
 	return &webpEncoder{
-		encoder:    enc,
-		dstBuf:     dstBuf,
-		icc:        icc,
+		encoder: enc,
+		dstBuf:  dstBuf,
+		icc:     icc,
 	}, nil
 }
 
