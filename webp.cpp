@@ -129,7 +129,16 @@ webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, siz
 
 size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len)
 {
+    if (!src) {
+        // Input matrix pointer is null
+        return 0;
+    }
+
     auto mat = static_cast<const cv::Mat*>(src);
+    if (!mat || mat->empty()) {
+        // Invalid or empty OpenCV matrix
+        return 0;
+    }
 
     float quality = 100.0f;
     for (size_t i = 0; i + 1 < opt_len; i += 2) {
@@ -139,18 +148,24 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
     }
 
     if (mat->depth() != CV_8U) {
-        return false;
+        // Image depth is not 8-bit unsigned
+        return 0;
     }
 
-    cv::Mat temp;
+    cv::Mat grayscaleConversionMat;
     if (mat->channels() == 1) {
         // for grayscale images, construct a temporary source
-        cv::cvtColor(*mat, temp, CV_GRAY2BGR);
-        mat = &temp;
+        cv::cvtColor(*mat, grayscaleConversionMat, CV_GRAY2BGR);
+        if (grayscaleConversionMat.empty()) {
+            // failed to convert grayscale image to BGR
+            return 0;
+        }
+        mat = &grayscaleConversionMat;
     }
 
     if (mat->channels() != 3 && mat->channels() != 4) {
-        return false;
+        // Image must have 3 or 4 channels
+        return 0;
     }
 
     // webp will always allocate a region for the compressed image
@@ -174,9 +189,12 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
     }
 
     if (size == 0) {
+        // Failed to encode image
         return 0;
     }
 
+    // Create a mux object and add the image to it
+    // Then add the ICC profile if it exists
     WebPMux* mux = WebPMuxNew();
     WebPData picture = { out_picture, size };
     WebPMuxSetImage(mux, &picture, 0);
