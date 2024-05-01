@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 	"unsafe"
@@ -539,8 +540,10 @@ func (d *openCVDecoder) HasSubtitles() bool {
 }
 
 func (d *openCVDecoder) ICC() []byte {
+	fmt.Printf("OpenCV Description: %s\n", d.Description())
 	switch d.Description() {
 	case "JPEG":
+		fmt.Println("OpenCV Decoder is JPEG, getting ICC")
 		return d.iccJPEG()
 	}
 	return []byte{}

@@ -267,6 +267,11 @@ func TestICC(t *testing.T) {
 		t.Fatalf("Encoded data is empty, but it should not be")
 	}
 
+	// write encoded data to file
+	if err = ioutil.WriteFile("testdata/ferry_sunset.webp", encodedData, 0644); err != nil {
+		t.Fatalf(`Failed to write encoded data to file: %v`, err)
+	}
+
 	decoder.Close()
 	encoder.Close()
 }
