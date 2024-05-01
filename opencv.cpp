@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <jpeglib.h>
+#include <setjmp.h>
 
 opencv_mat opencv_mat_create(int width, int height, int type)
 {
@@ -206,4 +208,60 @@ void* opencv_mat_get_data(const opencv_mat mat)
 {
     auto cvMat = static_cast<const cv::Mat*>(mat);
     return cvMat->data;
+}
+
+struct opencv_jpeg_error_mgr {
+    struct jpeg_error_mgr pub;
+    jmp_buf setjmp_buffer;
+};
+
+void opencv_jpeg_error_exit(j_common_ptr cinfo) {
+    opencv_jpeg_error_mgr* myerr = (opencv_jpeg_error_mgr*) cinfo->err;
+    (*cinfo->err->output_message)(cinfo);
+    longjmp(myerr->setjmp_buffer, 1);
+}
+
+int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
+    struct jpeg_decompress_struct cinfo;
+    struct opencv_jpeg_error_mgr jerr;
+
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = opencv_jpeg_error_exit;
+
+    if (setjmp(jerr.setjmp_buffer)) {
+        // JPEG processing error
+        jpeg_destroy_decompress(&cinfo);
+        return 0;
+    }
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_mem_src(&cinfo, static_cast<unsigned char*>(src), src_len);
+
+    // Ask libjpeg to save markers that might be ICC profiles
+    jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
+
+    // Read JPEG header
+    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
+        jpeg_destroy_decompress(&cinfo);
+        return 0;
+    }
+
+    // Check if ICC profile is available
+    JOCTET *icc_profile = nullptr;
+    unsigned int icc_length = 0;
+    if (jpeg_read_icc_profile(&cinfo, &icc_profile, &icc_length)) {
+        if (icc_length > 0 && icc_length <= dest_len) {
+            memcpy(dest, icc_profile, icc_length);
+            free(icc_profile);
+            jpeg_destroy_decompress(&cinfo);
+            return icc_length;
+        }
+    }
+
+    if (icc_profile) {
+        // Free the ICC profile if it was allocated but not copied
+        free(icc_profile);
+    }
+    jpeg_destroy_decompress(&cinfo);
+    return 0;
 }

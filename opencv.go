@@ -539,7 +539,17 @@ func (d *openCVDecoder) HasSubtitles() bool {
 }
 
 func (d *openCVDecoder) ICC() []byte {
+	switch d.Description() {
+	case "JPEG":
+		return d.iccJPEG()
+	}
 	return []byte{}
+}
+
+func (d *openCVDecoder) iccJPEG() []byte {
+	iccDst := make([]byte, 8192)
+	iccLength := C.opencv_decoder_get_jpeg_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
+	return iccDst[:iccLength]
 }
 
 func (d *openCVDecoder) Duration() time.Duration {
