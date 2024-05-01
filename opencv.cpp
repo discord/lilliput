@@ -224,8 +224,6 @@ void opencv_jpeg_error_exit(j_common_ptr cinfo) {
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
     struct jpeg_decompress_struct cinfo;
     struct opencv_jpeg_error_mgr jerr;
-    JOCTET *icc_profile = nullptr;
-    unsigned int icc_length = 0;
 
     cinfo.err = jpeg_std_error(&jerr.pub);
     jerr.pub.error_exit = opencv_jpeg_error_exit;
@@ -249,6 +247,8 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t de
     }
 
     // Check if ICC profile is available
+    JOCTET *icc_profile = nullptr;
+    unsigned int icc_length = 0;
     if (jpeg_read_icc_profile(&cinfo, &icc_profile, &icc_length)) {
         if (icc_length > 0 && icc_length <= dest_len) {
             memcpy(dest, icc_profile, icc_length);
@@ -258,6 +258,10 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t de
         }
     }
 
+    if (icc_profile) {
+        // Free the ICC profile if it was allocated but not copied
+        free(icc_profile);
+    }
     jpeg_destroy_decompress(&cinfo);
     return 0;
 }
