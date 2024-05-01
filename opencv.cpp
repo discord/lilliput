@@ -221,7 +221,7 @@ void opencv_jpeg_error_exit(j_common_ptr cinfo) {
     longjmp(myerr->setjmp_buffer, 1);
 }
 
-int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* buf, size_t buf_len) {
+int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
     struct jpeg_decompress_struct cinfo;
     struct opencv_jpeg_error_mgr jerr;
     JOCTET *icc_profile = nullptr;
@@ -250,8 +250,8 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* buf, size_t buf
 
     // Check if ICC profile is available
     if (jpeg_read_icc_profile(&cinfo, &icc_profile, &icc_length)) {
-        if (icc_length > 0 && icc_length <= buf_len) {
-            memcpy(buf, icc_profile, icc_length);
+        if (icc_length > 0 && icc_length <= dest_len) {
+            memcpy(dest, icc_profile, icc_length);
             free(icc_profile);
             jpeg_destroy_decompress(&cinfo);
             return icc_length;
