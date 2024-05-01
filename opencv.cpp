@@ -3,6 +3,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <jpeglib.h>
+#include <png.h>
 #include <setjmp.h>
 
 opencv_mat opencv_mat_create(int width, int height, int type)
@@ -263,5 +264,52 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t de
         free(icc_profile);
     }
     jpeg_destroy_decompress(&cinfo);
+    return 0;
+}
+
+void opencv_decoder_png_read(png_structp png_ptr, png_bytep data, png_size_t length) {
+    auto buffer_info = reinterpret_cast<std::pair<const char**, size_t*>*>(png_get_io_ptr(png_ptr));
+    const char* &buffer = *buffer_info->first;
+    size_t &buffer_size = *buffer_info->second;
+
+    if (buffer_size < length) {
+        png_error(png_ptr, "Read error: attempting to read beyond buffer size");
+        return;
+    }
+
+    memcpy(data, buffer, length);
+    buffer += length;
+    buffer_size -= length;
+}
+
+int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
+    // Set up libpng to read from memory
+    const char* buffer = reinterpret_cast<const char*>(src);
+    size_t buffer_size = src_len;
+    std::pair<const char**, size_t*> buffer_info(&buffer, &buffer_size);
+
+    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+        return 0;
+    }
+    png_set_read_fn(png_ptr, &buffer_info, opencv_decoder_png_read);
+    png_read_info(png_ptr, info_ptr);
+
+    // Check for ICC profile
+    png_charp icc_name;
+    int compression_type;
+    png_bytep icc_profile;
+    png_uint_32 icc_length;
+    if (png_get_iCCP(png_ptr, info_ptr, &icc_name, &compression_type, &icc_profile, &icc_length)) {
+        if (icc_length > 0 && icc_length <= dest_len) {
+            memcpy(dest, icc_profile, icc_length);
+            png_destroy_read_struct(&png_ptr, &info_ptr, nullptr); // handles freeing icc_profile
+            return icc_length;
+        }
+    }
+
+    png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return 0;
 }

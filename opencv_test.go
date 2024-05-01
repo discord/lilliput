@@ -220,53 +220,71 @@ func TestPNGWalk_NoChunks(t *testing.T) {
 }
 
 func TestICC(t *testing.T) {
-	var imgData, iccData []byte
-	var err error
-	var decoder *openCVDecoder
-	var framebuffer *Framebuffer
-	var header *ImageHeader
-	var dstBuf []byte
-	var encoder *webpEncoder
-	var encodedData []byte
-	var options map[int]int
-
-	// TEST: ICC profile in JPEG
-	if imgData, err = ioutil.ReadFile("testdata/ferry_sunset.jpg"); err != nil {
-		t.Fatalf(`Failed to read image file: %v`, err)
-	}
-	if len(imgData) == 0 {
-		t.Fatalf(`Failed to read image file`)
-	}
-	if decoder, err = newOpenCVDecoder(imgData); err != nil {
-		t.Fatalf(`Failed to create decoder: %v`, err)
-	}
-	if header, err = decoder.Header(); err != nil {
-		t.Fatalf("Failed to get the header: %v", err)
-	}
-	framebuffer = NewFramebuffer(header.width, header.height)
-	if err = decoder.DecodeTo(framebuffer); err != nil {
-		t.Errorf("DecodeTo failed unexpectedly: %v", err)
+	tests := []struct {
+		name     string
+		filePath string
+		wantICC  bool
+	}{
+		{name: "JPEG with ICC Profile", filePath: "testdata/ferry_sunset.jpg", wantICC: true},
+		{name: "JPEG without ICC Profile", filePath: "testdata/ferry_sunset_no_icc.jpg", wantICC: false},
+		{name: "PNG with ICC Profile", filePath: "testdata/ferry_sunset.png", wantICC: true},
+		{name: "PNG without ICC Profile", filePath: "testdata/ferry_sunset_no_icc.png", wantICC: false},
 	}
 
-	iccData = decoder.ICC()
-	if len(iccData) == 0 {
-		t.Fatalf(`Failed to extract ICC profile from JPEG`)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			imgData, err := ioutil.ReadFile(tc.filePath)
+			if err != nil {
+				t.Fatalf("Failed to read image file: %v", err)
+			}
+			if len(imgData) == 0 {
+				t.Fatalf("Failed to read image file")
+			}
 
-	// try encoding a WebP image with the JPEG data, including ICC profile data
-	dstBuf = make([]byte, destinationBufferSize)
-	if encoder, err = newWebpEncoder(decoder, dstBuf); err != nil {
-		t.Fatalf("Failed to create a new webp encoder: %v", err)
-	}
+			decoder, err := newOpenCVDecoder(imgData)
+			if err != nil {
+				t.Fatalf("Failed to create decoder: %v", err)
+			}
 
-	options = map[int]int{}
-	if encodedData, err = encoder.Encode(framebuffer, options); err != nil {
-		t.Fatalf("Encode failed unexpectedly: %v", err)
-	}
-	if len(encodedData) == 0 {
-		t.Fatalf("Encoded data is empty, but it should not be")
-	}
+			header, err := decoder.Header()
+			if err != nil {
+				t.Fatalf("Failed to get the header: %v", err)
+			}
 
-	decoder.Close()
-	encoder.Close()
+			framebuffer := NewFramebuffer(header.width, header.height)
+			if err = decoder.DecodeTo(framebuffer); err != nil {
+				t.Errorf("DecodeTo failed unexpectedly: %v", err)
+			}
+
+			iccData := decoder.ICC()
+			if tc.wantICC {
+				if len(iccData) == 0 {
+					t.Fatalf("Failed to extract ICC profile from the image")
+				}
+			} else {
+				if len(iccData) > 0 {
+					t.Fatalf("Extracted ICC profile from the image, but it should not be present")
+				}
+			}
+
+			// try encoding a WebP image, including ICC profile data when available
+			dstBuf := make([]byte, destinationBufferSize)
+			encoder, err := newWebpEncoder(decoder, dstBuf)
+			if err != nil {
+				t.Fatalf("Failed to create a new webp encoder: %v", err)
+			}
+
+			options := map[int]int{}
+			encodedData, err := encoder.Encode(framebuffer, options)
+			if err != nil {
+				t.Fatalf("Encode failed unexpectedly: %v", err)
+			}
+			if len(encodedData) == 0 {
+				t.Fatalf("Encoded data is empty, but it should not be")
+			}
+
+			decoder.Close()
+			encoder.Close()
+		})
+	}
 }
