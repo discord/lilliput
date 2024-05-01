@@ -13,6 +13,7 @@ package lilliput
 import "C"
 
 import (
+	"fmt"
 	"io"
 	"time"
 	"unsafe"
@@ -115,6 +116,7 @@ func (d *webpDecoder) SkipFrame() error {
 func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
 	icc := decodedBy.ICC()
+	fmt.Printf("ICC profile data length: %d\n", len(icc))
 	var enc C.webp_encoder
 	if len(icc) > 0 {
 		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)))
