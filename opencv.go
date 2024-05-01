@@ -551,7 +551,7 @@ func (d *openCVDecoder) ICC() []byte {
 
 func (d *openCVDecoder) iccJPEG() []byte {
 	fmt.Printf("OpenCV JPEG ICC retrieval: source length %d\n", len(d.buf))
-	iccDst := make([]byte, 8192)
+	iccDst := make([]byte, 1024*1024)
 	iccLength := C.opencv_decoder_get_jpeg_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
 	return iccDst[:iccLength]
 }
