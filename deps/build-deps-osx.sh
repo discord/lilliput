@@ -356,3 +356,9 @@ make install
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
 echo "Done!"
+
+if [ -n "$CI" ]; then
+  echo "CI detected, cleaning up build artifacts"
+  rm -rf "$SRCDIR"
+  rm -rf "$BUILDDIR"
+fi

@@ -116,9 +116,18 @@ $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --di
 make
 make install
 
+rm -rf $BASEDIR/linux/$ARCH/bin
+rm -f $BASEDIR/linux/$ARCH/**/*.cmake
+
 # Since go modules don't currently download symlinked files
 # (see https://github.com/golang/go/issues/39417)
 # we replace symlinks with copies of the target.
 # We use a `find -exec` with a separate file because POSIX sh
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
+
+if [ -n "$CI" ]; then
+  echo "CI detected, cleaning up build artifacts"
+  rm -rf "$SRCDIR"
+  rm -rf "$BUILDDIR"
+fi
