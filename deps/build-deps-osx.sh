@@ -24,6 +24,10 @@ rm -rf ffmpeg
 
 if [ ! -d "$SRCDIR" ]; then
     git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
+
+    # TODO: Fix this in the upstream deps repo
+    cd "$SRCDIR"
+    wget -q -O giflib-5.2.2.tar.gz https://sourceforge.net/projects/giflib/files/giflib-5.2.2.tar.gz/download
 fi
 
 echo '\n--------------------'
@@ -77,7 +81,7 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
 make
