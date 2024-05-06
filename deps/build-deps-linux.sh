@@ -138,3 +138,9 @@ make install
 # We use a `find -exec` with a separate file because POSIX sh
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
+
+if [ -n "$CI" ]; then
+  echo "CI detected, cleaning up build artifacts"
+  rm -rf "$SRCDIR"
+  rm -rf "$BUILDDIR"
+fi
