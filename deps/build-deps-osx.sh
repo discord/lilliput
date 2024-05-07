@@ -136,6 +136,9 @@ $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --di
 make
 make install
 
+rm -rf $BASEDIR/osx/$ARCH/bin
+rm -f $BASEDIR/osx/$ARCH/**/*.cmake
+
 # Since go modules don't currently download symlinked files
 # (see https://github.com/golang/go/issues/39417)
 # we replace symlinks with copies of the target.
