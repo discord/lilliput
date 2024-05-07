@@ -319,7 +319,9 @@ cmake $BASEDIR/opencv \
     -DWITH_APPLE_VISION=OFF \
     -DWITH_COREIMAGE=OFF \
     -DWITH_CAROTENE=OFF \
-    -DWITH_VIDEOTOOLBOX=ON
+    -DWITH_VIDEOTOOLBOX=ON \
+    -DBUILD_opencv_java=OFF \
+    -DBUILD_opencv_python=OFF
 
 # Remove iOS-specific build files
 sed -i '' "s|;$BASEDIR/opencv/modules/imgcodecs/include/opencv2/imgcodecs/ios.h||" $BASEDIR/build/opencv/CMakeCache.txt
