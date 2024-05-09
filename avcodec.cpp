@@ -22,6 +22,7 @@ extern AVInputFormat ff_wav_demuxer;
 extern AVInputFormat ff_aac_demuxer;
 extern AVInputFormat ff_ogg_demuxer;
 extern AVCodec ff_h264_decoder;
+extern AVCodec ff_hevc_decoder;
 extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
