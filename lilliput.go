@@ -20,6 +20,7 @@ var (
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")
 	webpMagic    = []byte("RIFF")
+	webpFormat   = []byte("WEBP")
 	mp42Magic    = []byte("ftypmp42")
 	mp4IsomMagic = []byte("ftypisom")
 	pngMagic     = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
@@ -77,7 +78,10 @@ func isGIF(maybeGIF []byte) bool {
 }
 
 func isWebp(maybeWebp []byte) bool {
-	return bytes.HasPrefix(maybeWebp, webpMagic)
+	if len(maybeWebp) < 12 {
+		return false
+	}
+	return bytes.HasPrefix(maybeWebp, webpMagic) && bytes.Equal(maybeWebp[8:12], webpFormat)
 }
 
 func isMP4(maybeMP4 []byte) bool {

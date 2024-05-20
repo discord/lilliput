@@ -56,6 +56,13 @@ func TestNewDecoder(t *testing.T) {
 			sourceFilePath: "testdata/tos-intro-3s.wav",
 			wantErr:        false,
 		},
+		{
+			name:                 "WebP Image",
+			sourceFilePath:       "testdata/tears_of_steel_icc.webp",
+			wantWidth:            1920,
+			wantHeight:           800,
+			wantNegativeDuration: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,7 +83,7 @@ func TestNewDecoder(t *testing.T) {
 				t.Errorf("Expected width to be %v, got %v", tt.wantWidth, header.Width())
 			}
 			if header.Height() != tt.wantHeight {
-				t.Errorf("Expected width to be %v, got %v", tt.wantHeight, header.Height())
+				t.Errorf("Expected height to be %v, got %v", tt.wantHeight, header.Height())
 			}
 			if tt.wantNegativeDuration && dec.Duration() > 0 {
 				t.Errorf("Expected duration to be less than 0, got %v", dec.Duration())
