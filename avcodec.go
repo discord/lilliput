@@ -21,6 +21,10 @@ import (
 const probeBytesLimit = 32 * 1024
 const atomHeaderSize = 8
 
+// Set HEVC decoder enablement behind a build flag, defaults to off
+// Enable by building/running with "-ldflags=-X=github.com/discord/lilliput.hevcEnabled=true"
+var hevcEnabled string
+
 type avCodecDecoder struct {
 	decoder      C.avcodec_decoder
 	mat          C.opencv_mat
@@ -37,7 +41,7 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		return nil, ErrBufTooSmall
 	}
 
-	decoder := C.avcodec_decoder_create(mat)
+	decoder := C.avcodec_decoder_create(mat, hevcEnabled == "true")
 	if decoder == nil {
 		C.opencv_mat_release(mat)
 		return nil, ErrInvalidImage
