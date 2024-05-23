@@ -269,7 +269,7 @@ Close the Encoder and release resources. The `Encoder` object must have `.Close(
 Go does not provide any mechanism for arbitrary building of dependencies, e.g. invoking
 `make` or `cmake`. In order to make lilliput usable as a standard Go package, prebuilt
 static libraries have been provided for all of lilliput's dependencies on Linux and
-OSX. In order to automate this process, lilliput ships with build scripts alongside
+macOS (Apple Silicon only). In order to automate this process, lilliput ships with build scripts alongside
 compressed archives of the sources of its dependencies. These build scripts are provided
 for [OSX](deps/build-deps-osx.sh) and [Linux](deps/build-deps-linux.sh).
 
