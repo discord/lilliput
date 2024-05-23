@@ -1,0 +1,14 @@
+prefix=/home/runner/work/lilliput/lilliput/deps/linux/amd64
+exec_prefix=${prefix}
+libdir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib
+includedir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/include
+
+Name: libavformat
+Description: FFmpeg container format library
+Version: 59.27.100
+Requires: libavcodec >= 59.37.100, libavutil >= 57.28.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavformat -lm -latomic -lbz2 -lz
+Libs.private: 
+Cflags: -I${includedir}

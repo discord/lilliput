@@ -1,0 +1,14 @@
+prefix=/home/runner/work/lilliput/lilliput/deps/linux/amd64
+exec_prefix=${prefix}
+libdir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib
+includedir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 6.7.100
+Requires: libavutil >= 57.28.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lswscale -lm -latomic
+Libs.private: 
+Cflags: -I${includedir}

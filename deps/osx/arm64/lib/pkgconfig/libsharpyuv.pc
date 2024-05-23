@@ -1,0 +1,11 @@
+prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/webp
+
+Name: libsharpyuv
+Description: Library for sharp RGB to YUV conversion
+Version: 1.3.1
+Cflags: -I${includedir}
+Libs: -L${libdir} -lsharpyuv
+Libs.private: -lm -D_THREAD_SAFE -pthread 
