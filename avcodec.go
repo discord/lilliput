@@ -89,7 +89,9 @@ func (d *avCodecDecoder) IsStreamable() bool {
 }
 
 func (d *avCodecDecoder) ICC() []byte {
-	return []byte{}
+	iccDst := make([]byte, 8192)
+	iccLength := C.avcodec_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
+	return iccDst[:iccLength]
 }
 
 func (d *avCodecDecoder) Duration() time.Duration {
