@@ -250,6 +250,11 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
 int avcodec_decoder_get_width(const avcodec_decoder d)
 {
     if (d->codec) {
+        AVStream *st = d->container->streams[d->video_stream_index];
+        if (st->sample_aspect_ratio.num > 0 && st->sample_aspect_ratio.den > 0 &&
+            st->sample_aspect_ratio.num > st->sample_aspect_ratio.den) {
+            return (int64_t)d->codec->width * st->sample_aspect_ratio.num / st->sample_aspect_ratio.den;
+        }
         return d->codec->width;
     }
     return 0;
@@ -258,6 +263,11 @@ int avcodec_decoder_get_width(const avcodec_decoder d)
 int avcodec_decoder_get_height(const avcodec_decoder d)
 {
     if (d->codec) {
+        AVStream *st = d->container->streams[d->video_stream_index];
+        if (st->sample_aspect_ratio.num > 0 && st->sample_aspect_ratio.den > 0 &&
+            st->sample_aspect_ratio.den > st->sample_aspect_ratio.num) {
+            return (int64_t)d->codec->height * st->sample_aspect_ratio.den / st->sample_aspect_ratio.num;
+        }
         return d->codec->height;
     }
     return 0;
