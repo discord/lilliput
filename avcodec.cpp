@@ -411,28 +411,21 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
 
         // Configure colorspace conversion
         int colorspace;
-        switch (frame->colorspace)
-        {
-        case AVCOL_PRI_BT2020:
-            colorspace = SWS_CS_BT2020;
-            break;
-        case AVCOL_PRI_BT709:
-            colorspace = SWS_CS_ITU709;
-            break;
-        case AVCOL_PRI_BT470BG:
-        case AVCOL_PRI_SMPTE170M:
-            colorspace = SWS_CS_ITU601;
-            break;
-        default:
-            colorspace = SWS_CS_ITU709;
-            break;
+        if (frame->colorspace != AVCOL_SPC_UNSPECIFIED) {
+            colorspace = frame->colorspace;
+        } else {
+            colorspace = AVCOL_SPC_BT709;
         }
 
         int srcRange;
-        if (frame->color_range != AVCOL_RANGE_UNSPECIFIED) {
-            srcRange = frame->color_range;
-        } else {
-            srcRange = AVCOL_RANGE_MPEG;
+        switch (frame->color_range) {
+            case AVCOL_RANGE_JPEG:
+                srcRange = 1;
+                break;
+            default:
+                // default to MPEG range
+                srcRange = 0;
+                break;
         }
         sws_setColorspaceDetails(sws, sws_getCoefficients(colorspace), srcRange, sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 << 16, 1 << 16);
 
