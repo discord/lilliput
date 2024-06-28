@@ -268,10 +268,13 @@ const uint8_t* get_icc_profile(int colorspace, size_t& profile_size) {
         case AVCOL_SPC_SMPTE170M: // BT.601 NTSC
             profile_size = sizeof(rec601_ntsc_profile);
             return rec601_ntsc_profile;
-        default:
-            // Default to sRGB profile
+        case AVCOL_SPC_RGB:
             profile_size = sizeof(srgb_profile);
             return srgb_profile;
+        default:
+            // Default to BT.709 profile
+            profile_size = sizeof(rec709_profile);
+            return rec709_profile;
     }
 }
 
@@ -405,6 +408,33 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
             cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA, // Destination dimensions and format
             SWS_BILINEAR, // Specify the scaling algorithm; you can choose another according to your needs
             NULL, NULL, NULL);
+
+        // Configure colorspace conversion
+        int colorspace;
+        switch (frame->colorspace)
+        {
+        case AVCOL_PRI_BT2020:
+            colorspace = SWS_CS_BT2020;
+            break;
+        case AVCOL_PRI_BT709:
+            colorspace = SWS_CS_ITU709;
+            break;
+        case AVCOL_PRI_BT470BG:
+        case AVCOL_PRI_SMPTE170M:
+            colorspace = SWS_CS_ITU601;
+            break;
+        default:
+            colorspace = SWS_CS_ITU709;
+            break;
+        }
+
+        int srcRange;
+        if (frame->color_range != AVCOL_RANGE_UNSPECIFIED) {
+            srcRange = frame->color_range;
+        } else {
+            srcRange = AVCOL_RANGE_MPEG;
+        }
+        sws_setColorspaceDetails(sws, sws_getCoefficients(colorspace), srcRange, sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 << 16, 1 << 16);
 
         // The linesizes and data pointers for the destination
         int dstLinesizes[4];
