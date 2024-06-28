@@ -110,6 +110,7 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 
 void webp_decoder_release(webp_decoder d)
 {
+    WebPDataClear(&d->frame.bitstream);
     WebPMuxDelete(d->mux);
     delete d;
 }
