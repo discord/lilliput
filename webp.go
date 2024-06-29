@@ -22,6 +22,7 @@ type webpDecoder struct {
 	decoder C.webp_decoder
 	mat     C.opencv_mat
 	buf     []byte
+	icc     *ICCBuffer
 }
 
 type webpEncoder struct {
@@ -46,6 +47,7 @@ func newWebpDecoder(buf []byte) (*webpDecoder, error) {
 		decoder: decoder,
 		mat:     mat,
 		buf:     buf,
+		icc:     acquireICCBuffer(),
 	}, nil
 }
 
@@ -61,6 +63,7 @@ func (d *webpDecoder) Header() (*ImageHeader, error) {
 }
 
 func (d *webpDecoder) Close() {
+	releaseICCBuffer(d.icc)
 	C.webp_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 	d.buf = nil
@@ -83,9 +86,8 @@ func (d *webpDecoder) IsStreamable() bool {
 }
 
 func (d *webpDecoder) ICC() []byte {
-	iccDst := make([]byte, 8192)
-	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
-	return iccDst[:iccLength]
+	d.icc.usedLength = int(C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&d.icc.buf[0]), C.size_t(cap(d.icc.buf))))
+	return d.icc.Get()
 }
 
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {

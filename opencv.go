@@ -96,6 +96,7 @@ type openCVDecoder struct {
 	decoder       C.opencv_decoder
 	mat           C.opencv_mat
 	buf           []byte
+	icc           *ICCBuffer
 	hasReadHeader bool
 	hasDecoded    bool
 }
@@ -319,6 +320,7 @@ func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
 		mat:     mat,
 		decoder: decoder,
 		buf:     buf,
+		icc:     acquireICCBuffer(),
 	}, nil
 }
 
@@ -521,6 +523,7 @@ func (d *openCVDecoder) Header() (*ImageHeader, error) {
 }
 
 func (d *openCVDecoder) Close() {
+	releaseICCBuffer(d.icc)
 	C.opencv_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 	d.buf = nil
@@ -549,15 +552,13 @@ func (d *openCVDecoder) ICC() []byte {
 }
 
 func (d *openCVDecoder) iccJPEG() []byte {
-	iccDst := make([]byte, 8192)
-	iccLength := C.opencv_decoder_get_jpeg_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
-	return iccDst[:iccLength]
+	d.icc.usedLength = int(C.opencv_decoder_get_jpeg_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&d.icc.buf[0]), C.size_t(cap(d.icc.buf))))
+	return d.icc.Get()
 }
 
 func (d *openCVDecoder) iccPNG() []byte {
-	iccDst := make([]byte, 8192)
-	iccLength := C.opencv_decoder_get_png_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
-	return iccDst[:iccLength]
+	d.icc.usedLength = int(C.opencv_decoder_get_png_icc(unsafe.Pointer(&d.buf[0]), C.size_t(len(d.buf)), unsafe.Pointer(&d.icc.buf[0]), C.size_t(cap(d.icc.buf))))
+	return d.icc.Get()
 }
 
 func (d *openCVDecoder) Duration() time.Duration {
