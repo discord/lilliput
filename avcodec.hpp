@@ -21,6 +21,7 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat);
 bool avcodec_decoder_is_streamable(const opencv_mat buf);
 bool avcodec_decoder_has_subtitles(const avcodec_decoder d);
 const char* avcodec_decoder_get_description(const avcodec_decoder d);
+int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len);
 
 #ifdef __cplusplus
 }

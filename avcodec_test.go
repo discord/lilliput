@@ -43,6 +43,22 @@ func TestIsStreamable(t *testing.T) {
 	}
 }
 
+func TestICCProfile(t *testing.T) {
+	// Web-optimized streamable MP4 using BT.709 color space
+	webMp4, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_web.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	webAvCodecDecoder, err := newAVCodecDecoder(webMp4)
+	if err != nil {
+		t.Fatalf("failed to create decoder: %v", err)
+	}
+	defer webAvCodecDecoder.Close()
+	if len(webAvCodecDecoder.ICC()) == 0 {
+		t.Fatalf("expected ICC profile")
+	}
+}
+
 func BenchmarkIsStreamableWebMp4(b *testing.B) {
 	// Read the web-optimized streamable MP4 file
 	webMp4, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_web.mp4")

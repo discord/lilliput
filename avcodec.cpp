@@ -10,6 +10,12 @@ extern "C" {
 #include <libavutil/display.h>
 #include <libavutil/imgutils.h>
 
+#include "icc_profiles/rec2020_profile.h"
+#include "icc_profiles/rec601_ntsc_profile.h"
+#include "icc_profiles/rec601_pal_profile.h"
+#include "icc_profiles/rec709_profile.h"
+#include "icc_profiles/srgb_profile.h"
+
 #ifdef __cplusplus
 }
 #endif
@@ -247,6 +253,43 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     return d;
 }
 
+const uint8_t* get_icc_profile(int colorspace, size_t& profile_size) {
+    switch (colorspace) {
+        case AVCOL_SPC_BT709:
+            profile_size = sizeof(rec709_profile);
+            return rec709_profile;
+        case AVCOL_SPC_BT2020_NCL:
+        case AVCOL_SPC_BT2020_CL:
+            profile_size = sizeof(rec2020_profile);
+            return rec2020_profile;
+        case AVCOL_SPC_BT470BG:  // BT.601 PAL
+            profile_size = sizeof(rec601_pal_profile);
+            return rec601_pal_profile;
+        case AVCOL_SPC_SMPTE170M: // BT.601 NTSC
+            profile_size = sizeof(rec601_ntsc_profile);
+            return rec601_ntsc_profile;
+        case AVCOL_SPC_RGB:
+            profile_size = sizeof(srgb_profile);
+            return srgb_profile;
+        default:
+            // Default to BT.709 profile
+            profile_size = sizeof(rec709_profile);
+            return rec709_profile;
+    }
+}
+
+int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len) {
+    size_t profile_size;
+    const uint8_t* profile_data = get_icc_profile(d->codec->colorspace, profile_size);
+
+    if (profile_size > dest_len) {
+        return -1; // Destination buffer is too small
+    }
+
+    std::memcpy(dest, profile_data, profile_size);
+    return static_cast<int>(profile_size);
+}
+
 int avcodec_decoder_get_width(const avcodec_decoder d)
 {
     if (d->codec) {
@@ -375,6 +418,26 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
             cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA, // Destination dimensions and format
             SWS_BILINEAR, // Specify the scaling algorithm; you can choose another according to your needs
             NULL, NULL, NULL);
+
+        // Configure colorspace conversion
+        int colorspace;
+        if (frame->colorspace != AVCOL_SPC_UNSPECIFIED) {
+            colorspace = frame->colorspace;
+        } else {
+            colorspace = AVCOL_SPC_BT709;
+        }
+
+        int srcRange;
+        switch (frame->color_range) {
+            case AVCOL_RANGE_JPEG:
+                srcRange = 1;
+                break;
+            default:
+                // default to MPEG range
+                srcRange = 0;
+                break;
+        }
+        sws_setColorspaceDetails(sws, sws_getCoefficients(colorspace), srcRange, sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 << 16, 1 << 16);
 
         // The linesizes and data pointers for the destination
         int dstLinesizes[4];
