@@ -205,6 +205,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		o.normalizeOrientation(h.Orientation())
 
 		if opt.CropCoordinates != nil {
+			if opt.CropCoordinates.X+opt.CropCoordinates.Width > h.Width() || opt.CropCoordinates.Y+opt.CropCoordinates.Height > h.Height() {
+				return nil, ErrInvalidCropCoordinates
+			}
+
 			err = o.crop(d, opt.CropCoordinates.X, opt.CropCoordinates.Y, opt.CropCoordinates.Width, opt.CropCoordinates.Height)
 			if err != nil {
 				return nil, err
