@@ -1,0 +1,14 @@
+prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+exec_prefix=${prefix}
+libdir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/lib
+includedir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/include
+
+Name: libavcodec
+Description: FFmpeg codec library
+Version: 59.37.100
+Requires: libavutil >= 57.28.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavcodec -pthread -lm
+Libs.private: 
+Cflags: -I${includedir}

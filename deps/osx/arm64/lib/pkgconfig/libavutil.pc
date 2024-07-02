@@ -1,0 +1,14 @@
+prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+exec_prefix=${prefix}
+libdir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/lib
+includedir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/include
+
+Name: libavutil
+Description: FFmpeg utility library
+Version: 57.28.100
+Requires: 
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavutil -pthread -lm -framework VideoToolbox -L/opt/homebrew/Cellar/libx11/1.8.9/lib -lX11 -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices
+Libs.private: 
+Cflags: -I${includedir}
