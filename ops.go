@@ -46,6 +46,17 @@ type ImageOptions struct {
 
 	// This is a best effort timeout when encoding multiple frames
 	EncodeTimeout time.Duration
+
+	// CropCoordinates specify the rectangle of the original image to be cropped before resizing
+	CropCoordinates *CropCoordinates
+}
+
+// CropCoordinates specifies a rectangle for cropping
+type CropCoordinates struct {
+	X      int
+	Y      int
+	Width  int
+	Height int
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -119,6 +130,11 @@ func (o *ImageOps) resize(d Decoder, width, height int) (bool, error) {
 	return true, nil
 }
 
+func (o *ImageOps) crop(d Decoder, x, y, width, height int) error {
+	active := o.active()
+	return active.CropTo(x, y, width, height)
+}
+
 func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
 	active := o.active()
 	active.OrientationTransform(orientation)
@@ -188,6 +204,13 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		o.normalizeOrientation(h.Orientation())
 
+		if opt.CropCoordinates != nil {
+			err = o.crop(d, opt.CropCoordinates.X, opt.CropCoordinates.Y, opt.CropCoordinates.Width, opt.CropCoordinates.Height)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		var swapped bool
 		if opt.ResizeMethod == ImageOpsFit {
 			swapped, err = o.fit(d, opt.Width, opt.Height)
@@ -232,7 +255,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		// content == nil and err == nil -- this is encoder telling us to do another frame
 
-		// for mulitple frames/gifs we need the decoded frame to be active again
+		// for multiple frames/gifs we need the decoded frame to be active again
 		if swapped {
 			o.swap()
 		}
