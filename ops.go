@@ -130,9 +130,15 @@ func (o *ImageOps) resize(d Decoder, width, height int) (bool, error) {
 	return true, nil
 }
 
-func (o *ImageOps) crop(d Decoder, x, y, width, height int) error {
+func (o *ImageOps) crop(d Decoder, x, y, width, height int) (bool, error) {
 	active := o.active()
-	return active.CropTo(x, y, width, height)
+	secondary := o.secondary()
+	err := active.CropTo(x, y, width, height, secondary)
+	if err != nil {
+		return false, err
+	}
+	o.swap()
+	return true, nil
 }
 
 func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
@@ -204,12 +210,13 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		o.normalizeOrientation(h.Orientation())
 
+		var swappedCrop bool
 		if opt.CropCoordinates != nil {
 			if opt.CropCoordinates.X+opt.CropCoordinates.Width > h.Width() || opt.CropCoordinates.Y+opt.CropCoordinates.Height > h.Height() {
 				return nil, ErrInvalidCropCoordinates
 			}
 
-			err = o.crop(d, opt.CropCoordinates.X, opt.CropCoordinates.Y, opt.CropCoordinates.Width, opt.CropCoordinates.Height)
+			swappedCrop, err = o.crop(d, opt.CropCoordinates.X, opt.CropCoordinates.Y, opt.CropCoordinates.Width, opt.CropCoordinates.Height)
 			if err != nil {
 				return nil, err
 			}
@@ -222,6 +229,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 			swapped, err = o.resize(d, opt.Width, opt.Height)
 		} else {
 			swapped, err = false, nil
+		}
+
+		if swappedCrop {
+			swapped = !swapped
 		}
 
 		if err != nil {
