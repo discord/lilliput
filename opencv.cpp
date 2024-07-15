@@ -159,12 +159,42 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
 {
     auto e_ptr = static_cast<cv::ImageEncoder*>(e);
     auto mat = static_cast<const cv::Mat*>(src);
+
+    cv::Mat output;
+
+    if (mat->channels() < 4) {
+        // No alpha channel, use the original mat
+        output = *mat;
+    } else {
+        // Handle alpha channel by blending it with a white background
+        std::vector<cv::Mat> channels(4);
+        cv::split(*mat, channels);
+        cv::Mat bgrChannels[] = {channels[0], channels[1], channels[2]};
+        cv::Mat alphaChannel = channels[3];
+
+        // Create a white background image
+        cv::Mat whiteBackground(mat->rows, mat->cols, CV_8UC3, cv::Scalar(255, 255, 255));
+
+        // Blend the BGR channels of the source image onto the white background using the alpha channel as a mask
+        cv::Mat bgr;
+        cv::merge(bgrChannels, 3, bgr);
+        bgr.copyTo(whiteBackground, alphaChannel);
+
+        // Set the output to the blended image
+        output = whiteBackground;
+
+        // Convert back to 8-bit if necessary
+        if (output.type() != CV_8UC3) {
+            output.convertTo(output, CV_8UC3);
+        }
+    }
+
     std::vector<int> params;
     for (size_t i = 0; i < opt_len; i++) {
         params.push_back(opt[i]);
     }
-    return e_ptr->write(*mat, params);
-};
+    return e_ptr->write(output, params);
+}
 
 void opencv_mat_resize(const opencv_mat src,
                        opencv_mat dst,
