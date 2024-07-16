@@ -625,7 +625,7 @@ func (e *openCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 	if len(optList) > 0 {
 		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
 	}
-	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))) {
+	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C._Bool(e.preserveAlphaChannel)) {
 		return nil, ErrInvalidImage
 	}
 
