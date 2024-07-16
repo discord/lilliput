@@ -20,14 +20,14 @@ func TestNewDecoder(t *testing.T) {
 			name:           "Standard MP4",
 			sourceFilePath: "testdata/big_buck_bunny_480p_10s_std.mp4",
 			wantHeight:     480,
-			wantWidth:      720,
+			wantWidth:      853,
 			wantErr:        false,
 		},
 		{
 			name:           "Progressive Download MP4",
 			sourceFilePath: "testdata/big_buck_bunny_480p_10s_web.mp4",
 			wantHeight:     480,
-			wantWidth:      720,
+			wantWidth:      853,
 			wantErr:        false,
 		},
 		{
