@@ -101,9 +101,10 @@ type openCVDecoder struct {
 }
 
 type openCVEncoder struct {
-	encoder C.opencv_encoder
-	dst     C.opencv_mat
-	dstBuf  []byte
+	encoder              C.opencv_encoder
+	dst                  C.opencv_mat
+	dstBuf               []byte
+	preserveAlphaChannel bool
 }
 
 // Depth returns the number of bits in the PixelType.
@@ -588,7 +589,7 @@ func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte, preserveAlphaChannel bool) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 
@@ -604,9 +605,10 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEnco
 	}
 
 	return &openCVEncoder{
-		encoder: enc,
-		dst:     dst,
-		dstBuf:  dstBuf,
+		encoder:              enc,
+		dst:                  dst,
+		dstBuf:               dstBuf,
+		preserveAlphaChannel: preserveAlphaChannel,
 	}, nil
 }
 
@@ -623,7 +625,7 @@ func (e *openCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 	if len(optList) > 0 {
 		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
 	}
-	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))) {
+	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C._Bool(e.preserveAlphaChannel)) {
 		return nil, ErrInvalidImage
 	}
 

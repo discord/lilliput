@@ -155,15 +155,15 @@ void opencv_encoder_release(opencv_encoder e)
     delete e_ptr;
 }
 
-bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len)
+bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len, const bool preserve_alpha_channel)
 {
     auto e_ptr = static_cast<cv::ImageEncoder*>(e);
     auto mat = static_cast<const cv::Mat*>(src);
 
     cv::Mat output;
 
-    if (mat->channels() < 4) {
-        // No alpha channel, use the original mat
+    if (mat->channels() < 4 || preserve_alpha_channel) {
+        // No alpha channel or we're encoding to a format that supports alpha channels, use the original mat
         output = *mat;
     } else {
         // Handle alpha channel by blending it with a white background
