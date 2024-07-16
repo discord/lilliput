@@ -66,7 +66,7 @@ void* opencv_mat_get_data(const opencv_mat mat);
 
 opencv_encoder opencv_encoder_create(const char* ext, opencv_mat dst);
 void opencv_encoder_release(opencv_encoder e);
-bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len);
+bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len, bool preserve_alpha_channel);
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 
