@@ -125,27 +125,21 @@ func NewDecoder(buf []byte) (Decoder, error) {
 // ".png". decodedBy is optional and can be the Decoder used to make
 // the Framebuffer. dst is where an encoded image will be written.
 func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
-	normalizedExt := strings.ToLower(ext)
-	if normalizedExt == ".gif" {
+	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
 	}
 
-	if normalizedExt == ".webp" {
+	if strings.ToLower(ext) == ".webp" {
 		return newWebpEncoder(decodedBy, dst)
 	}
 
-	if normalizedExt == ".mp4" || normalizedExt == ".webm" {
+	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {
 		return nil, errors.New("Encoder cannot encode into video types")
 	}
 
-	if normalizedExt == ".thumbhash" {
+	if strings.ToLower(ext) == ".thumbhash" {
 		return newThumbhashEncoder(decodedBy, dst)
 	}
 
-	preserveAlphaChannel := false
-	if normalizedExt == ".png" {
-		preserveAlphaChannel = true
-	}
-
-	return newOpenCVEncoder(ext, decodedBy, dst, preserveAlphaChannel)
+	return newOpenCVEncoder(ext, decodedBy, dst)
 }
