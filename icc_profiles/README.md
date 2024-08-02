@@ -13,9 +13,9 @@ To generate the ICC profile headers, you can use the provided Python script. Thi
 ### Profiles
 
 The following ICC profiles are included:
-- [sRGB](https://www.color.org/srgbprofiles.xalter)
-- [Rec709](https://www.color.org/chardata/rgb/BT709.xalter)
-- [Rec2020](https://www.color.org/chardata/rgb/BT2020.xalter)
+- [sRGB](https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/profiles/sRGB-v4.icc)
+- [Rec709](https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/profiles/Rec709-v4.icc)
+- [Rec2020](https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/profiles/Rec2020Compat-v4.icc)
 - [Rec601 PAL](https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/profiles/Rec601PAL-v4.icc)
 - [Rec601 NTSC](https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/profiles/Rec601NTSC-v4.icc)
 
