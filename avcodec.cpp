@@ -254,8 +254,21 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
 }
 
 const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size) {
-        profile_size = sizeof(srgb_profile);
-        return srgb_profile;
+    switch (color_primaries) {
+        case AVCOL_PRI_BT2020:
+            profile_size = sizeof(rec2020_profile);
+            return rec2020_profile;
+        case AVCOL_PRI_BT470BG:  // BT.601 PAL
+            profile_size = sizeof(rec601_pal_profile);
+            return rec601_pal_profile;
+        case AVCOL_PRI_SMPTE170M: // BT.601 NTSC
+            profile_size = sizeof(rec601_ntsc_profile);
+            return rec601_ntsc_profile;
+        default:
+            // Default to sRGB profile
+            profile_size = sizeof(srgb_profile);
+            return srgb_profile;
+    }
 }
 
 int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len) {
