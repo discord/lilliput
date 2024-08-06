@@ -46,6 +46,17 @@ type ImageOptions struct {
 
 	// This is a best effort timeout when encoding multiple frames
 	EncodeTimeout time.Duration
+
+	// CropCoordinates specify the rectangle of the original image to be cropped before resizing
+	CropCoordinates *CropCoordinates
+}
+
+// CropCoordinates specifies a rectangle for cropping
+type CropCoordinates struct {
+	X      int
+	Y      int
+	Width  int
+	Height int
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -112,6 +123,17 @@ func (o *ImageOps) resize(d Decoder, width, height int) (bool, error) {
 	active := o.active()
 	secondary := o.secondary()
 	err := active.ResizeTo(width, height, secondary)
+	if err != nil {
+		return false, err
+	}
+	o.swap()
+	return true, nil
+}
+
+func (o *ImageOps) crop(d Decoder, x, y, width, height int) (bool, error) {
+	active := o.active()
+	secondary := o.secondary()
+	err := active.CropTo(x, y, width, height, secondary)
 	if err != nil {
 		return false, err
 	}
@@ -188,6 +210,18 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		o.normalizeOrientation(h.Orientation())
 
+		var swappedCrop bool
+		if opt.CropCoordinates != nil {
+			if opt.CropCoordinates.X+opt.CropCoordinates.Width > h.Width() || opt.CropCoordinates.Y+opt.CropCoordinates.Height > h.Height() {
+				return nil, ErrInvalidCropCoordinates
+			}
+
+			swappedCrop, err = o.crop(d, opt.CropCoordinates.X, opt.CropCoordinates.Y, opt.CropCoordinates.Width, opt.CropCoordinates.Height)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		var swapped bool
 		if opt.ResizeMethod == ImageOpsFit {
 			swapped, err = o.fit(d, opt.Width, opt.Height)
@@ -195,6 +229,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 			swapped, err = o.resize(d, opt.Width, opt.Height)
 		} else {
 			swapped, err = false, nil
+		}
+
+		if swappedCrop {
+			swapped = !swapped
 		}
 
 		if err != nil {
@@ -232,7 +270,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 		// content == nil and err == nil -- this is encoder telling us to do another frame
 
-		// for mulitple frames/gifs we need the decoded frame to be active again
+		// for multiple frames/gifs we need the decoded frame to be active again
 		if swapped {
 			o.swap()
 		}

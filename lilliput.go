@@ -10,12 +10,13 @@ import (
 )
 
 var (
-	ErrInvalidImage     = errors.New("unrecognized image format")
-	ErrDecodingFailed   = errors.New("failed to decode image")
-	ErrBufTooSmall      = errors.New("buffer too small to hold image")
-	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
-	ErrSkipNotSupported = errors.New("skip operation not supported by this decoder")
-	ErrEncodeTimeout    = errors.New("encode timed out")
+	ErrInvalidImage           = errors.New("unrecognized image format")
+	ErrDecodingFailed         = errors.New("failed to decode image")
+	ErrBufTooSmall            = errors.New("buffer too small to hold image")
+	ErrFrameBufNoPixels       = errors.New("Framebuffer contains no pixels")
+	ErrSkipNotSupported       = errors.New("skip operation not supported by this decoder")
+	ErrEncodeTimeout          = errors.New("encode timed out")
+	ErrInvalidCropCoordinates = errors.New("invalid crop coordinates")
 
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")

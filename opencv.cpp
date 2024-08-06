@@ -313,3 +313,9 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return 0;
 }
+
+void opencv_mat_copy_to(const opencv_mat src, opencv_mat dst) {
+    auto srcMat = static_cast<const cv::Mat*>(src);
+    auto dstMat = static_cast<cv::Mat*>(dst);
+    srcMat->copyTo(*dstMat);
+}

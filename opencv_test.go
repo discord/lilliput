@@ -288,3 +288,61 @@ func TestICC(t *testing.T) {
 		})
 	}
 }
+
+func TestCropTo(t *testing.T) {
+	// Read a test image
+	imgData, err := ioutil.ReadFile("testdata/ferry_sunset.jpg")
+	if err != nil {
+		t.Fatalf("Failed to read image file: %v", err)
+	}
+
+	// Create a new decoder for the image
+	decoder, err := newOpenCVDecoder(imgData)
+	if err != nil {
+		t.Fatalf("Failed to create decoder: %v", err)
+	}
+	defer decoder.Close()
+
+	// Get the image header
+	header, err := decoder.Header()
+	if err != nil {
+		t.Fatalf("Failed to get the header: %v", err)
+	}
+
+	// Create a new framebuffer and decode the image into it
+	framebuffer := NewFramebuffer(header.width, header.height)
+	if err = decoder.DecodeTo(framebuffer); err != nil {
+		t.Fatalf("DecodeTo failed unexpectedly: %v", err)
+	}
+
+	// Define the crop rectangle
+	cropX, cropY, cropWidth, cropHeight := 10, 10, 100, 100
+
+	// Perform the crop operation
+	err = framebuffer.CropTo(cropX, cropY, cropWidth, cropHeight)
+	if err != nil {
+		t.Fatalf("CropTo failed unexpectedly: %v", err)
+	}
+
+	// Check the dimensions of the cropped image
+	if framebuffer.Width() != cropWidth || framebuffer.Height() != cropHeight {
+		t.Fatalf("Cropped dimensions are incorrect, got width = %d, height = %d, expected width = %d, height = %d",
+			framebuffer.Width(), framebuffer.Height(), cropWidth, cropHeight)
+	}
+
+	// Optional: Encode the cropped image to verify the integrity
+	dstBuf := make([]byte, 1024*1024)
+	encoder, err := newOpenCVEncoder(".jpg", decoder, dstBuf)
+	if err != nil {
+		t.Fatalf("Failed to create encoder: %v", err)
+	}
+	defer encoder.Close()
+
+	encodedData, err := encoder.Encode(framebuffer, nil)
+	if err != nil {
+		t.Fatalf("Encode failed unexpectedly: %v", err)
+	}
+	if len(encodedData) == 0 {
+		t.Fatalf("Encoded data is empty, but it should not be")
+	}
+}
