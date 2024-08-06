@@ -413,11 +413,8 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
             NULL, NULL, NULL);
 
         // Configure colorspace
-        int colorspace = SWS_CS_DEFAULT;
+        int colorspace = SWS_CS_ITU709;
         switch (frame->colorspace) {
-            case AVCOL_SPC_BT709:
-                colorspace = SWS_CS_ITU709;
-                break;
             case AVCOL_SPC_BT2020_NCL:
             case AVCOL_SPC_BT2020_CL:
                 colorspace = SWS_CS_BT2020;
@@ -437,7 +434,7 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         // Configure color range
         int srcRange = frame->color_range == AVCOL_RANGE_JPEG ? 1 : 0;
 
-        // Configure transfer characteristics (gamma)
+        // Configure YUV conversion table
         const int* table = sws_getCoefficients(SWS_CS_DEFAULT);
 
         sws_setColorspaceDetails(sws, inv_table, srcRange, table, 1, 0, 1 << 16, 1 << 16);
