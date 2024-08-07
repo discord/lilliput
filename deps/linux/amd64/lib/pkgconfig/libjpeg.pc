@@ -1,0 +1,10 @@
+prefix=/home/runner/work/lilliput/lilliput/deps/linux/amd64
+exec_prefix=/home/runner/work/lilliput/lilliput/deps/linux/amd64
+libdir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib
+includedir=/home/runner/work/lilliput/lilliput/deps/linux/amd64/include
+
+Name: libjpeg
+Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
+Version: 2.1.4
+Libs: -L${libdir} -ljpeg
+Cflags: -I${includedir}
