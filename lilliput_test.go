@@ -15,6 +15,7 @@ func TestNewDecoder(t *testing.T) {
 		wantWidth            int
 		wantErr              bool
 		wantNegativeDuration bool
+		wantAnimated         bool
 	}{
 		{
 			name:           "Standard MP4",
@@ -63,6 +64,22 @@ func TestNewDecoder(t *testing.T) {
 			wantHeight:           800,
 			wantNegativeDuration: true,
 		},
+		{
+			name:                 "Animated GIF",
+			sourceFilePath:       "testdata/big_buck_bunny_720_stereo-90s-std.gif",
+			wantWidth:            320,
+			wantHeight:           180,
+			wantNegativeDuration: true,
+			wantAnimated:         true,
+		},
+		{
+			name:                 "Ordinary GIF",
+			sourceFilePath:       "testdata/ferry_sunset.gif",
+			wantWidth:            800,
+			wantHeight:           297,
+			wantNegativeDuration: true,
+			wantAnimated:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,12 +108,18 @@ func TestNewDecoder(t *testing.T) {
 			if !tt.wantNegativeDuration && dec.Duration() <= 0 {
 				t.Errorf("Expected duration to be greater than 0, got %v", dec.Duration())
 			}
+			if !tt.wantAnimated && header.IsAnimated() {
+				t.Errorf("Expected image to not be animated")
+			}
+			if tt.wantAnimated && !header.IsAnimated() {
+				t.Errorf("Expected image to be animated")
+			}
 		})
 	}
 }
 
 func BenchmarkNewDecoder(b *testing.B) {
-	sourceFilePath := "testdata/big_buck_bunny_480p_10s_web.mp4"
+	sourceFilePath := "testdata/ferry_sunset.gif"
 	sourceFileData, err := ioutil.ReadFile(sourceFilePath)
 	if err != nil {
 		b.Fatalf("Failed to read source file: %v", err)
