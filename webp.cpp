@@ -68,6 +68,19 @@ int webp_decoder_get_pixel_type(const webp_decoder d)
     return d->features.has_alpha ? CV_8UC4 : CV_8UC3;
 }
 
+int webp_decoder_get_num_frames(const webp_decoder d)
+{
+    // Retrieve the feature flags
+    uint32_t flags;
+    if (WebPMuxGetFeatures(d->mux, &flags) != WEBP_MUX_OK) {
+        return 1;
+    }
+
+    // Check if the ANIMATION flag is set
+    bool has_animation = (flags & ANIMATION_FLAG) != 0;
+    return has_animation ? 2 : 1;
+}
+
 size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 {
     WebPData icc = { nullptr, 0 };

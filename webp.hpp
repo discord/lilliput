@@ -14,6 +14,7 @@ webp_decoder webp_decoder_create(const opencv_mat buf);
 int webp_decoder_get_width(const webp_decoder d);
 int webp_decoder_get_height(const webp_decoder d);
 int webp_decoder_get_pixel_type(const webp_decoder d);
+int webp_decoder_get_num_frames(const webp_decoder d);
 size_t webp_decoder_get_icc(const webp_decoder d, void* buf, size_t buf_len);
 void webp_decoder_release(webp_decoder d);
 bool webp_decoder_decode(webp_decoder d, opencv_mat mat);
