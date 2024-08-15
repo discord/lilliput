@@ -80,6 +80,22 @@ func TestNewDecoder(t *testing.T) {
 			wantNegativeDuration: true,
 			wantAnimated:         false,
 		},
+		{
+			name:                 "Animated WebP",
+			sourceFilePath:       "testdata/big_buck_bunny_720_5s.webp",
+			wantWidth:            480,
+			wantHeight:           270,
+			wantNegativeDuration: true,
+			wantAnimated:         true,
+		},
+		{
+			name:                 "Ordinary WebP",
+			sourceFilePath:       "testdata/tears_of_steel_icc.webp",
+			wantWidth:            1920,
+			wantHeight:           800,
+			wantNegativeDuration: true,
+			wantAnimated:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

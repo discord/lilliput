@@ -55,7 +55,7 @@ func (d *webpDecoder) Header() (*ImageHeader, error) {
 		height:        int(C.webp_decoder_get_height(d.decoder)),
 		pixelType:     PixelType(C.webp_decoder_get_pixel_type(d.decoder)),
 		orientation:   OrientationTopLeft,
-		numFrames:     1,
+		numFrames:     int(C.webp_decoder_get_num_frames(d.decoder)),
 		contentLength: len(d.buf),
 	}, nil
 }
