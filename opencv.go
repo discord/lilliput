@@ -277,6 +277,26 @@ func (f *Framebuffer) Fit(width, height int, dst *Framebuffer) error {
 	return nil
 }
 
+// CropTo performs a cropping transform on the Framebuffer
+func (f *Framebuffer) CropTo(x, y, width, height int, dst *Framebuffer) error {
+	if f.mat == nil {
+		return ErrFrameBufNoPixels
+	}
+
+	croppedMat := C.opencv_mat_crop(f.mat, C.int(x), C.int(y), C.int(width), C.int(height))
+	if croppedMat == nil {
+		return ErrInvalidCropCoordinates
+	}
+	defer C.opencv_mat_release(croppedMat)
+
+	err := dst.resizeMat(width, height, f.pixelType)
+	if err != nil {
+		return err
+	}
+	C.opencv_mat_copy_to(croppedMat, dst.mat)
+	return nil
+}
+
 // Width returns the width of the contained pixel data in number of pixels. This may
 // differ from the capacity of the framebuffer.
 func (f *Framebuffer) Width() int {
