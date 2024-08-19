@@ -27,7 +27,6 @@ void giflib_decoder_release(giflib_decoder d);
 giflib_decoder_frame_state giflib_decoder_decode_frame_header(giflib_decoder d);
 bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat);
 giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d);
-giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d);
 
 giflib_encoder giflib_encoder_create(void* buf, size_t buf_len);
 bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, int height);

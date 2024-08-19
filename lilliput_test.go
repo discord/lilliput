@@ -65,22 +65,6 @@ func TestNewDecoder(t *testing.T) {
 			wantNegativeDuration: true,
 		},
 		{
-			name:                 "Animated GIF",
-			sourceFilePath:       "testdata/big_buck_bunny_720_stereo-90s-std.gif",
-			wantWidth:            320,
-			wantHeight:           180,
-			wantNegativeDuration: true,
-			wantAnimated:         true,
-		},
-		{
-			name:                 "Ordinary GIF",
-			sourceFilePath:       "testdata/ferry_sunset.gif",
-			wantWidth:            800,
-			wantHeight:           297,
-			wantNegativeDuration: true,
-			wantAnimated:         false,
-		},
-		{
 			name:                 "Animated WebP",
 			sourceFilePath:       "testdata/big_buck_bunny_720_5s.webp",
 			wantWidth:            480,
@@ -135,7 +119,7 @@ func TestNewDecoder(t *testing.T) {
 }
 
 func BenchmarkNewDecoder(b *testing.B) {
-	sourceFilePath := "testdata/ferry_sunset.gif"
+	sourceFilePath := "testdata/big_buck_bunny_480p_10s_web.mp4"
 	sourceFileData, err := ioutil.ReadFile(sourceFilePath)
 	if err != nil {
 		b.Fatalf("Failed to read source file: %v", err)

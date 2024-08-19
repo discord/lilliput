@@ -20,7 +20,6 @@ struct giflib_decoder_struct {
     uint8_t bg_alpha;
     bool have_read_first_frame;
     bool seek_clear_extensions;
-    int num_frames;
 };
 
 // this structure will help save us work of "reversing" a palette
@@ -77,58 +76,19 @@ int decode_func(GifFileType* gif, GifByteType* buf, int len)
     return read_len;
 }
 
-// Helper function to initialize and open the GIF decoder
-giflib_decoder init_giflib_decoder(const opencv_mat buf) {
+giflib_decoder giflib_decoder_create(const opencv_mat buf)
+{
     giflib_decoder d = new struct giflib_decoder_struct();
     memset(d, 0, sizeof(struct giflib_decoder_struct));
     d->mat = static_cast<const cv::Mat*>(buf);
-    d->read_index = 0;
 
     int error = 0;
-    d->gif = DGifOpen(d, decode_func, &error);
+    GifFileType* gif = DGifOpen(d, decode_func, &error);
     if (error) {
         delete d;
         return NULL;
     }
-    return d;
-}
-
-giflib_decoder giflib_decoder_create(const opencv_mat buf)
-{
-    // Initial decoder setup
-    giflib_decoder d = init_giflib_decoder(buf);
-    if (!d) {
-        return NULL;
-    }
-
-    // Minimal work to determine if the GIF has more than one frame
-    giflib_decoder_frame_state state = giflib_decoder_skip_frame(d);
-    if (state == giflib_decoder_error) {
-        giflib_decoder_release(d);
-        return NULL;
-    }
-
-    int num_frames = 0;
-    if (state == giflib_decoder_have_next_frame) {
-        num_frames = 1;
-        state = giflib_decoder_skip_frame(d);
-        if (state == giflib_decoder_error) {
-            giflib_decoder_release(d);
-            return NULL;
-        }
-        if (state == giflib_decoder_have_next_frame) {
-            num_frames++;
-        }
-    }
-
-    giflib_decoder_release(d); // Clean up the initial decoder
-
-    // Reinitialize the decoder with the frame count
-    d = init_giflib_decoder(buf);
-    if (!d) {
-        return NULL;
-    }
-    d->num_frames = num_frames;
+    d->gif = gif;
 
     return d;
 }
@@ -145,7 +105,7 @@ int giflib_decoder_get_height(const giflib_decoder d)
 
 int giflib_decoder_get_num_frames(const giflib_decoder d)
 {
-    return d->num_frames;
+    return d->gif->ImageCount;
 }
 
 int giflib_decoder_get_frame_width(const giflib_decoder d)
@@ -247,7 +207,7 @@ static bool giflib_set_frame_gcb(GifFileType* gif, const GraphicsControlBlock* g
     return success;
 }
 
-giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d)
+static giflib_decoder_frame_state giflib_decoder_seek_next_frame(giflib_decoder d)
 {
     GifRecordType RecordType;
 
