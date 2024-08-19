@@ -3,7 +3,22 @@
 set -e
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX="$BASEDIR/osx"
+
+ARCH=$(uname -m)
+case $ARCH in
+  x86_64)
+    ARCH='amd64'
+    ;;
+  arm64)
+    ARCH='arm64'
+    ;;
+  *)
+    echo -n "unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+PREFIX="$BASEDIR/osx/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
@@ -24,6 +39,10 @@ rm -rf ffmpeg
 
 if [ ! -d "$SRCDIR" ]; then
     git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
+
+    # TODO: Fix this in the upstream deps repo
+    cd "$SRCDIR"
+    wget -q -O giflib-5.2.2.tar.gz https://sourceforge.net/projects/giflib/files/giflib-5.2.2.tar.gz/download
 fi
 
 echo '\n--------------------'
@@ -77,7 +96,7 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
 make
@@ -91,9 +110,10 @@ mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-export-exif-orientation.patch
+patch -p1 < $BASEDIR/patches/0001-remove-invalid-flow-control.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DWITH_LAPACK=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DWITH_LAPACK=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=ON -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DOPENCV_FP16_DISABLE=ON -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
 make opencv_core opencv_imgproc opencv_imgcodecs
 make install
 
@@ -116,9 +136,18 @@ $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --di
 make
 make install
 
+rm -rf $BASEDIR/osx/$ARCH/bin
+rm -f $BASEDIR/osx/$ARCH/**/*.cmake
+
 # Since go modules don't currently download symlinked files
 # (see https://github.com/golang/go/issues/39417)
 # we replace symlinks with copies of the target.
 # We use a `find -exec` with a separate file because POSIX sh
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
+
+if [ -n "$CI" ]; then
+  echo "CI detected, cleaning up build artifacts"
+  rm -rf "$SRCDIR"
+  rm -rf "$BUILDDIR"
+fi

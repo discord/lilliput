@@ -1,0 +1,10 @@
+prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+exec_prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+libdir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/lib
+includedir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/include
+
+Name: libjpeg
+Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
+Version: 2.1.4
+Libs: -L${libdir} -ljpeg
+Cflags: -I${includedir}

@@ -1,0 +1,14 @@
+prefix=/Users/runner/work/lilliput/lilliput/deps/osx/arm64
+exec_prefix=${prefix}
+libdir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/lib
+includedir=/Users/runner/work/lilliput/lilliput/deps/osx/arm64/include
+
+Name: libavfilter
+Description: FFmpeg audio/video filtering library
+Version: 8.44.100
+Requires: libavutil >= 57.28.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavfilter -pthread -lm
+Libs.private: 
+Cflags: -I${includedir}

@@ -3,7 +3,22 @@
 set -e
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX="$BASEDIR/linux"
+
+ARCH=$(uname -m)
+case $ARCH in
+  x86_64)
+    ARCH='amd64'
+    ;;
+  aarch64)
+    ARCH='arm64'
+    ;;
+  *)
+    echo -n "unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
@@ -56,7 +71,7 @@ mkdir -p $BASEDIR/libpng
 tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --disable-unversioned-links --disable-unversioned-libpng-pc --enable-intel-sse
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --enable-intel-sse
 make
 make install
 
@@ -91,9 +106,10 @@ mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-export-exif-orientation.patch
+patch -p1 < $BASEDIR/patches/0001-remove-invalid-flow-control.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=OFF -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=ON -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 
@@ -122,3 +138,12 @@ make install
 # We use a `find -exec` with a separate file because POSIX sh
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
+
+rm -rf $BASEDIR/linux/$ARCH/bin
+rm -f $BASEDIR/linux/$ARCH/**/*.cmake
+
+if [ -n "$CI" ]; then
+  echo "CI detected, cleaning up build artifacts"
+  rm -rf "$SRCDIR"
+  rm -rf "$BUILDDIR"
+fi
