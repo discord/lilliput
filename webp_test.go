@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 const (
@@ -158,6 +159,9 @@ func TestWebpEncoder_Encode(t *testing.T) {
 	if encodedData, err = encoder.Encode(framebuffer, options); err != nil {
 		t.Fatalf("Encode failed unexpectedly: %v", err)
 	}
+	if encodedData, err = encoder.Encode(nil, options); err != nil {
+		t.Fatalf("Encode of empty frame failed unexpectedly: %v", err)
+	}
 	if len(encodedData) == 0 {
 		t.Fatalf("Encoded data is empty, but it should not be")
 	}
@@ -188,6 +192,9 @@ func TestWebpEncoder_Encode(t *testing.T) {
 	t.Log("Encoding the framebuffer")
 	if encodedData, err = encoder.Encode(framebuffer, options); err != nil {
 		t.Fatalf("Encode failed unexpectedly: %v", err)
+	}
+	if encodedData, err = encoder.Encode(nil, options); err != nil {
+		t.Fatalf("Encode of empty frame failed unexpectedly: %v", err)
 	}
 	if len(encodedData) == 0 {
 		t.Fatalf("Encoded data is empty, but it should not be")
@@ -221,4 +228,181 @@ func TestWebpEncoder_Encode(t *testing.T) {
 	}
 	decoder.Close()
 	encoder.Close()
+}
+func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
+	testCases := []struct {
+		name         string
+		inputPath    string
+		outputPath   string
+		width        int
+		height       int
+		quality      int
+		resizeMethod ImageOpsSizeMethod
+	}{
+		{
+			name:         "Animated WebP - Supported",
+			inputPath:    "testdata/animated-webp-supported.webp",
+			outputPath:   "testdata/out/animated-webp-supported_out_resize.webp",
+			width:        400,
+			height:       400,
+			quality:      100,
+			resizeMethod: ImageOpsResize,
+		},
+		{
+			name:         "Animated WebP - Supported",
+			inputPath:    "testdata/animated-webp-supported.webp",
+			outputPath:   "testdata/out/animated-webp-supported_out_fit.webp",
+			width:        400,
+			height:       400,
+			quality:      80,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Animated WebP - Supported",
+			inputPath:    "testdata/animated-webp-supported.webp",
+			outputPath:   "testdata/out/animated-webp-supported_out_no_resize.webp",
+			width:        0,
+			height:       0,
+			quality:      80,
+			resizeMethod: ImageOpsNoResize,
+		},
+		{
+			name:         "Animated WebP - Supported",
+			inputPath:    "testdata/animated-webp-supported.webp",
+			outputPath:   "testdata/out/animated-webp-supported_out.webp",
+			width:        200,
+			height:       200,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 1",
+			inputPath:    "testdata/1.webp",
+			outputPath:   "testdata/out/1_out.webp",
+			width:        550,
+			height:       350,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 2",
+			inputPath:    "testdata/2.webp",
+			outputPath:   "testdata/out/2_out.webp",
+			width:        400,
+			height:       225,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 3",
+			inputPath:    "testdata/3.webp",
+			outputPath:   "testdata/out/3_out.webp",
+			width:        1280,
+			height:       531,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 4",
+			inputPath:    "testdata/4.webp",
+			outputPath:   "testdata/out/4_out.webp",
+			width:        642,
+			height:       259,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 5",
+			inputPath:    "testdata/5.webp",
+			outputPath:   "testdata/out/5_out.webp",
+			width:        320,
+			height:       240,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 6",
+			inputPath:    "testdata/6.webp",
+			outputPath:   "testdata/out/6_out.webp",
+			width:        800,
+			height:       450,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "Example WebP 6 No Resize",
+			inputPath:    "testdata/6.webp",
+			outputPath:   "testdata/out/6_out_no_resize.webp",
+			width:        1280,
+			height:       692,
+			quality:      60,
+			resizeMethod: ImageOpsNoResize,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			var testWebPImage []byte
+			var decoder *webpDecoder
+
+			// Read the input WebP file
+			testWebPImage, err = os.ReadFile(tc.inputPath)
+			if err != nil {
+				t.Errorf("Unexpected error while reading %s: %v", tc.inputPath, err)
+				return
+			}
+
+			// Decode the WebP image
+			if decoder, err = newWebpDecoder(testWebPImage); err != nil {
+				t.Errorf("Unexpected error while decoding %s: %v", tc.inputPath, err)
+				return
+			}
+
+			dstBuf := make([]byte, destinationBufferSize)
+
+			options := &ImageOptions{
+				FileType:             ".webp",
+				NormalizeOrientation: true,
+				EncodeOptions:        map[int]int{WebpQuality: tc.quality},
+				ResizeMethod:         tc.resizeMethod,
+				Width:                tc.width,
+				Height:               tc.height,
+				EncodeTimeout:        time.Second * 300,
+			}
+
+			ops := NewImageOps(50000)
+			var newDst []byte
+			newDst, err = ops.Transform(decoder, options, dstBuf)
+			if err != nil {
+				decoder.Close()
+				t.Errorf("Transform() error for %s: %v", tc.inputPath, err)
+				return
+			}
+
+			// verify length of newDst
+			if len(newDst) == 0 {
+				decoder.Close()
+				t.Errorf("Transform() returned empty data for %s", tc.inputPath)
+			}
+
+			// write the new WebP image to disk
+			if tc.outputPath != "" {
+				// create output directory if it does not exist
+				if _, err := os.Stat("testdata/out"); os.IsNotExist(err) {
+					if err = os.Mkdir("testdata/out", 0755); err != nil {
+						decoder.Close()
+						t.Errorf("Failed to create output directory: %v", err)
+						return
+					}
+				}
+
+				if err = os.WriteFile(tc.outputPath, newDst, 0644); err != nil {
+					decoder.Close()
+					t.Errorf("Failed to write %s: %v", tc.outputPath, err)
+				}
+			}
+			decoder.Close()
+		})
+	}
 }

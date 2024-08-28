@@ -43,6 +43,8 @@ int opencv_decoder_get_height(const opencv_decoder d);
 int opencv_decoder_get_pixel_type(const opencv_decoder d);
 int opencv_decoder_get_orientation(const opencv_decoder d);
 bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
+void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
+void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width,

@@ -21,6 +21,22 @@ import (
 	"unsafe"
 )
 
+// DisposeMethod describes how the previous frame should be disposed before rendering the next frame.
+type DisposeMethod int
+
+const (
+	DisposeNone DisposeMethod = iota
+	DisposeBackground
+)
+
+// BlendMethod describes how the previous frame should be blended with the next frame.
+type BlendMethod int
+
+const (
+	BlendAnimated BlendMethod = iota
+	BlendNone
+)
+
 // ImageOrientation describes how the decoded image is oriented according to its metadata.
 type ImageOrientation int
 
@@ -90,6 +106,10 @@ type Framebuffer struct {
 	height    int
 	pixelType PixelType
 	duration  time.Duration
+	xOffset   int
+	yOffset   int
+	dispose   DisposeMethod
+	blend     BlendMethod
 }
 
 type openCVDecoder struct {
@@ -170,6 +190,14 @@ func (f *Framebuffer) Clear() {
 	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
 }
 
+func (f *Framebuffer) Create3Channel(width, height int) error {
+	if err := f.resizeMat(width, height, C.CV_8UC3); err != nil {
+		return err
+	}
+	f.Clear()
+	return nil
+}
+
 func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	if f.mat != nil {
 		C.opencv_mat_release(f.mat)
@@ -219,6 +247,35 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 		return err
 	}
 	C.opencv_mat_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
+	return nil
+}
+
+// FillWithColor fills the entire framebuffer with the specified color.
+// The color is a 32-bit value in the format 0xAARRGGBB, where:
+// - AA: Alpha channel (transparency)
+// - RR: Red channel
+// - GG: Green channel
+// - BB: Blue channel
+func (f *Framebuffer) FillWithColor(color uint32) error {
+	if f.mat == nil {
+		return errors.New("framebuffer matrix is nil")
+	}
+
+	// Extract the color components
+	blue := uint8(color & 0xFF)
+	green := uint8((color >> 8) & 0xFF)
+	red := uint8((color >> 16) & 0xFF)
+	alpha := uint8((color >> 24) & 0xFF)
+
+	// Determine if the framebuffer has an alpha channel
+	if f.pixelType.Channels() == 4 {
+		// Set all pixels to the specified color with alpha
+		C.opencv_mat_set_color(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha))
+	} else {
+		// Set all pixels to the specified color without alpha
+		C.opencv_mat_set_color(f.mat, C.int(red), C.int(green), C.int(blue), -1)
+	}
+
 	return nil
 }
 
@@ -297,6 +354,12 @@ func (f *Framebuffer) PixelType() PixelType {
 // Duration returns the length of time this frame plays out in an animated image
 func (f *Framebuffer) Duration() time.Duration {
 	return f.duration
+}
+
+func (f *Framebuffer) CopyToWithOffset(src *Framebuffer, inputCanvasWidth, inputCanvasHeight, xOffset, yOffset int) error {
+	C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(xOffset), C.int(yOffset), C.int(inputCanvasWidth), C.int(inputCanvasHeight))
+
+	return nil
 }
 
 func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
@@ -532,6 +595,34 @@ func (d *openCVDecoder) Description() string {
 
 func (d *openCVDecoder) IsStreamable() bool {
 	return true
+}
+
+func (d *openCVDecoder) BackgroundColor() uint32 {
+	return 0xFFFFFFFF
+}
+
+func (d *openCVDecoder) PreviousFrameDelay() time.Duration {
+	return time.Duration(0)
+}
+
+func (d *openCVDecoder) PreviousFrameBlend() BlendMethod {
+	return BlendAnimated
+}
+
+func (d *openCVDecoder) PreviousFrameDispose() DisposeMethod {
+	return DisposeNone
+}
+
+func (d *openCVDecoder) PreviousFrameXOffset() int {
+	return 0
+}
+
+func (d *openCVDecoder) PreviousFrameYOffset() int {
+	return 0
+}
+
+func (d *openCVDecoder) PreviousFrameHasAlpha() bool {
+	return false
 }
 
 func (d *openCVDecoder) HasSubtitles() bool {

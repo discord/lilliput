@@ -118,6 +118,30 @@ func (d *gifDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
 
+func (d *gifDecoder) BackgroundColor() uint32 {
+	return 0xFFFFFFFF
+}
+
+func (d *gifDecoder) PreviousFrameDelay() time.Duration {
+	return time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond
+}
+
+func (d *gifDecoder) PreviousFrameBlend() BlendMethod {
+	return BlendAnimated
+}
+
+func (d *gifDecoder) PreviousFrameDispose() DisposeMethod {
+	return DisposeNone
+}
+
+func (d *gifDecoder) PreviousFrameXOffset() int {
+	return 0
+}
+
+func (d *gifDecoder) PreviousFrameYOffset() int {
+	return 0
+}
+
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {

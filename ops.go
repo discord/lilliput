@@ -2,6 +2,7 @@ package lilliput
 
 import (
 	"io"
+	"math"
 	"time"
 )
 
@@ -46,12 +47,16 @@ type ImageOptions struct {
 
 	// This is a best effort timeout when encoding multiple frames
 	EncodeTimeout time.Duration
+
+	// DisableAnimatedOutput controls the encoder behavior when given a multi-frame input
+	DisableAnimatedOutput bool
 }
 
 // ImageOps is a reusable object that can resize and encode images.
 type ImageOps struct {
-	frames     []*Framebuffer
-	frameIndex int
+	frames        []*Framebuffer
+	frameIndex    int
+	previousFrame *Framebuffer
 }
 
 // NewImageOps creates a new ImageOps object that will operate
@@ -84,12 +89,19 @@ func (o *ImageOps) swap() {
 func (o *ImageOps) Clear() {
 	o.frames[0].Clear()
 	o.frames[1].Clear()
+	if o.previousFrame != nil {
+		o.previousFrame.Clear()
+	}
 }
 
 // Close releases resources associated with ImageOps
 func (o *ImageOps) Close() {
 	o.frames[0].Close()
 	o.frames[1].Close()
+	if o.previousFrame != nil {
+		o.previousFrame.Close()
+		o.previousFrame = nil
+	}
 }
 
 func (o *ImageOps) decode(d Decoder) error {
@@ -97,25 +109,161 @@ func (o *ImageOps) decode(d Decoder) error {
 	return d.DecodeTo(active)
 }
 
-func (o *ImageOps) fit(d Decoder, width, height int) (bool, error) {
-	active := o.active()
-	secondary := o.secondary()
-	err := active.Fit(width, height, secondary)
+func (o *ImageOps) fit(d Decoder, outputCanvasWidth, outputCanvasHeight int) (bool, error) {
+	h, err := d.Header()
 	if err != nil {
 		return false, err
 	}
+	inputCanvasHeight := h.height
+	inputCanvasWidth := h.width
+
+	minHeight := int(math.Min(float64(inputCanvasHeight), float64(outputCanvasHeight)))
+	minWidth := int(math.Min(float64(inputCanvasWidth), float64(outputCanvasWidth)))
+
+	active := o.active()
+	secondary := o.secondary()
+
+	// Check if scaling is required and if there are non-zero offsets
+	if h.IsAnimated() {
+		frameXOffset := d.PreviousFrameXOffset()
+		frameYOffset := d.PreviousFrameYOffset()
+
+		// Create a 3-channel temporary frame with the same dimensions as the previous frame
+		tempFrame := NewFramebuffer(inputCanvasWidth, inputCanvasHeight)
+		defer tempFrame.Close() // Ensure that tempFrame is closed in all cases
+
+		// Clear the tempFrame to avoid leftover data
+		if err := tempFrame.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+			return false, err
+		}
+
+		// Copy the previous frame to the temporary frame if it exists
+		if o.previousFrame != nil {
+			if err := tempFrame.CopyToWithOffset(o.previousFrame, inputCanvasWidth, inputCanvasHeight, 0, 0); err != nil {
+				return false, err
+			}
+		} else {
+			o.previousFrame = NewFramebuffer(inputCanvasWidth, inputCanvasHeight)
+			if err := o.previousFrame.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+				return false, err
+			}
+			if err := o.previousFrame.FillWithColor(d.BackgroundColor()); err != nil {
+				return false, err
+			}
+		}
+
+		// Overlay the active frame onto the temporary frame at the original offsets
+		if err := tempFrame.CopyToWithOffset(active, inputCanvasWidth, inputCanvasHeight, frameXOffset, frameYOffset); err != nil {
+			return false, err
+		}
+
+		// store the temporary frame on the ImageOps object
+		o.previousFrame.Clear()
+		o.previousFrame.CopyToWithOffset(tempFrame, inputCanvasWidth, inputCanvasHeight, 0, 0)
+
+		// Resize the combined frame to the output canvas size
+		if err := tempFrame.Fit(outputCanvasWidth, outputCanvasHeight, secondary); err != nil {
+			return false, err
+		}
+
+		o.swap()
+		o.active().duration = d.PreviousFrameDelay()
+		o.active().blend = BlendNone
+		o.active().dispose = DisposeNone
+		o.active().xOffset = 0
+		o.active().yOffset = 0
+
+		return true, nil
+	}
+
+	if err = active.Fit(minWidth, minHeight, secondary); err != nil {
+		return false, err
+	}
 	o.swap()
+	o.active().duration = d.PreviousFrameDelay()
+	o.active().blend = d.PreviousFrameBlend()
+	o.active().dispose = d.PreviousFrameDispose()
+	o.active().xOffset = d.PreviousFrameXOffset()
+	o.active().yOffset = d.PreviousFrameYOffset()
 	return true, nil
 }
 
-func (o *ImageOps) resize(d Decoder, width, height int) (bool, error) {
+func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int) (bool, error) {
 	active := o.active()
 	secondary := o.secondary()
-	err := active.ResizeTo(width, height, secondary)
+
+	// Calculate scaling factors
+	scaleX := float64(outputCanvasWidth) / float64(inputCanvasWidth)
+	scaleY := float64(outputCanvasHeight) / float64(inputCanvasHeight)
+
+	// Check if scaling is required and if there are non-zero offsets
+	if h, err := d.Header(); err == nil && h.IsAnimated() {
+		frameXOffset := d.PreviousFrameXOffset()
+		frameYOffset := d.PreviousFrameYOffset()
+
+		// Create a 3-channel temporary frame with the same dimensions as the previous frame
+		tempFrame := NewFramebuffer(inputCanvasWidth, inputCanvasHeight)
+		defer tempFrame.Close() // Ensure that tempFrame is closed in all cases
+
+		// Clear the tempFrame to avoid leftover data
+		if err := tempFrame.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+			return false, err
+		}
+
+		// Copy the previous frame to the temporary frame if it exists
+		if o.previousFrame != nil {
+			if err := tempFrame.CopyToWithOffset(o.previousFrame, inputCanvasWidth, inputCanvasHeight, 0, 0); err != nil {
+				return false, err
+			}
+		} else {
+			o.previousFrame = NewFramebuffer(inputCanvasWidth, inputCanvasHeight)
+			if err := o.previousFrame.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+				return false, err
+			}
+			if err := o.previousFrame.FillWithColor(d.BackgroundColor()); err != nil {
+				return false, err
+			}
+		}
+
+		// Overlay the active frame onto the temporary frame at the original offsets
+		if err := tempFrame.CopyToWithOffset(active, inputCanvasWidth, inputCanvasHeight, frameXOffset, frameYOffset); err != nil {
+			return false, err
+		}
+
+		// store the temporary frame on the ImageOps object
+		o.previousFrame.Clear()
+		o.previousFrame.CopyToWithOffset(tempFrame, inputCanvasWidth, inputCanvasHeight, 0, 0)
+
+		// Resize the combined frame to the output canvas size
+		if err := tempFrame.ResizeTo(outputCanvasWidth, outputCanvasHeight, secondary); err != nil {
+			return false, err
+		}
+
+		o.swap()
+		o.active().duration = d.PreviousFrameDelay()
+		o.active().blend = BlendNone
+		o.active().dispose = DisposeNone
+		o.active().xOffset = 0
+		o.active().yOffset = 0
+
+		return true, nil
+	}
+
+	// Resize normally if no scaling is required or there are no offsets
+	newFrameWidth := int(float64(active.Width()) * scaleX)
+	newFrameHeight := int(float64(active.Height()) * scaleY)
+
+	err := active.ResizeTo(newFrameWidth, newFrameHeight, secondary)
 	if err != nil {
 		return false, err
 	}
 	o.swap()
+	o.active().duration = d.PreviousFrameDelay()
+	o.active().blend = d.PreviousFrameBlend()
+	o.active().dispose = d.PreviousFrameDispose()
+	o.active().xOffset = d.PreviousFrameXOffset()
+	o.active().yOffset = d.PreviousFrameYOffset()
+
 	return true, nil
 }
 
@@ -150,6 +298,14 @@ func (o *ImageOps) skipToEnd(d Decoder) error {
 //
 // It is important that .Decode() not have been called already on d.
 func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, error) {
+	defer func() {
+		// ensure that the previous frame is closed in all cases and memory is released
+		if o.previousFrame != nil {
+			o.previousFrame.Close()
+			o.previousFrame = nil
+		}
+	}()
+
 	h, err := d.Header()
 	if err != nil {
 		return nil, err
@@ -166,6 +322,10 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 	encodeTimeoutTime := time.Now().Add(opt.EncodeTimeout)
 
 	for {
+		// break out if we're creating a single frame and we've already done one
+		if opt.DisableAnimatedOutput && frameCount > 0 {
+			return o.encodeEmpty(enc, opt.EncodeOptions)
+		}
 		err = o.decode(d)
 		emptyFrame := false
 		if err != nil {
@@ -189,16 +349,22 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		o.normalizeOrientation(h.Orientation())
 
 		var swapped bool
-		if opt.ResizeMethod == ImageOpsFit {
-			swapped, err = o.fit(d, opt.Width, opt.Height)
-		} else if opt.ResizeMethod == ImageOpsResize {
-			swapped, err = o.resize(d, opt.Width, opt.Height)
-		} else {
-			swapped, err = false, nil
-		}
+		if !emptyFrame {
+			if opt.ResizeMethod == ImageOpsFit {
+				swapped, err = o.fit(d, opt.Width, opt.Height)
+			} else if opt.ResizeMethod == ImageOpsResize {
+				swapped, err = o.resize(d, h.Width(), h.Height(), opt.Width, opt.Height, frameCount)
+			} else {
+				if h.IsAnimated() {
+					swapped, err = o.fit(d, h.Width(), h.Height())
+				} else {
+					swapped, err = false, nil
+				}
+			}
 
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		var content []byte

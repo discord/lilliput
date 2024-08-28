@@ -313,3 +313,75 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return 0;
 }
+
+void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alpha) {
+    auto cvMat = static_cast<cv::Mat*>(mat);
+    if (cvMat) {
+        if (alpha >= 0) {
+            // For 4-channel (RGBA)
+            cvMat->setTo(cv::Scalar(blue, green, red, alpha));
+        } else {
+            // For 3-channel (RGB)
+            cvMat->setTo(cv::Scalar(blue, green, red));
+        }
+    }
+}
+
+void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+    auto srcMat = static_cast<cv::Mat*>(src);
+    auto dstMat = static_cast<cv::Mat*>(dst);
+
+    if (srcMat->channels() != 3 && srcMat->channels() != 4) {
+        throw std::invalid_argument("Source image must have 3 or 4 channels (RGB or RGBA).");
+    }
+
+    if (dstMat->channels() != 3) {
+        throw std::invalid_argument("Destination image must have 3 channels (RGB).");
+    }
+
+    if (xOffset < 0 || yOffset < 0 || xOffset + srcMat->cols > dstMat->cols || yOffset + srcMat->rows > dstMat->rows) {
+        throw std::invalid_argument("Source image with offsets exceeds the bounds of the destination framebuffer");
+    }
+
+    // Create an ROI on the destination where the source image will be placed
+    cv::Rect roi(xOffset, yOffset, srcMat->cols, srcMat->rows);
+    cv::Mat dstROI = (*dstMat)(roi);
+
+    // Handle 4-channel (RGBA) source image
+    if (srcMat->channels() == 4) {
+        // Split the source image into RGB and alpha channels
+        std::vector<cv::Mat> srcChannels(4);
+        cv::split(*srcMat, srcChannels);
+        cv::Mat srcRGB;
+        cv::merge(srcChannels.data(), 3, srcRGB);
+        cv::Mat srcAlpha = srcChannels[3];
+
+        // Resize srcRGB and srcAlpha to match the destination ROI if necessary
+        if (srcRGB.size() != dstROI.size()) {
+            cv::resize(srcRGB, srcRGB, dstROI.size());
+            cv::resize(srcAlpha, srcAlpha, dstROI.size());
+        }
+
+        // Convert the alpha mask to a 3-channel image by repeating it across the RGB channels
+        cv::Mat alphaMask;
+        cv::cvtColor(srcAlpha, alphaMask, cv::COLOR_GRAY2BGR);
+        alphaMask.convertTo(alphaMask, CV_32FC3, 1.0 / 255.0); // Normalize to [0, 1] range
+
+        // Convert srcRGB and dstROI to float for blending
+        cv::Mat srcRGBFloat, dstROIFloat;
+        srcRGB.convertTo(srcRGBFloat, CV_32FC3);
+        dstROI.convertTo(dstROIFloat, CV_32FC3);
+
+        // Perform alpha blending: dst = src * alpha + dst * (1 - alpha)
+        cv::Mat blendedRoi = srcRGBFloat.mul(alphaMask) + dstROIFloat.mul(cv::Scalar::all(1.0) - alphaMask);
+
+        // Convert the blended result back to the original format
+        blendedRoi.convertTo(dstROI, dstMat->type());
+    } 
+    // Handle 3-channel (RGB) source image
+    else if (srcMat->channels() == 3) {
+        cv::Mat srcROI = (*srcMat)(cv::Rect(xOffset, yOffset, srcMat->cols, srcMat->rows));
+        srcROI.copyTo(dstROI);
+    }
+}
+
