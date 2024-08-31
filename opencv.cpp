@@ -314,6 +314,13 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
     return 0;
 }
 
+void opencv_mat_reset(opencv_mat mat) {
+    if (mat) {
+        cv::Mat* m = static_cast<cv::Mat*>(mat);
+        m->setTo(cv::Scalar(0));
+    }
+}
+
 void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alpha) {
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (cvMat) {

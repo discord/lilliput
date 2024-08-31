@@ -8,7 +8,7 @@
 struct webp_decoder_struct {
     WebPMux* mux;
     WebPBitstreamFeatures features;
-    bool has_animation;
+    int total_frame_count;
     uint32_t bgcolor;
 
     int current_frame_index;
@@ -17,6 +17,8 @@ struct webp_decoder_struct {
     int prev_frame_y_offset;
     WebPMuxAnimDispose prev_frame_dispose;
     WebPMuxAnimBlend prev_frame_blend;
+    uint8_t* decode_buffer;
+    size_t decode_buffer_size;
 };
 
 struct webp_encoder_struct {
@@ -55,8 +57,6 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
         return nullptr;
     }
 
-    bool has_animation = (flags & ANIMATION_FLAG) != 0;
-
     // Get the first frame to retrieve the image dimensions
     WebPMuxFrameInfo frame;
     if (WebPMuxGetFrame(mux, 1, &frame) != WEBP_MUX_OK) {
@@ -77,17 +77,24 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     d->mux = mux;
     d->current_frame_index = 1;
     d->features = features;
-    d->has_animation = has_animation;
-    if (has_animation) {
-        WebPMuxAnimParams anim_params;
-        if (WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
-            d->bgcolor = anim_params.bgcolor;
-        } else {
-            d->bgcolor = 0xFFFFFFFF; // White background
-        }
-    } else {
-        d->bgcolor = 0xFFFFFFFF; // White background
+    
+    // Calculate total frame count
+    d->total_frame_count = 0;
+    do {
+        d->total_frame_count++;
+        WebPDataClear(&frame.bitstream);
+    } while (WebPMuxGetFrame(mux, d->total_frame_count + 1, &frame) == WEBP_MUX_OK);
+
+    // Get animation parameters
+    WebPMuxAnimParams anim_params;
+    d->bgcolor = 0xFFFFFFFF; // Default to white background
+    if (d->features.has_animation && WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
+        d->bgcolor = anim_params.bgcolor;
     }
+
+    // Pre-allocate decode buffer
+    d->decode_buffer_size = features.width * features.height * 4; // 4 channels for RGBA
+    d->decode_buffer = new uint8_t[d->decode_buffer_size];
 
     return d;
 }
@@ -139,15 +146,7 @@ uint32_t webp_decoder_get_bg_color(const webp_decoder d)
 
 int webp_decoder_get_num_frames(const webp_decoder d)
 {
-    // Retrieve the feature flags
-    uint32_t flags;
-    if (WebPMuxGetFeatures(d->mux, &flags) != WEBP_MUX_OK) {
-        return 1;
-    }
-
-    // Check if the ANIMATION flag is set
-    bool has_animation = (flags & ANIMATION_FLAG) != 0;
-    return has_animation ? 2 : 1;
+    return d ? d->total_frame_count : 0;
 }
 
 size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
@@ -164,17 +163,11 @@ size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 }
 
 int webp_decoder_has_more_frames(webp_decoder d) {
-    WebPMuxFrameInfo frame;
-    WebPMuxError mux_error = WebPMuxGetFrame(d->mux, d->current_frame_index, &frame);
-    if (mux_error != WEBP_MUX_OK) {
-        return 0;
-    }
-    WebPDataClear(&frame.bitstream);
-    return 1;
+     return d->current_frame_index < d->total_frame_count;
 }
 
 void webp_decoder_advance_frame(webp_decoder d) {
-    d->current_frame_index++; // Advance to the next frame
+    d->current_frame_index++;
 }
 
 bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
@@ -213,10 +206,14 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 
     if (features.has_alpha) {
         res = WebPDecodeBGRAInto(frame.bitstream.bytes, frame.bitstream.size,
-                                 cvMat->data, cvMat->rows * cvMat->step, row_size);
+                                 d->decode_buffer, d->decode_buffer_size, row_size);
     } else {
         res = WebPDecodeBGRInto(frame.bitstream.bytes, frame.bitstream.size,
-                                cvMat->data, cvMat->rows * cvMat->step, row_size);
+                                d->decode_buffer, d->decode_buffer_size, row_size);
+    }
+
+    if (res) {
+        memcpy(cvMat->data, d->decode_buffer, cvMat->total() * cvMat->elemSize());
     }
 
     WebPDataClear(&frame.bitstream);
@@ -225,8 +222,11 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 
 void webp_decoder_release(webp_decoder d)
 {
-    WebPMuxDelete(d->mux);
-    delete d;
+    if (d) {
+        if (d->mux) WebPMuxDelete(d->mux);
+        delete[] d->decode_buffer;
+        delete d;
+    }
 }
 
 webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor)
@@ -388,8 +388,6 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             WebPMuxAnimParams anim_params;
             anim_params.loop_count = 0;  // Infinite loop
             anim_params.bgcolor = e->bgcolor;
-            // anim_params.bgcolor = 0xFF000000;  // White background
-            // TODO - add support for bgcolor by reading the ANIM chunk from the first frame
 
             WebPMuxError mux_error = WebPMuxSetAnimationParams(e->mux, &anim_params);
             if (mux_error != WEBP_MUX_OK) {

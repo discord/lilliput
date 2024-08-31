@@ -185,9 +185,13 @@ func (f *Framebuffer) Close() {
 	}
 }
 
-// Clear resets all of the pixel data in Framebuffer.
+// Clear resets all of the pixel data in Framebuffer for the active frame
+// It also resets the mat if it exists.
 func (f *Framebuffer) Clear() {
 	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
+	if f.mat != nil {
+		C.opencv_mat_reset(f.mat)
+	}
 }
 
 func (f *Framebuffer) Create3Channel(width, height int) error {

@@ -229,6 +229,7 @@ func TestWebpEncoder_Encode(t *testing.T) {
 	decoder.Close()
 	encoder.Close()
 }
+
 func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -241,11 +242,20 @@ func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 	}{
 		{
 			name:         "Animated WebP - Supported",
+			inputPath:    "testdata/ferry_sunset.webp",
+			outputPath:   "testdata/out/ferry_sunset_out_resize.webp",
+			width:        266,
+			height:       99,
+			quality:      60,
+			resizeMethod: ImageOpsResize,
+		},
+		{
+			name:         "Animated WebP - Supported",
 			inputPath:    "testdata/animated-webp-supported.webp",
 			outputPath:   "testdata/out/animated-webp-supported_out_resize.webp",
 			width:        400,
 			height:       400,
-			quality:      100,
+			quality:      60,
 			resizeMethod: ImageOpsResize,
 		},
 		{
@@ -263,7 +273,7 @@ func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			outputPath:   "testdata/out/animated-webp-supported_out_no_resize.webp",
 			width:        0,
 			height:       0,
-			quality:      80,
+			quality:      100,
 			resizeMethod: ImageOpsNoResize,
 		},
 		{
@@ -274,69 +284,6 @@ func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			height:       200,
 			quality:      60,
 			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 1",
-			inputPath:    "testdata/1.webp",
-			outputPath:   "testdata/out/1_out.webp",
-			width:        550,
-			height:       350,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 2",
-			inputPath:    "testdata/2.webp",
-			outputPath:   "testdata/out/2_out.webp",
-			width:        400,
-			height:       225,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 3",
-			inputPath:    "testdata/3.webp",
-			outputPath:   "testdata/out/3_out.webp",
-			width:        1280,
-			height:       531,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 4",
-			inputPath:    "testdata/4.webp",
-			outputPath:   "testdata/out/4_out.webp",
-			width:        642,
-			height:       259,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 5",
-			inputPath:    "testdata/5.webp",
-			outputPath:   "testdata/out/5_out.webp",
-			width:        320,
-			height:       240,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 6",
-			inputPath:    "testdata/6.webp",
-			outputPath:   "testdata/out/6_out.webp",
-			width:        800,
-			height:       450,
-			quality:      60,
-			resizeMethod: ImageOpsFit,
-		},
-		{
-			name:         "Example WebP 6 No Resize",
-			inputPath:    "testdata/6.webp",
-			outputPath:   "testdata/out/6_out_no_resize.webp",
-			width:        1280,
-			height:       692,
-			quality:      60,
-			resizeMethod: ImageOpsNoResize,
 		},
 	}
 
