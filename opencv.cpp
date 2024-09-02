@@ -334,6 +334,18 @@ void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alph
     }
 }
 
+void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height) {
+    auto cvMat = static_cast<cv::Mat*>(mat);
+    if (cvMat) {
+        cv::Rect roi(x, y, width, height);
+        if (alpha >= 0) {
+            cvMat->operator()(roi).setTo(cv::Scalar(blue, green, red, alpha));
+        } else {
+            cvMat->operator()(roi).setTo(cv::Scalar(blue, green, red));
+        }
+    }
+}
+
 void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
     auto srcMat = static_cast<cv::Mat*>(src);
     auto dstMat = static_cast<cv::Mat*>(dst);
@@ -341,54 +353,104 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
     if (srcMat->channels() != 3 && srcMat->channels() != 4) {
         throw std::invalid_argument("Source image must have 3 or 4 channels (RGB or RGBA).");
     }
-
-    if (dstMat->channels() != 3) {
-        throw std::invalid_argument("Destination image must have 3 channels (RGB).");
-    }
-
+    
     if (xOffset < 0 || yOffset < 0 || xOffset + srcMat->cols > dstMat->cols || yOffset + srcMat->rows > dstMat->rows) {
         throw std::invalid_argument("Source image with offsets exceeds the bounds of the destination framebuffer");
     }
 
-    // Create an ROI on the destination where the source image will be placed
     cv::Rect roi(xOffset, yOffset, srcMat->cols, srcMat->rows);
     cv::Mat dstROI = (*dstMat)(roi);
 
-    // Handle 4-channel (RGBA) source image
     if (srcMat->channels() == 4) {
-        // Split the source image into RGB and alpha channels
-        std::vector<cv::Mat> srcChannels(4);
-        cv::split(*srcMat, srcChannels);
-        cv::Mat srcRGB;
-        cv::merge(srcChannels.data(), 3, srcRGB);
+        cv::Mat srcFloat, dstFloat;
+        srcMat->convertTo(srcFloat, CV_32FC4, 1.0 / 255.0);
+        dstROI.convertTo(dstFloat, CV_32FC4, 1.0 / 255.0);
+
+        // Optimized alpha blending using vectorized operations
+        std::vector<cv::Mat> srcChannels, dstChannels;
+        cv::split(srcFloat, srcChannels);
+        cv::split(dstFloat, dstChannels);
+
         cv::Mat srcAlpha = srcChannels[3];
+        cv::Mat dstAlpha = dstChannels[3];
+        cv::Mat outAlpha = srcAlpha + dstAlpha.mul(1.0 - srcAlpha);
 
-        // Resize srcRGB and srcAlpha to match the destination ROI if necessary
-        if (srcRGB.size() != dstROI.size()) {
-            cv::resize(srcRGB, srcRGB, dstROI.size());
-            cv::resize(srcAlpha, srcAlpha, dstROI.size());
+        for (int i = 0; i < 3; ++i) {
+            dstChannels[i] = (srcChannels[i].mul(srcAlpha) + dstChannels[i].mul(dstAlpha).mul(1.0 - srcAlpha)) / outAlpha;
         }
+        dstChannels[3] = outAlpha;
 
-        // Convert the alpha mask to a 3-channel image by repeating it across the RGB channels
-        cv::Mat alphaMask;
-        cv::cvtColor(srcAlpha, alphaMask, cv::COLOR_GRAY2BGR);
-        alphaMask.convertTo(alphaMask, CV_32FC3, 1.0 / 255.0); // Normalize to [0, 1] range
+        cv::Mat result;
+        cv::merge(dstChannels, result);
+        result.convertTo(dstROI, dstROI.type(), 255.0);
+    } else {
+        srcMat->copyTo(dstROI);
+    }
+}
 
-        // Convert srcRGB and dstROI to float for blending
-        cv::Mat srcRGBFloat, dstROIFloat;
-        srcRGB.convertTo(srcRGBFloat, CV_32FC3);
-        dstROI.convertTo(dstROIFloat, CV_32FC3);
+void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height) {
+    auto srcMat = static_cast<cv::Mat*>(src);
+    auto dstMat = static_cast<cv::Mat*>(dst);
 
-        // Perform alpha blending: dst = src * alpha + dst * (1 - alpha)
-        cv::Mat blendedRoi = srcRGBFloat.mul(alphaMask) + dstROIFloat.mul(cv::Scalar::all(1.0) - alphaMask);
+    if (!srcMat || !dstMat) {
+        throw std::invalid_argument("Source or destination matrix is null");
+    }
 
-        // Convert the blended result back to the original format
-        blendedRoi.convertTo(dstROI, dstMat->type());
-    } 
-    // Handle 3-channel (RGB) source image
-    else if (srcMat->channels() == 3) {
-        cv::Mat srcROI = (*srcMat)(cv::Rect(xOffset, yOffset, srcMat->cols, srcMat->rows));
-        srcROI.copyTo(dstROI);
+    x = std::max(0, x);
+    y = std::max(0, y);
+    width = std::min(width, dstMat->cols - x);
+    height = std::min(height, dstMat->rows - y);
+
+    if (width <= 0 || height <= 0) return;
+
+    cv::Rect roi(x, y, width, height);
+    cv::Mat dstROI = (*dstMat)(roi);
+
+    cv::Mat srcResized;
+    if (srcMat->size() != dstROI.size()) {
+        cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
+    } else {
+        srcResized = *srcMat;
+    }
+
+    if (srcResized.channels() == 3 && dstROI.channels() == 3) {
+        srcResized.copyTo(dstROI);
+        return;
+    }
+
+    cv::Mat src4 = srcResized.channels() == 3 ? cv::Mat() : srcResized;
+    cv::Mat dst4 = dstROI.channels() == 3 ? cv::Mat() : dstROI;
+
+    if (src4.empty()) cv::cvtColor(srcResized, src4, cv::COLOR_BGR2BGRA);
+    if (dst4.empty()) cv::cvtColor(dstROI, dst4, cv::COLOR_BGR2BGRA);
+
+    // Optimized alpha blending using vectorized operations
+    std::vector<cv::Mat> srcChannels, dstChannels;
+    cv::split(src4, srcChannels);
+    cv::split(dst4, dstChannels);
+
+    cv::Mat srcAlpha = srcChannels[3];
+    cv::Mat dstAlpha = dstChannels[3];
+    cv::Mat srcAlphaF, dstAlphaF, outAlphaF;
+    srcAlpha.convertTo(srcAlphaF, CV_32F, 1.0 / 255.0);
+    dstAlpha.convertTo(dstAlphaF, CV_32F, 1.0 / 255.0);
+    outAlphaF = srcAlphaF + dstAlphaF.mul(1.0f - srcAlphaF);
+
+    for (int i = 0; i < 3; ++i) {
+        cv::Mat srcChannelF, dstChannelF;
+        srcChannels[i].convertTo(srcChannelF, CV_32F, 1.0 / 255.0);
+        dstChannels[i].convertTo(dstChannelF, CV_32F, 1.0 / 255.0);
+        cv::Mat blended = (srcChannelF.mul(srcAlphaF) + dstChannelF.mul(dstAlphaF).mul(1.0f - srcAlphaF)) / outAlphaF;
+        blended.convertTo(dstChannels[i], CV_8U, 255.0);
+    }
+    outAlphaF.convertTo(dstChannels[3], CV_8U, 255.0);
+
+    cv::merge(dstChannels, dst4);
+
+    if (dstROI.channels() == 3) {
+        cv::cvtColor(dst4, dstROI, cv::COLOR_BGRA2BGR);
+    } else {
+        dst4.copyTo(dstROI);
     }
 }
 

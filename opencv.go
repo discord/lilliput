@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"image"
 	"io"
 	"time"
 	"unsafe"
@@ -25,16 +26,16 @@ import (
 type DisposeMethod int
 
 const (
-	DisposeNone DisposeMethod = iota
-	DisposeBackground
+	NoDispose DisposeMethod = iota
+	DisposeToBackgroundColor
 )
 
 // BlendMethod describes how the previous frame should be blended with the next frame.
 type BlendMethod int
 
 const (
-	BlendAnimated BlendMethod = iota
-	BlendNone
+	UseAlphaBlending BlendMethod = iota
+	NoBlend
 )
 
 // ImageOrientation describes how the decoded image is oriented according to its metadata.
@@ -160,6 +161,10 @@ func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
 }
 
+func (h *ImageHeader) HasAlpha() bool {
+	return h.pixelType.Channels() == 4
+}
+
 // Some images have extra padding bytes at the end that aren't needed.
 // In the worst case, this might be unwanted data that the user intended
 // to crop (e.g. "acropalypse" bug).
@@ -196,6 +201,14 @@ func (f *Framebuffer) Clear() {
 
 func (f *Framebuffer) Create3Channel(width, height int) error {
 	if err := f.resizeMat(width, height, C.CV_8UC3); err != nil {
+		return err
+	}
+	f.Clear()
+	return nil
+}
+
+func (f *Framebuffer) Create4Channel(width, height int) error {
+	if err := f.resizeMat(width, height, C.CV_8UC4); err != nil {
 		return err
 	}
 	f.Clear()
@@ -260,7 +273,7 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 // - RR: Red channel
 // - GG: Green channel
 // - BB: Blue channel
-func (f *Framebuffer) FillWithColor(color uint32) error {
+func (f *Framebuffer) FillWithColor(color uint32, rect image.Rectangle) error {
 	if f.mat == nil {
 		return errors.New("framebuffer matrix is nil")
 	}
@@ -271,13 +284,10 @@ func (f *Framebuffer) FillWithColor(color uint32) error {
 	red := uint8((color >> 16) & 0xFF)
 	alpha := uint8((color >> 24) & 0xFF)
 
-	// Determine if the framebuffer has an alpha channel
 	if f.pixelType.Channels() == 4 {
-		// Set all pixels to the specified color with alpha
-		C.opencv_mat_set_color(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha))
+		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha), C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	} else {
-		// Set all pixels to the specified color without alpha
-		C.opencv_mat_set_color(f.mat, C.int(red), C.int(green), C.int(blue), -1)
+		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), -1, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	}
 
 	return nil
@@ -360,9 +370,17 @@ func (f *Framebuffer) Duration() time.Duration {
 	return f.duration
 }
 
-func (f *Framebuffer) CopyToWithOffset(src *Framebuffer, inputCanvasWidth, inputCanvasHeight, xOffset, yOffset int) error {
-	C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(xOffset), C.int(yOffset), C.int(inputCanvasWidth), C.int(inputCanvasHeight))
+// CopyToOffsetWithAlphaBlending copies the source framebuffer to a specified rectangle within the destination framebuffer.
+// This function performs alpha blending.
+func (f *Framebuffer) CopyToOffsetWithAlphaBlending(src *Framebuffer, rect image.Rectangle) error {
+	C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	return nil
+}
 
+// CopyToOffsetNoBlend copies the source framebuffer to a specified rectangle within the destination framebuffer.
+// This function does not perform any blending.
+func (f *Framebuffer) CopyToOffsetNoBlend(src *Framebuffer, rect image.Rectangle) error {
+	C.opencv_copy_to_rect(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	return nil
 }
 
@@ -605,30 +623,6 @@ func (d *openCVDecoder) BackgroundColor() uint32 {
 	return 0xFFFFFFFF
 }
 
-func (d *openCVDecoder) PreviousFrameDelay() time.Duration {
-	return time.Duration(0)
-}
-
-func (d *openCVDecoder) PreviousFrameBlend() BlendMethod {
-	return BlendAnimated
-}
-
-func (d *openCVDecoder) PreviousFrameDispose() DisposeMethod {
-	return DisposeNone
-}
-
-func (d *openCVDecoder) PreviousFrameXOffset() int {
-	return 0
-}
-
-func (d *openCVDecoder) PreviousFrameYOffset() int {
-	return 0
-}
-
-func (d *openCVDecoder) PreviousFrameHasAlpha() bool {
-	return false
-}
-
 func (d *openCVDecoder) HasSubtitles() bool {
 	return false
 }
@@ -676,6 +670,11 @@ func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
 		return ErrDecodingFailed
 	}
 	d.hasDecoded = true
+	f.blend = NoBlend
+	f.dispose = DisposeToBackgroundColor
+	f.xOffset = 0
+	f.yOffset = 0
+	f.duration = time.Duration(0)
 	return nil
 }
 

@@ -119,27 +119,7 @@ func (d *gifDecoder) Duration() time.Duration {
 }
 
 func (d *gifDecoder) BackgroundColor() uint32 {
-	return 0xFFFFFFFF
-}
-
-func (d *gifDecoder) PreviousFrameDelay() time.Duration {
-	return time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond
-}
-
-func (d *gifDecoder) PreviousFrameBlend() BlendMethod {
-	return BlendAnimated
-}
-
-func (d *gifDecoder) PreviousFrameDispose() DisposeMethod {
-	return DisposeNone
-}
-
-func (d *gifDecoder) PreviousFrameXOffset() int {
-	return 0
-}
-
-func (d *gifDecoder) PreviousFrameYOffset() int {
-	return 0
+	return 0x00FFFFFF // use a non-opaque alpha value so we can see the background if needed
 }
 
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
@@ -175,6 +155,10 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 		return ErrDecodingFailed
 	}
 	f.duration = time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond
+	f.blend = NoBlend
+	f.dispose = DisposeToBackgroundColor
+	f.xOffset = 0
+	f.yOffset = 0
 	d.frameIndex++
 	return nil
 }

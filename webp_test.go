@@ -241,6 +241,15 @@ func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 		resizeMethod ImageOpsSizeMethod
 	}{
 		{
+			name:         "Animated WebP - Party Discord",
+			inputPath:    "testdata/party-discord.webp",
+			outputPath:   "testdata/out/party-discord_out_webpsource_resize.webp",
+			width:        26,
+			height:       17,
+			quality:      60,
+			resizeMethod: ImageOpsResize,
+		},
+		{
 			name:         "Animated WebP - Supported",
 			inputPath:    "testdata/ferry_sunset.webp",
 			outputPath:   "testdata/out/ferry_sunset_out_resize.webp",
@@ -302,6 +311,94 @@ func TestNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 
 			// Decode the WebP image
 			if decoder, err = newWebpDecoder(testWebPImage); err != nil {
+				t.Errorf("Unexpected error while decoding %s: %v", tc.inputPath, err)
+				return
+			}
+
+			dstBuf := make([]byte, destinationBufferSize)
+
+			options := &ImageOptions{
+				FileType:             ".webp",
+				NormalizeOrientation: true,
+				EncodeOptions:        map[int]int{WebpQuality: tc.quality},
+				ResizeMethod:         tc.resizeMethod,
+				Width:                tc.width,
+				Height:               tc.height,
+				EncodeTimeout:        time.Second * 300,
+			}
+
+			ops := NewImageOps(50000)
+			var newDst []byte
+			newDst, err = ops.Transform(decoder, options, dstBuf)
+			if err != nil {
+				decoder.Close()
+				t.Errorf("Transform() error for %s: %v", tc.inputPath, err)
+				return
+			}
+
+			// verify length of newDst
+			if len(newDst) == 0 {
+				decoder.Close()
+				t.Errorf("Transform() returned empty data for %s", tc.inputPath)
+			}
+
+			// write the new WebP image to disk
+			if tc.outputPath != "" {
+				// create output directory if it does not exist
+				if _, err := os.Stat("testdata/out"); os.IsNotExist(err) {
+					if err = os.Mkdir("testdata/out", 0755); err != nil {
+						decoder.Close()
+						t.Errorf("Failed to create output directory: %v", err)
+						return
+					}
+				}
+
+				if err = os.WriteFile(tc.outputPath, newDst, 0644); err != nil {
+					decoder.Close()
+					t.Errorf("Failed to write %s: %v", tc.outputPath, err)
+				}
+			}
+			decoder.Close()
+		})
+	}
+}
+
+func TestNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
+	testCases := []struct {
+		name         string
+		inputPath    string
+		outputPath   string
+		width        int
+		height       int
+		quality      int
+		resizeMethod ImageOpsSizeMethod
+	}{
+		{
+			name:         "Animated GIF with alpha channel",
+			inputPath:    "testdata/party-discord.gif",
+			outputPath:   "testdata/out/party-discord_out_resize.webp",
+			width:        27,
+			height:       17,
+			quality:      80,
+			resizeMethod: ImageOpsResize,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			var testWebPImage []byte
+			var decoder *gifDecoder
+
+			// Read the input GIF file
+			testWebPImage, err = os.ReadFile(tc.inputPath)
+			if err != nil {
+				t.Errorf("Unexpected error while reading %s: %v", tc.inputPath, err)
+				return
+			}
+
+			// Decode the GIF image
+			if decoder, err = newGifDecoder(testWebPImage); err != nil {
 				t.Errorf("Unexpected error while decoding %s: %v", tc.inputPath, err)
 				return
 			}

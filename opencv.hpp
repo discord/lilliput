@@ -46,6 +46,7 @@ bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
 void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
 void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 void opencv_mat_reset(opencv_mat mat);
+void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width,
@@ -72,6 +73,8 @@ void opencv_encoder_release(opencv_encoder e);
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len);
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len);
+
+void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height);
 
 #ifdef __cplusplus
 }

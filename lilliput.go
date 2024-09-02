@@ -62,21 +62,6 @@ type Decoder interface {
 	// BackgroundColor as BGRA
 	BackgroundColor() uint32
 
-	// PreviousFrameDelay returns the delay of the previous frame
-	PreviousFrameDelay() time.Duration
-
-	// PreviousFrameBlend returns the blend method of the previous frame
-	PreviousFrameBlend() BlendMethod
-
-	// PreviousFrameDispose returns the dispose method of the previous frame
-	PreviousFrameDispose() DisposeMethod
-
-	// PreviousFrameXOffset returns the x offset of the previous frame
-	PreviousFrameXOffset() int
-
-	// PreviousFrameYOffset returns the y offset of the previous frame
-	PreviousFrameYOffset() int
-
 	// ICC returns the ICC color profile, if any
 	ICC() []byte
 }

@@ -2,6 +2,7 @@ package lilliput
 
 import (
 	"fmt"
+	"image"
 	"io"
 	"math"
 	"time"
@@ -107,16 +108,21 @@ func (o *ImageOps) Close() {
 
 // setupAnimatedFrameBuffers sets up the animated frame buffer.
 // It returns an error if the frame could not be created.
-func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputCanvasHeight int) error {
-	// create a buffer to hold the composite of the current frame and the previous frame
+func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputCanvasHeight int, hasAlpha bool) error {
+	// Create a buffer to hold the composite of the current frame and the previous frame
 	if o.animatedCompositeBuffer == nil {
 		o.animatedCompositeBuffer = NewFramebuffer(inputCanvasWidth, inputCanvasHeight)
-		if err := o.animatedCompositeBuffer.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
-			return err
+		if !hasAlpha {
+			if err := o.animatedCompositeBuffer.Create3Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+				return err
+			}
+		} else {
+			if err := o.animatedCompositeBuffer.Create4Channel(inputCanvasWidth, inputCanvasHeight); err != nil {
+				return err
+			}
 		}
-		if err := o.animatedCompositeBuffer.FillWithColor(d.BackgroundColor()); err != nil {
-			return err
-		}
+		rect := image.Rect(0, 0, inputCanvasWidth, inputCanvasHeight)
+		return o.animatedCompositeBuffer.FillWithColor(d.BackgroundColor(), rect)
 	}
 
 	return nil
@@ -131,7 +137,7 @@ func (o *ImageOps) decode(d Decoder) error {
 // fit fits the active frame to the specified output canvas size.
 // It returns true if the frame was resized and false if it was not.
 // It returns an error if the frame could not be resized.
-func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight int, isAnimated bool) (bool, error) {
+func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight int, isAnimated, hasAlpha bool) (bool, error) {
 	// Calculate the minimum height and width to fit the image within the output canvas
 	minHeight := int(math.Min(float64(inputCanvasHeight), float64(outputCanvasHeight)))
 	minWidth := int(math.Min(float64(inputCanvasWidth), float64(outputCanvasWidth)))
@@ -139,21 +145,23 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 	// If the image is animated, we need to resize the frame to the input canvas size
 	// and then copy the previous frame's data to the working buffer.
 	if isAnimated {
-		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight); err != nil {
+		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight, hasAlpha); err != nil {
 			return false, err
 		}
 
-		// Overlay the current frame onto the composite buffer
-		if err := o.animatedCompositeBuffer.CopyToWithOffset(o.active(), inputCanvasWidth, inputCanvasHeight, d.PreviousFrameXOffset(), d.PreviousFrameYOffset()); err != nil {
+		if err := o.applyDisposeMethod(d); err != nil {
 			return false, err
 		}
 
-		// Resize the combined frame to the output canvas size
+		if err := o.applyBlendMethod(d); err != nil {
+			return false, err
+		}
+
 		if err := o.animatedCompositeBuffer.Fit(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
 			return false, err
 		}
 
-		o.updateFrameMetadata(d, true)
+		o.copyFramePropertiesAndSwap()
 		return true, nil
 	}
 
@@ -161,12 +169,12 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 	if err := o.active().Fit(minWidth, minHeight, o.secondary()); err != nil {
 		return false, err
 	}
-	o.updateFrameMetadata(d, false)
+	o.copyFramePropertiesAndSwap()
 	return true, nil
 }
 
 // resize resizes the active frame to the specified output canvas size.
-func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int, isAnimated bool) (bool, error) {
+func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int, isAnimated, hasAlpha bool) (bool, error) {
 	// Calculate scaling factors
 	scaleX := float64(outputCanvasWidth) / float64(inputCanvasWidth)
 	scaleY := float64(outputCanvasHeight) / float64(inputCanvasHeight)
@@ -174,21 +182,23 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 	// If the image is animated, we need to resize the frame to the input canvas size
 	// and then copy the previous frame's data to the working buffer.
 	if isAnimated {
-		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight); err != nil {
+		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight, hasAlpha); err != nil {
 			return false, err
 		}
 
-		// Overlay the current frame onto the composite buffer
-		if err := o.animatedCompositeBuffer.CopyToWithOffset(o.active(), inputCanvasWidth, inputCanvasHeight, d.PreviousFrameXOffset(), d.PreviousFrameYOffset()); err != nil {
+		if err := o.applyDisposeMethod(d); err != nil {
 			return false, err
 		}
 
-		// Resize the combined frame to the output canvas size
+		if err := o.applyBlendMethod(d); err != nil {
+			return false, err
+		}
+
 		if err := o.animatedCompositeBuffer.ResizeTo(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
 			return false, err
 		}
 
-		o.updateFrameMetadata(d, true)
+		o.copyFramePropertiesAndSwap()
 		return true, nil
 	}
 
@@ -199,30 +209,9 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 	if err := o.active().ResizeTo(newFrameWidth, newFrameHeight, o.secondary()); err != nil {
 		return false, err
 	}
-	o.updateFrameMetadata(d, false)
+	o.copyFramePropertiesAndSwap()
 
 	return true, nil
-}
-
-// updateFrameMetadata updates the active frame with the previous frame's data
-// from the decoder.
-func (o *ImageOps) updateFrameMetadata(d Decoder, isAnimated bool) {
-	o.swap()
-
-	if isAnimated {
-		o.active().duration = d.PreviousFrameDelay()
-		o.active().blend = BlendNone
-		o.active().dispose = DisposeNone
-		o.active().xOffset = 0
-		o.active().yOffset = 0
-		return
-	}
-
-	o.active().duration = d.PreviousFrameDelay()
-	o.active().blend = d.PreviousFrameBlend()
-	o.active().dispose = d.PreviousFrameDispose()
-	o.active().xOffset = d.PreviousFrameXOffset()
-	o.active().yOffset = d.PreviousFrameYOffset()
 }
 
 // normalizeOrientation flips and rotates the active frame to undo EXIF orientation.
@@ -267,7 +256,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		}
 	}()
 
-	h, enc, err := o.initializeTransform(d, opt, dst)
+	inputHeader, enc, err := o.initializeTransform(d, opt, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -303,12 +292,12 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 			return o.encodeEmpty(enc, opt.EncodeOptions)
 		}
 
-		o.normalizeOrientation(h.Orientation())
+		o.normalizeOrientation(inputHeader.Orientation())
 
 		// transform the frame, resizing if necessary
 		var swapped bool
 		if !emptyFrame {
-			swapped, err = o.transformCurrentFrame(d, opt, h, frameCount)
+			swapped, err = o.transformCurrentFrame(d, opt, inputHeader, frameCount)
 			if err != nil {
 				return nil, err
 			}
@@ -355,21 +344,21 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 // transformCurrentFrame transforms the current frame using the decoder specified by d.
 // It returns true if the frame was resized and false if it was not.
 // It returns an error if the frame could not be resized.
-func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, h *ImageHeader, frameCount int) (bool, error) {
-	if opt.ResizeMethod == ImageOpsNoResize && !h.IsAnimated() {
+func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHeader *ImageHeader, frameCount int) (bool, error) {
+	if opt.ResizeMethod == ImageOpsNoResize && !inputHeader.IsAnimated() {
 		return false, nil
 	}
 
-	width, height := opt.Width, opt.Height
+	outputWidth, outputHeight := opt.Width, opt.Height
 	if opt.ResizeMethod == ImageOpsNoResize {
-		width, height = h.Width(), h.Height()
+		outputWidth, outputHeight = inputHeader.Width(), inputHeader.Height()
 	}
 
 	switch opt.ResizeMethod {
 	case ImageOpsFit, ImageOpsNoResize:
-		return o.fit(d, h.Width(), h.Height(), width, height, h.IsAnimated())
+		return o.fit(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	case ImageOpsResize:
-		return o.resize(d, h.Width(), h.Height(), width, height, frameCount, h.IsAnimated())
+		return o.resize(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, frameCount, inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	default:
 		return false, fmt.Errorf("unknown resize method: %v", opt.ResizeMethod)
 	}
@@ -378,7 +367,7 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, h *ImageH
 // initializeTransform initializes the transform process.
 // It returns the image header, encoder, and error.
 func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte) (*ImageHeader, Encoder, error) {
-	h, err := d.Header()
+	inputHeader, err := d.Header()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -388,5 +377,44 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 		return nil, nil, err
 	}
 
-	return h, enc, nil
+	return inputHeader, enc, nil
+}
+
+func (o *ImageOps) applyDisposeMethod(d Decoder) error {
+	active := o.active()
+	switch active.dispose {
+	case DisposeToBackgroundColor:
+		rect := image.Rect(active.xOffset, active.yOffset, active.xOffset+active.Width(), active.yOffset+active.Height())
+		return o.animatedCompositeBuffer.FillWithColor(d.BackgroundColor(), rect)
+	case NoDispose:
+		// Do nothing
+	}
+	return nil
+}
+
+func (o *ImageOps) applyBlendMethod(d Decoder) error {
+	active := o.active()
+	rect := image.Rect(
+		active.xOffset,
+		active.yOffset,
+		active.xOffset+active.Width(),
+		active.yOffset+active.Height(),
+	)
+
+	switch active.blend {
+	case UseAlphaBlending:
+		return o.animatedCompositeBuffer.CopyToOffsetWithAlphaBlending(active, rect)
+	case NoBlend:
+		return o.animatedCompositeBuffer.CopyToOffsetNoBlend(active, rect)
+	}
+	return nil
+}
+
+// copyFrameProperties copies the properties from the active frame to the secondary frame
+// and then swaps the frames.
+func (o *ImageOps) copyFramePropertiesAndSwap() {
+	o.secondary().duration = o.active().duration
+	o.secondary().dispose = o.active().dispose
+	o.secondary().blend = o.active().blend
+	o.swap()
 }

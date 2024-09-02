@@ -154,6 +154,13 @@ func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 		return ErrDecodingFailed
 	}
 
+	// Set the frame properties
+	f.duration = time.Duration(C.webp_decoder_get_prev_frame_delay(d.decoder)) * time.Millisecond
+	f.xOffset = int(C.webp_decoder_get_prev_frame_x_offset(d.decoder))
+	f.yOffset = int(C.webp_decoder_get_prev_frame_y_offset(d.decoder))
+	f.dispose = DisposeMethod(C.webp_decoder_get_prev_frame_dispose(d.decoder))
+	f.blend = BlendMethod(C.webp_decoder_get_prev_frame_blend(d.decoder))
+
 	// Advance to the next frame
 	d.advanceFrameIndex()
 
@@ -214,7 +221,7 @@ func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 
 	// Encode the current frame
 	frameDelay := int(f.duration.Milliseconds())
-	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C.int(frameDelay), C.int(f.blend), C.int(f.dispose), C.int(f.xOffset), C.int(f.yOffset))
+	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
 	if length == 0 {
 		return nil, ErrInvalidImage
 	}

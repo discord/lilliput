@@ -86,10 +86,15 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     } while (WebPMuxGetFrame(mux, d->total_frame_count + 1, &frame) == WEBP_MUX_OK);
 
     // Get animation parameters
-    WebPMuxAnimParams anim_params;
     d->bgcolor = 0xFFFFFFFF; // Default to white background
-    if (d->features.has_animation && WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
-        d->bgcolor = anim_params.bgcolor;
+    if (flags & ANIMATION_FLAG) {
+        WebPMuxAnimParams anim_params;
+        if (WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
+            d->bgcolor = anim_params.bgcolor;
+        }
+        d->features.has_animation = true;
+    } else {
+        d->features.has_animation = false;
     }
 
     // Pre-allocate decode buffer
