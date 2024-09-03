@@ -10,7 +10,6 @@ package lilliput
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
 // #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
 // #include "webp.hpp"
-// #include "webp.hpp"
 import "C"
 
 import (
@@ -76,26 +75,6 @@ func (d *webpDecoder) Description() string {
 
 func (d *webpDecoder) Duration() time.Duration {
 	return time.Duration(0)
-}
-
-func (d *webpDecoder) PreviousFrameDelay() time.Duration {
-	return time.Duration(C.webp_decoder_get_prev_frame_delay(d.decoder)) * time.Millisecond
-}
-
-func (d *webpDecoder) PreviousFrameBlend() BlendMethod {
-	return BlendMethod(C.webp_decoder_get_prev_frame_blend(d.decoder))
-}
-
-func (d *webpDecoder) PreviousFrameDispose() DisposeMethod {
-	return DisposeMethod(C.webp_decoder_get_prev_frame_dispose(d.decoder))
-}
-
-func (d *webpDecoder) PreviousFrameXOffset() int {
-	return int(C.webp_decoder_get_prev_frame_x_offset(d.decoder))
-}
-
-func (d *webpDecoder) PreviousFrameYOffset() int {
-	return int(C.webp_decoder_get_prev_frame_y_offset(d.decoder))
 }
 
 func (d *webpDecoder) HasSubtitles() bool {

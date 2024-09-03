@@ -39,9 +39,13 @@ struct webp_encoder_struct {
     size_t dst_len;
 };
 
+/**
+ * Creates a WebP decoder from the given OpenCV matrix.
+ * @param buf The input OpenCV matrix containing the WebP image data.
+ * @return A pointer to the created webp_decoder_struct, or nullptr if creation failed.
+ */
 webp_decoder webp_decoder_create(const opencv_mat buf)
 {
-
     auto cvMat = static_cast<const cv::Mat*>(buf);
     WebPData src = { cvMat->data, cvMat->total() };
     WebPMux* mux = WebPMuxCreate(&src, 0);
@@ -72,8 +76,8 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     }
     WebPDataClear(&frame.bitstream);
 
-    webp_decoder d = new struct webp_decoder_struct();
-    memset(d, 0, sizeof(struct webp_decoder_struct));
+    webp_decoder d = new webp_decoder_struct();
+    memset(d, 0, sizeof(webp_decoder_struct));
     d->mux = mux;
     d->current_frame_index = 1;
     d->features = features;
@@ -104,56 +108,113 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     return d;
 }
 
+/**
+ * Gets the width of the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The width of the WebP image.
+ */
 int webp_decoder_get_width(const webp_decoder d)
 {
     return d->features.width;
 }
 
+/**
+ * Gets the height of the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The height of the WebP image.
+ */
 int webp_decoder_get_height(const webp_decoder d)
 {
     return d->features.height;
 }
 
+/**
+ * Gets the pixel type of the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The pixel type of the WebP image.
+ */
 int webp_decoder_get_pixel_type(const webp_decoder d)
 {
     return CV_8UC4;
 }
 
+/**
+ * Gets the delay time of the previous frame.
+ * @param d The webp_decoder_struct pointer.
+ * @return The delay time of the previous frame.
+ */
 int webp_decoder_get_prev_frame_delay(const webp_decoder d)
 {
     return d->prev_frame_delay_time;
 }
 
+/**
+ * Gets the x-offset of the previous frame.
+ * @param d The webp_decoder_struct pointer.
+ * @return The x-offset of the previous frame.
+ */
 int webp_decoder_get_prev_frame_x_offset(const webp_decoder d)
 {
     return d->prev_frame_x_offset;
 }
 
+/**
+ * Gets the y-offset of the previous frame.
+ * @param d The webp_decoder_struct pointer.
+ * @return The y-offset of the previous frame.
+ */
 int webp_decoder_get_prev_frame_y_offset(const webp_decoder d)
 {
     return d->prev_frame_y_offset;
 }
 
+/**
+ * Gets the dispose method of the previous frame.
+ * @param d The webp_decoder_struct pointer.
+ * @return The dispose method of the previous frame.
+ */
 int webp_decoder_get_prev_frame_dispose(const webp_decoder d)
 {
     return d->prev_frame_dispose;
 }
 
+/**
+ * Gets the blend method of the previous frame.
+ * @param d The webp_decoder_struct pointer.
+ * @return The blend method of the previous frame.
+ */
 int webp_decoder_get_prev_frame_blend(const webp_decoder d)
 {
     return d->prev_frame_blend;
 }
 
+/**
+ * Gets the background color of the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The background color of the WebP image.
+ */
 uint32_t webp_decoder_get_bg_color(const webp_decoder d)
 {
     return d->bgcolor;
 }
 
+/**
+ * Gets the total number of frames in the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The total number of frames in the WebP image.
+ */
 int webp_decoder_get_num_frames(const webp_decoder d)
 {
     return d ? d->total_frame_count : 0;
 }
 
+/**
+ * Gets the ICC profile data from the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @param dst The destination buffer to store the ICC profile data.
+ * @param dst_len The size of the destination buffer.
+ * @return The size of the ICC profile data copied to the destination buffer.
+ */
 size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 {
     WebPData icc = { nullptr, 0 };
@@ -167,14 +228,31 @@ size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
     return 0;
 }
 
-int webp_decoder_has_more_frames(webp_decoder d) {
+/**
+ * Checks if there are more frames to decode in the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return True if there are more frames to decode, false otherwise.
+ */
+int webp_decoder_has_more_frames(webp_decoder d)
+{
      return d->current_frame_index < d->total_frame_count;
 }
 
-void webp_decoder_advance_frame(webp_decoder d) {
+/**
+ * Advances to the next frame in the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ */
+void webp_decoder_advance_frame(webp_decoder d)
+{
     d->current_frame_index++;
 }
 
+/**
+ * Decodes the current frame of the WebP image and stores the decoded image in the provided OpenCV matrix.
+ * @param d The webp_decoder_struct pointer.
+ * @param mat The OpenCV matrix to store the decoded image.
+ * @return True if the frame was successfully decoded, false otherwise.
+ */
 bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 {
     if (!d) {
@@ -225,6 +303,10 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     return res;
 }
 
+/**
+ * Releases the resources allocated for the webp_decoder_struct.
+ * @param d The webp_decoder_struct pointer.
+ */
 void webp_decoder_release(webp_decoder d)
 {
     if (d) {
@@ -234,6 +316,15 @@ void webp_decoder_release(webp_decoder d)
     }
 }
 
+/**
+ * Creates a WebP encoder with the given parameters.
+ * @param buf The output buffer to store the encoded WebP data.
+ * @param buf_len The size of the output buffer.
+ * @param icc The ICC profile data.
+ * @param icc_len The size of the ICC profile data.
+ * @param bgcolor The background color for the WebP image.
+ * @return A pointer to the created webp_encoder_struct, or nullptr if creation failed.
+ */
 webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor)
 {
     webp_encoder e = new struct webp_encoder_struct();
@@ -251,7 +342,21 @@ webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, siz
     return e;
 }
 
-size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay, int blend, int dispose, int x_offset, int y_offset) {
+/**
+ * Encodes the given OpenCV matrix as a WebP image and writes the encoded data to the output buffer.
+ * @param e The webp_encoder_struct pointer.
+ * @param src The OpenCV matrix containing the image to encode.
+ * @param opt The encoding options.
+ * @param opt_len The number of encoding options.
+ * @param delay The delay time for the current frame.
+ * @param blend The blend method for the current frame.
+ * @param dispose The dispose method for the current frame.
+ * @param x_offset The x-offset for the current frame.
+ * @param y_offset The y-offset for the current frame.
+ * @return The size of the encoded WebP data, or 0 if encoding failed.
+ */
+size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay, int blend, int dispose, int x_offset, int y_offset)
+{
     // if the source is null, finalize the animation/image and return the size of the output buffer
     if (!src) {
         if (e->frame_count == 1) {
@@ -440,12 +545,21 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
     return size;
 }
 
+/**
+ * Releases the resources allocated for the webp_encoder_struct.
+ * @param e The webp_encoder_struct pointer.
+ */
 void webp_encoder_release(webp_encoder e)
 {
     WebPMuxDelete(e->mux);
     delete e;
 }
 
+/**
+ * Flushes the remaining data in the webp_encoder_struct and finalizes the WebP image.
+ * @param e The webp_encoder_struct pointer.
+ * @return The size of the encoded WebP data, or 0 if encoding failed.
+ */
 size_t webp_encoder_flush(webp_encoder e)
 {
     return webp_encoder_write(e, nullptr, nullptr, 0, 0, 0, 0, 0, 0);
