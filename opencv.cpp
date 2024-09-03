@@ -372,20 +372,29 @@ void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int
  * @param dst Pointer to the destination OpenCV matrix.
  * @param xOffset X-coordinate offset in the destination image.
  * @param yOffset Y-coordinate offset in the destination image.
- * @param width Width of the region to copy (unused in current implementation).
- * @param height Height of the region to copy (unused in current implementation).
- * @throws std::invalid_argument If source image doesn't have 3 or 4 channels or if it exceeds destination bounds.
+ * @param width Width of the region to copy.
+ * @param height Height of the region to copy.
+ * @return int Error code:
+ *             OPENCV_SUCCESS (0) on success,
+ *             OPENCV_ERROR_NULL_MATRIX (3) if source or destination matrix is null,
+ *             OPENCV_ERROR_INVALID_CHANNEL_COUNT (1) if source image doesn't have 3 or 4 channels,
+ *             OPENCV_ERROR_OUT_OF_BOUNDS (2) if it exceeds destination bounds.
  */
-void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+int opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
     auto srcMat = static_cast<cv::Mat*>(src);
     auto dstMat = static_cast<cv::Mat*>(dst);
 
+    // Check for null matrices
+    if (!srcMat || !dstMat) {
+        return OPENCV_ERROR_NULL_MATRIX;
+    }
+
     if (srcMat->channels() != 3 && srcMat->channels() != 4) {
-        throw std::invalid_argument("Source image must have 3 or 4 channels (RGB or RGBA).");
+        return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
     }
     
     if (xOffset < 0 || yOffset < 0 || xOffset + srcMat->cols > dstMat->cols || yOffset + srcMat->rows > dstMat->rows) {
-        throw std::invalid_argument("Source image with offsets exceeds the bounds of the destination framebuffer");
+        return OPENCV_ERROR_OUT_OF_BOUNDS;
     }
 
     cv::Rect roi(xOffset, yOffset, srcMat->cols, srcMat->rows);
@@ -419,10 +428,12 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
     } else {
         srcMat->copyTo(dstROI);
     }
+
+    return OPENCV_SUCCESS;
 }
 
 /**
- * @brief Copy source image to a rectangular region of the destination image with alpha blending.
+ * @brief Copy source image to a rectangular region of the destination image.
  * 
  * @param src Pointer to the source OpenCV matrix.
  * @param dst Pointer to the destination OpenCV matrix.
@@ -430,14 +441,16 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
  * @param y Y-coordinate of the top-left corner in the destination image.
  * @param width Width of the region to copy.
  * @param height Height of the region to copy.
- * @throws std::invalid_argument If source or destination matrix is null.
+ * @return int Error code:
+ *             OPENCV_SUCCESS (0) on success,
+ *             OPENCV_ERROR_NULL_MATRIX (3) if source or destination matrix is null.
  */
-void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height) {
+int opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height) {
     auto srcMat = static_cast<cv::Mat*>(src);
     auto dstMat = static_cast<cv::Mat*>(dst);
 
     if (!srcMat || !dstMat) {
-        throw std::invalid_argument("Source or destination matrix is null");
+        return OPENCV_ERROR_NULL_MATRIX;
     }
 
     // Ensure coordinates are within bounds
@@ -446,7 +459,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
     width = std::min(width, dstMat->cols - x);
     height = std::min(height, dstMat->rows - y);
 
-    if (width <= 0 || height <= 0) return;
+    if (width <= 0 || height <= 0) return OPENCV_SUCCESS;
 
     cv::Rect roi(x, y, width, height);
     cv::Mat dstROI = (*dstMat)(roi);
@@ -462,7 +475,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
     // Fast path for 3-channel to 3-channel copy
     if (srcResized.channels() == 3 && dstROI.channels() == 3) {
         srcResized.copyTo(dstROI);
-        return;
+        return OPENCV_SUCCESS;
     }
 
     // Ensure both matrices are 4-channel
@@ -501,5 +514,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
     } else {
         dst4.copyTo(dstROI);
     }
+
+    return OPENCV_SUCCESS;
 }
 

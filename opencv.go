@@ -373,14 +373,28 @@ func (f *Framebuffer) Duration() time.Duration {
 // CopyToOffsetWithAlphaBlending copies the source framebuffer to a specified rectangle within the destination framebuffer.
 // This function performs alpha blending.
 func (f *Framebuffer) CopyToOffsetWithAlphaBlending(src *Framebuffer, rect image.Rectangle) error {
-	C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
-	return nil
+	result := C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	switch result {
+	case C.OPENCV_SUCCESS:
+		return nil
+	case C.OPENCV_ERROR_INVALID_CHANNEL_COUNT:
+		return errors.New("error copying with alpha blending: source image must have 3 or 4 channels")
+	case C.OPENCV_ERROR_OUT_OF_BOUNDS:
+		return errors.New("error copying with alpha blending: source image with offsets exceeds the bounds of the destination framebuffer")
+	case C.OPENCV_ERROR_NULL_MATRIX:
+		return errors.New("error copying with alpha blending: source or destination matrix is null")
+	default:
+		return errors.New("unknown error occurred during alpha blending")
+	}
 }
 
 // CopyToOffsetNoBlend copies the source framebuffer to a specified rectangle within the destination framebuffer.
 // This function does not perform any blending.
 func (f *Framebuffer) CopyToOffsetNoBlend(src *Framebuffer, rect image.Rectangle) error {
-	C.opencv_copy_to_rect(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	result := C.opencv_copy_to_rect(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	if result == C.OPENCV_ERROR_NULL_MATRIX {
+		return errors.New("error copying to rect: source or destination matrix is null")
+	}
 	return nil
 }
 
