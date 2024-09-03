@@ -118,6 +118,10 @@ func (d *gifDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
 
+func (d *gifDecoder) BackgroundColor() uint32 {
+	return 0x00FFFFFF // use a non-opaque alpha value so we can see the background if needed
+}
+
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
@@ -151,6 +155,10 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 		return ErrDecodingFailed
 	}
 	f.duration = time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond
+	f.blend = NoBlend
+	f.dispose = DisposeToBackgroundColor
+	f.xOffset = 0
+	f.yOffset = 0
 	d.frameIndex++
 	return nil
 }

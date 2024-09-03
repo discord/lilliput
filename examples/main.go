@@ -107,7 +107,7 @@ func main() {
 
 	encodeTimeout, err := time.ParseDuration(encodeTimeoutOption)
 	if err != nil {
-		fmt.Printf("error parsing duration, %s\n", err);
+		fmt.Printf("error parsing duration, %s\n", err)
 		os.Exit(1)
 	}
 	opts := &lilliput.ImageOptions{
@@ -127,20 +127,14 @@ func main() {
 		fmt.Printf("error transforming image, %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("transformed in %s\n", time.Since(transformStartTime).String());
+	fmt.Printf("transformed in %s\n", time.Since(transformStartTime).String())
 
 	// image has been resized, now write file out
 	if outputFilename == "" {
 		outputFilename = "resized" + filepath.Ext(inputFilename)
 	}
 
-	if _, err := os.Stat(outputFilename); !os.IsNotExist(err) {
-		fmt.Printf("output filename %s exists, quitting\n", outputFilename)
-		os.Exit(1)
-	}
-
-	err = ioutil.WriteFile(outputFilename, outputImg, 0400)
-	if err != nil {
+	if err = os.WriteFile(outputFilename, outputImg, 0644); err != nil {
 		fmt.Printf("error writing out resized image, %s\n", err)
 		os.Exit(1)
 	}

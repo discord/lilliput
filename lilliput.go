@@ -59,6 +59,9 @@ type Decoder interface {
 	// HasSubtitles indicates whether the content has one or more subtitle tracks.
 	HasSubtitles() bool
 
+	// BackgroundColor as BGRA
+	BackgroundColor() uint32
+
 	// ICC returns the ICC color profile, if any
 	ICC() []byte
 }

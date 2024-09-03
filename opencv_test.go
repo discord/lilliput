@@ -279,6 +279,9 @@ func TestICC(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Encode failed unexpectedly: %v", err)
 			}
+			if encodedData, err = encoder.Encode(nil, options); err != nil {
+				t.Fatalf("Encode of empty frame failed unexpectedly: %v", err)
+			}
 			if len(encodedData) == 0 {
 				t.Fatalf("Encoded data is empty, but it should not be")
 			}

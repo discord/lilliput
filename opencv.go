@@ -16,9 +16,26 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"image"
 	"io"
 	"time"
 	"unsafe"
+)
+
+// DisposeMethod describes how the previous frame should be disposed before rendering the next frame.
+type DisposeMethod int
+
+const (
+	NoDispose DisposeMethod = iota
+	DisposeToBackgroundColor
+)
+
+// BlendMethod describes how the previous frame should be blended with the next frame.
+type BlendMethod int
+
+const (
+	UseAlphaBlending BlendMethod = iota
+	NoBlend
 )
 
 // ImageOrientation describes how the decoded image is oriented according to its metadata.
@@ -90,6 +107,10 @@ type Framebuffer struct {
 	height    int
 	pixelType PixelType
 	duration  time.Duration
+	xOffset   int
+	yOffset   int
+	dispose   DisposeMethod
+	blend     BlendMethod
 }
 
 type openCVDecoder struct {
@@ -140,6 +161,10 @@ func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
 }
 
+func (h *ImageHeader) HasAlpha() bool {
+	return h.pixelType.Channels() == 4
+}
+
 // Some images have extra padding bytes at the end that aren't needed.
 // In the worst case, this might be unwanted data that the user intended
 // to crop (e.g. "acropalypse" bug).
@@ -165,9 +190,29 @@ func (f *Framebuffer) Close() {
 	}
 }
 
-// Clear resets all of the pixel data in Framebuffer.
+// Clear resets all of the pixel data in Framebuffer for the active frame
+// It also resets the mat if it exists.
 func (f *Framebuffer) Clear() {
 	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
+	if f.mat != nil {
+		C.opencv_mat_reset(f.mat)
+	}
+}
+
+func (f *Framebuffer) Create3Channel(width, height int) error {
+	if err := f.resizeMat(width, height, C.CV_8UC3); err != nil {
+		return err
+	}
+	f.Clear()
+	return nil
+}
+
+func (f *Framebuffer) Create4Channel(width, height int) error {
+	if err := f.resizeMat(width, height, C.CV_8UC4); err != nil {
+		return err
+	}
+	f.Clear()
+	return nil
 }
 
 func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
@@ -219,6 +264,32 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 		return err
 	}
 	C.opencv_mat_resize(f.mat, dst.mat, C.int(width), C.int(height), C.CV_INTER_AREA)
+	return nil
+}
+
+// FillWithColor fills the entire framebuffer with the specified color.
+// The color is a 32-bit value in the format 0xAARRGGBB, where:
+// - AA: Alpha channel (transparency)
+// - RR: Red channel
+// - GG: Green channel
+// - BB: Blue channel
+func (f *Framebuffer) FillWithColor(color uint32, rect image.Rectangle) error {
+	if f.mat == nil {
+		return errors.New("framebuffer matrix is nil")
+	}
+
+	// Extract the color components
+	blue := uint8(color & 0xFF)
+	green := uint8((color >> 8) & 0xFF)
+	red := uint8((color >> 16) & 0xFF)
+	alpha := uint8((color >> 24) & 0xFF)
+
+	if f.pixelType.Channels() == 4 {
+		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha), C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	} else {
+		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), -1, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	}
+
 	return nil
 }
 
@@ -297,6 +368,34 @@ func (f *Framebuffer) PixelType() PixelType {
 // Duration returns the length of time this frame plays out in an animated image
 func (f *Framebuffer) Duration() time.Duration {
 	return f.duration
+}
+
+// CopyToOffsetWithAlphaBlending copies the source framebuffer to a specified rectangle within the destination framebuffer.
+// This function performs alpha blending.
+func (f *Framebuffer) CopyToOffsetWithAlphaBlending(src *Framebuffer, rect image.Rectangle) error {
+	result := C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	switch result {
+	case C.OPENCV_SUCCESS:
+		return nil
+	case C.OPENCV_ERROR_INVALID_CHANNEL_COUNT:
+		return errors.New("error copying with alpha blending: source image must have 3 or 4 channels")
+	case C.OPENCV_ERROR_OUT_OF_BOUNDS:
+		return errors.New("error copying with alpha blending: source image with offsets exceeds the bounds of the destination framebuffer")
+	case C.OPENCV_ERROR_NULL_MATRIX:
+		return errors.New("error copying with alpha blending: source or destination matrix is null")
+	default:
+		return errors.New("unknown error occurred during alpha blending")
+	}
+}
+
+// CopyToOffsetNoBlend copies the source framebuffer to a specified rectangle within the destination framebuffer.
+// This function does not perform any blending.
+func (f *Framebuffer) CopyToOffsetNoBlend(src *Framebuffer, rect image.Rectangle) error {
+	result := C.opencv_copy_to_rect(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	if result == C.OPENCV_ERROR_NULL_MATRIX {
+		return errors.New("error copying to rect: source or destination matrix is null")
+	}
+	return nil
 }
 
 func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {
@@ -534,6 +633,10 @@ func (d *openCVDecoder) IsStreamable() bool {
 	return true
 }
 
+func (d *openCVDecoder) BackgroundColor() uint32 {
+	return 0xFFFFFFFF
+}
+
 func (d *openCVDecoder) HasSubtitles() bool {
 	return false
 }
@@ -581,6 +684,11 @@ func (d *openCVDecoder) DecodeTo(f *Framebuffer) error {
 		return ErrDecodingFailed
 	}
 	d.hasDecoded = true
+	f.blend = NoBlend
+	f.dispose = DisposeToBackgroundColor
+	f.xOffset = 0
+	f.yOffset = 0
+	f.duration = time.Duration(0)
 	return nil
 }
 

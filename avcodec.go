@@ -88,6 +88,10 @@ func (d *avCodecDecoder) IsStreamable() bool {
 	return d.isStreamable
 }
 
+func (d *avCodecDecoder) BackgroundColor() uint32 {
+	return 0xFFFFFFFF
+}
+
 func (d *avCodecDecoder) ICC() []byte {
 	iccDst := make([]byte, 8192)
 	iccLength := C.avcodec_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
@@ -128,6 +132,11 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	if !ret {
 		return ErrDecodingFailed
 	}
+	f.blend = NoBlend
+	f.dispose = DisposeToBackgroundColor
+	f.duration = time.Duration(0)
+	f.xOffset = 0
+	f.yOffset = 0
 	d.hasDecoded = true
 	return nil
 }
