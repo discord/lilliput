@@ -314,6 +314,11 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
     return 0;
 }
 
+/**
+ * @brief Reset all pixels in the matrix to zero.
+ * 
+ * @param mat Pointer to the OpenCV matrix to be reset.
+ */
 void opencv_mat_reset(opencv_mat mat) {
     if (mat) {
         cv::Mat* m = static_cast<cv::Mat*>(mat);
@@ -321,31 +326,56 @@ void opencv_mat_reset(opencv_mat mat) {
     }
 }
 
+/**
+ * @brief Set the entire matrix to a specific color.
+ * 
+ * @param mat Pointer to the OpenCV matrix to be colored.
+ * @param red Red component of the color (0-255).
+ * @param green Green component of the color (0-255).
+ * @param blue Blue component of the color (0-255).
+ * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
+ */
 void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alpha) {
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (cvMat) {
-        if (alpha >= 0) {
-            // For 4-channel (RGBA)
-            cvMat->setTo(cv::Scalar(blue, green, red, alpha));
-        } else {
-            // For 3-channel (RGB)
-            cvMat->setTo(cv::Scalar(blue, green, red));
-        }
+        cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
+        cvMat->setTo(color);
     }
 }
 
+/**
+ * @brief Set a rectangular region of the matrix to a specific color.
+ * 
+ * @param mat Pointer to the OpenCV matrix to be modified.
+ * @param red Red component of the color (0-255).
+ * @param green Green component of the color (0-255).
+ * @param blue Blue component of the color (0-255).
+ * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
+ * @param x X-coordinate of the top-left corner of the rectangle.
+ * @param y Y-coordinate of the top-left corner of the rectangle.
+ * @param width Width of the rectangle.
+ * @param height Height of the rectangle.
+ */
 void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height) {
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (cvMat) {
         cv::Rect roi(x, y, width, height);
-        if (alpha >= 0) {
-            cvMat->operator()(roi).setTo(cv::Scalar(blue, green, red, alpha));
-        } else {
-            cvMat->operator()(roi).setTo(cv::Scalar(blue, green, red));
-        }
+        cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
+        cvMat->operator()(roi).setTo(color);
     }
 }
 
+/**
+ * @brief Copy source image to destination with alpha blending.
+ * 
+ * @param src Pointer to the source OpenCV matrix.
+ * @param dst Pointer to the destination OpenCV matrix.
+ * @param xOffset X-coordinate offset in the destination image.
+ * @param yOffset Y-coordinate offset in the destination image.
+ * @param width Width of the region to copy (unused in current implementation).
+ * @param height Height of the region to copy (unused in current implementation).
+ * @throws std::invalid_argument If source image doesn't have 3 or 4 channels or if it exceeds destination bounds.
+ */
 void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
     auto srcMat = static_cast<cv::Mat*>(src);
     auto dstMat = static_cast<cv::Mat*>(dst);
@@ -362,11 +392,12 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
     cv::Mat dstROI = (*dstMat)(roi);
 
     if (srcMat->channels() == 4) {
+        // Convert to floating-point for precise calculations
         cv::Mat srcFloat, dstFloat;
         srcMat->convertTo(srcFloat, CV_32FC4, 1.0 / 255.0);
         dstROI.convertTo(dstFloat, CV_32FC4, 1.0 / 255.0);
 
-        // Optimized alpha blending using vectorized operations
+        // Split into channels for vectorized operations
         std::vector<cv::Mat> srcChannels, dstChannels;
         cv::split(srcFloat, srcChannels);
         cv::split(dstFloat, dstChannels);
@@ -375,11 +406,13 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
         cv::Mat dstAlpha = dstChannels[3];
         cv::Mat outAlpha = srcAlpha + dstAlpha.mul(1.0 - srcAlpha);
 
+        // Perform alpha blending for each channel
         for (int i = 0; i < 3; ++i) {
             dstChannels[i] = (srcChannels[i].mul(srcAlpha) + dstChannels[i].mul(dstAlpha).mul(1.0 - srcAlpha)) / outAlpha;
         }
         dstChannels[3] = outAlpha;
 
+        // Merge channels and convert back to original type
         cv::Mat result;
         cv::merge(dstChannels, result);
         result.convertTo(dstROI, dstROI.type(), 255.0);
@@ -388,6 +421,17 @@ void opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset
     }
 }
 
+/**
+ * @brief Copy source image to a rectangular region of the destination image with alpha blending.
+ * 
+ * @param src Pointer to the source OpenCV matrix.
+ * @param dst Pointer to the destination OpenCV matrix.
+ * @param x X-coordinate of the top-left corner in the destination image.
+ * @param y Y-coordinate of the top-left corner in the destination image.
+ * @param width Width of the region to copy.
+ * @param height Height of the region to copy.
+ * @throws std::invalid_argument If source or destination matrix is null.
+ */
 void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height) {
     auto srcMat = static_cast<cv::Mat*>(src);
     auto dstMat = static_cast<cv::Mat*>(dst);
@@ -396,6 +440,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
         throw std::invalid_argument("Source or destination matrix is null");
     }
 
+    // Ensure coordinates are within bounds
     x = std::max(0, x);
     y = std::max(0, y);
     width = std::min(width, dstMat->cols - x);
@@ -406,6 +451,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
     cv::Rect roi(x, y, width, height);
     cv::Mat dstROI = (*dstMat)(roi);
 
+    // Resize source if necessary
     cv::Mat srcResized;
     if (srcMat->size() != dstROI.size()) {
         cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
@@ -413,18 +459,20 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
         srcResized = *srcMat;
     }
 
+    // Fast path for 3-channel to 3-channel copy
     if (srcResized.channels() == 3 && dstROI.channels() == 3) {
         srcResized.copyTo(dstROI);
         return;
     }
 
+    // Ensure both matrices are 4-channel
     cv::Mat src4 = srcResized.channels() == 3 ? cv::Mat() : srcResized;
     cv::Mat dst4 = dstROI.channels() == 3 ? cv::Mat() : dstROI;
 
     if (src4.empty()) cv::cvtColor(srcResized, src4, cv::COLOR_BGR2BGRA);
     if (dst4.empty()) cv::cvtColor(dstROI, dst4, cv::COLOR_BGR2BGRA);
 
-    // Optimized alpha blending using vectorized operations
+    // Perform alpha blending
     std::vector<cv::Mat> srcChannels, dstChannels;
     cv::split(src4, srcChannels);
     cv::split(dst4, dstChannels);
@@ -447,6 +495,7 @@ void opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width
 
     cv::merge(dstChannels, dst4);
 
+    // Convert back to 3-channel if necessary
     if (dstROI.channels() == 3) {
         cv::cvtColor(dst4, dstROI, cv::COLOR_BGRA2BGR);
     } else {
