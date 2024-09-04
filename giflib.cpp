@@ -1,6 +1,10 @@
 #include "giflib.hpp"
 #include "gif_lib.h"
 #include <stdbool.h>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+
+const int TRANSPARENCY_THRESHOLD = 128;
 
 struct giflib_decoder_struct {
     GifFileType* gif;
@@ -819,91 +823,63 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
 
     GifByteType* raster_out = e->pixels;
 
-    int raster_index = 0;
-    for (int y = frame_top; y < frame_top + frame_height; y++) {
-        uint8_t* src = frame->data + y * frame->step + (frame_left * 4);
-        for (int x = frame_left; x < frame_left + frame_width; x++) {
-            uint32_t B = *src++;
-            uint32_t G = *src++;
-            uint32_t R = *src++;
-            uint32_t A = *src++;
+    cv::Mat frame_mat(frame_height, frame_width, CV_8UC4, frame->data);
+    cv::Mat bgr_mat, alpha_mat;
+    std::vector<cv::Mat> channels(4);
+    cv::split(frame_mat, channels);
 
-            // TODO come up with what this threshold value should be
-            // probably ought to be a lot smaller, but greater than 0
-            // for now we just pick halfway
-            if (A < 128 && have_transparency) {
-                // this composite frame pixel is actually transparent
-                // what this means is that the background color must be transparent
-                // AND this frame pixel must be transparent
-                // for now we'll just assume bg is transparent since otherwise decoder
-                // could not have generated this frame pixel with a low opacity
-                *raster_out++ = transparency_index;
-                continue;
-            }
+    cv::merge(std::vector<cv::Mat>{channels[0], channels[1], channels[2]}, bgr_mat);
+    alpha_mat = channels[3];
 
-            uint32_t crushed = ((R >> 3) << 10) | ((G >> 3) << 5) | ((B >> 3));
-            int least_dist = INT_MAX;
-            int best_color = 0;
-            if (!(e->palette_lookup[crushed].present)) {
-                // calculate the best palette entry based on the midpoint of the crushed colors
-                // what this means is that we drop the crushed bits (& 0xf8)
-                // and then OR the highest-order crushed bit back in, which is approx midpoint
-                uint32_t R_center = (R & 0xf8) | 4;
-                uint32_t G_center = (G & 0xf8) | 4;
-                uint32_t B_center = (B & 0xf8) | 4;
+    // Create background color mat
+    cv::Mat bg_color(1, 1, CV_8UC3, cv::Scalar(d->bg_blue, d->bg_green, d->bg_red));
 
-                // we're calculating the best, so keep track of which palette entry has least
-                // distance
-                int count = color_map->ColorCount;
-                for (int i = 0; i < count; i++) {
-                    if (i == transparency_index) {
-                        // this index doesn't point to an actual color
-                        continue;
-                    }
-                    int dist = rgb_distance(R_center,
-                                            G_center,
-                                            B_center,
-                                            color_map->Colors[i].Red,
-                                            color_map->Colors[i].Green,
-                                            color_map->Colors[i].Blue);
-                    if (dist < least_dist) {
-                        least_dist = dist;
-                        best_color = i;
-                    }
-                }
-                e->palette_lookup[crushed].present = 1;
-                e->palette_lookup[crushed].index = best_color;
-            }
-            else {
-                best_color = e->palette_lookup[crushed].index;
-                least_dist = rgb_distance(R,
-                                          G,
-                                          B,
-                                          color_map->Colors[best_color].Red,
-                                          color_map->Colors[best_color].Green,
-                                          color_map->Colors[best_color].Blue);
-            }
+    // Create masks for transparency
+    cv::Mat transparent_mask = alpha_mat < TRANSPARENCY_THRESHOLD;
+    cv::Mat semi_transparent_mask = alpha_mat < 255 & alpha_mat >= TRANSPARENCY_THRESHOLD;
 
-            // now that we for sure know which palette entry to pick, we have one more test
-            // to perform. it's possible that the best color for this pixel is actually
-            // the color of this pixel in the previous frame. if that's true, we'll just
-            // choose the transparency color, which will compress better on average
-            // (plus it improves color range of image)
-            if (prev_frame_valid && have_transparency) {
-                ptrdiff_t frame_index = 4 * ((y * e->gif->SWidth) + x);
-                uint32_t last_B = e->prev_frame_bgra[frame_index];
-                uint32_t last_G = e->prev_frame_bgra[frame_index + 1];
-                uint32_t last_R = e->prev_frame_bgra[frame_index + 2];
-                int dist = rgb_distance(R, G, B, last_R, last_G, last_B);
-                if (dist < least_dist) {
-                    least_dist = dist;
-                    best_color = transparency_index;
+    // Apply alpha blending to each channel
+    cv::Mat blended_mat;
+    bgr_mat.convertTo(blended_mat, CV_32F);
+    bg_color.convertTo(bg_color, CV_32F);
+
+    cv::Mat alpha_float;
+    alpha_mat.convertTo(alpha_float, CV_32F, 1.0/255.0);
+
+    for (int i = 0; i < 3; ++i) {
+        cv::Mat channel(frame_height, frame_width, CV_32F);
+        cv::extractChannel(blended_mat, channel, i);
+        channel = channel.mul(alpha_float) + bg_color.at<cv::Vec3f>(0)[i] * (1.0 - alpha_float);
+        cv::insertChannel(channel, blended_mat, i);
+    }
+
+    blended_mat.convertTo(blended_mat, CV_8U);
+
+    // Use a simple nearest-neighbor color quantization
+    cv::Mat indices(frame_height, frame_width, CV_8UC1);
+    for (int y = 0; y < frame_height; ++y) {
+        for (int x = 0; x < frame_width; ++x) {
+            cv::Vec3b pixel = blended_mat.at<cv::Vec3b>(y, x);
+            int best_index = 0;
+            int min_diff = INT_MAX;
+            for (int i = 0; i < color_map->ColorCount; ++i) {
+                int diff = std::abs(pixel[0] - color_map->Colors[i].Blue) +
+                           std::abs(pixel[1] - color_map->Colors[i].Green) +
+                           std::abs(pixel[2] - color_map->Colors[i].Red);
+                if (diff < min_diff) {
+                    min_diff = diff;
+                    best_index = i;
                 }
             }
-
-            *raster_out++ = best_color;
+            indices.at<uchar>(y, x) = best_index;
         }
     }
+
+    // Handle transparency
+    indices.setTo(transparency_index, transparent_mask);
+
+    // Copy result to raster_out
+    std::memcpy(e->pixels, indices.data, frame_width * frame_height);
 
     // XXX change this if we do partial frames (only copy over some)
     memcpy(e->prev_frame_bgra, frame->data, 4 * e->gif->SWidth * e->gif->SHeight);
