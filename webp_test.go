@@ -216,13 +216,14 @@ func testWebpEncoderEncode(t *testing.T) {
 
 func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 	testCases := []struct {
-		name         string
-		inputPath    string
-		outputPath   string
-		width        int
-		height       int
-		quality      int
-		resizeMethod ImageOpsSizeMethod
+		name                  string
+		inputPath             string
+		outputPath            string
+		width                 int
+		height                int
+		quality               int
+		resizeMethod          ImageOpsSizeMethod
+		disableAnimatedOutput bool
 	}{
 		{
 			name:         "Animated WebP - Party Discord",
@@ -278,6 +279,16 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			quality:      60,
 			resizeMethod: ImageOpsFit,
 		},
+		{
+			name:                  "Animated WebP - create single frame",
+			inputPath:             "testdata/big_buck_bunny_720_5s.webp",
+			outputPath:            "testdata/out/big_buck_bunny_720_5s_single_frame_out.webp",
+			width:                 200,
+			height:                200,
+			quality:               60,
+			resizeMethod:          ImageOpsFit,
+			disableAnimatedOutput: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -302,13 +313,14 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			dstBuf := make([]byte, destinationBufferSize)
 
 			options := &ImageOptions{
-				FileType:             ".webp",
-				NormalizeOrientation: true,
-				EncodeOptions:        map[int]int{WebpQuality: tc.quality},
-				ResizeMethod:         tc.resizeMethod,
-				Width:                tc.width,
-				Height:               tc.height,
-				EncodeTimeout:        time.Second * 300,
+				FileType:              ".webp",
+				NormalizeOrientation:  true,
+				EncodeOptions:         map[int]int{WebpQuality: tc.quality},
+				ResizeMethod:          tc.resizeMethod,
+				Width:                 tc.width,
+				Height:                tc.height,
+				EncodeTimeout:         time.Second * 300,
+				DisableAnimatedOutput: tc.disableAnimatedOutput,
 			}
 
 			ops := NewImageOps(50000)

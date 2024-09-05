@@ -7,9 +7,12 @@
 
 struct webp_decoder_struct {
     WebPMux* mux;
-    WebPBitstreamFeatures features;
     int total_frame_count;
     uint32_t bgcolor;
+    bool has_alpha;
+    bool has_animation;
+    int width;
+    int height;
 
     int current_frame_index;
     int prev_frame_delay_time;
@@ -80,8 +83,14 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     memset(d, 0, sizeof(webp_decoder_struct));
     d->mux = mux;
     d->current_frame_index = 1;
-    d->features = features;
-    
+    d->has_alpha = (flags & ALPHA_FLAG);
+
+    // Get the canvas size
+    if (WebPMuxGetCanvasSize(mux, &d->width, &d->height) != WEBP_MUX_OK) {
+        WebPMuxDelete(mux);
+        return nullptr;
+    }
+
     // Calculate total frame count
     d->total_frame_count = 0;
     do {
@@ -96,13 +105,11 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
         if (WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
             d->bgcolor = anim_params.bgcolor;
         }
-        d->features.has_animation = true;
-    } else {
-        d->features.has_animation = false;
+        d->has_animation = true;
     }
 
     // Pre-allocate decode buffer
-    d->decode_buffer_size = features.width * features.height * 4; // 4 channels for RGBA
+    d->decode_buffer_size = d->width * d->height * 4; // 4 channels for RGBA
     d->decode_buffer = new uint8_t[d->decode_buffer_size];
 
     return d;
@@ -115,7 +122,7 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
  */
 int webp_decoder_get_width(const webp_decoder d)
 {
-    return d->features.width;
+    return d->width;
 }
 
 /**
@@ -125,7 +132,7 @@ int webp_decoder_get_width(const webp_decoder d)
  */
 int webp_decoder_get_height(const webp_decoder d)
 {
-    return d->features.height;
+    return d->height;
 }
 
 /**
@@ -135,7 +142,7 @@ int webp_decoder_get_height(const webp_decoder d)
  */
 int webp_decoder_get_pixel_type(const webp_decoder d)
 {
-    return CV_8UC4;
+    return d->has_alpha ? CV_8UC4 : CV_8UC3;
 }
 
 /**
@@ -274,11 +281,10 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 
     // Set the cv::Mat dimensions to the frame's width and height
     auto cvMat = static_cast<cv::Mat*>(mat);
-    cvMat->create(features.height, features.width, features.has_alpha ? CV_8UC4 : CV_8UC3);
+    cvMat->create(features.height, features.width, webp_decoder_get_pixel_type(d));
 
     // Recalculate row size based on the new dimensions
     int row_size = cvMat->cols * cvMat->elemSize();
-    uint8_t* res = nullptr;
 
     // Store frame properties for future use
     d->prev_frame_delay_time = frame.duration;
@@ -287,12 +293,19 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     d->prev_frame_dispose = frame.dispose_method;
     d->prev_frame_blend = frame.blend_method;
 
-    if (features.has_alpha) {
-        res = WebPDecodeBGRAInto(frame.bitstream.bytes, frame.bitstream.size,
-                                 d->decode_buffer, d->decode_buffer_size, row_size);
-    } else {
-        res = WebPDecodeBGRInto(frame.bitstream.bytes, frame.bitstream.size,
+    // Decode the frame
+    uint8_t* res = nullptr;
+    switch (webp_decoder_get_pixel_type(d)) {
+        case CV_8UC4:
+            res = WebPDecodeBGRAInto(frame.bitstream.bytes, frame.bitstream.size,
+                                     d->decode_buffer, d->decode_buffer_size, row_size);
+            break;
+        case CV_8UC3:
+            res = WebPDecodeBGRInto(frame.bitstream.bytes, frame.bitstream.size,
                                 d->decode_buffer, d->decode_buffer_size, row_size);
+            break;
+        default:
+            return false;
     }
 
     if (res) {
@@ -300,7 +313,7 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     }
 
     WebPDataClear(&frame.bitstream);
-    return res;
+    return res != nullptr;
 }
 
 /**
