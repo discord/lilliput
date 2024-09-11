@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"math"
 	"time"
 )
 
@@ -138,12 +137,8 @@ func (o *ImageOps) decode(d Decoder) error {
 // It returns true if the frame was resized and false if it was not.
 // It returns an error if the frame could not be resized.
 func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight int, isAnimated, hasAlpha bool) (bool, error) {
-	// Calculate the minimum height and width to fit the image within the output canvas
-	minHeight := int(math.Min(float64(inputCanvasHeight), float64(outputCanvasHeight)))
-	minWidth := int(math.Min(float64(inputCanvasWidth), float64(outputCanvasWidth)))
+	newWidth, newHeight := calculateExpectedSize(inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight)
 
-	// If the image is animated, we need to resize the frame to the input canvas size
-	// and then copy the previous frame's data to the working buffer.
 	if isAnimated {
 		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight, hasAlpha); err != nil {
 			return false, err
@@ -157,7 +152,7 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 			return false, err
 		}
 
-		if err := o.animatedCompositeBuffer.Fit(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
+		if err := o.animatedCompositeBuffer.Fit(newWidth, newHeight, o.secondary()); err != nil {
 			return false, err
 		}
 
@@ -165,8 +160,8 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 		return true, nil
 	}
 
-	// If the image is not animated, we can resize it directly.
-	if err := o.active().Fit(minWidth, minHeight, o.secondary()); err != nil {
+	// If the image is not animated, we can fit it directly.
+	if err := o.active().Fit(newWidth, newHeight, o.secondary()); err != nil {
 		return false, err
 	}
 	o.copyFramePropertiesAndSwap()
@@ -175,10 +170,6 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 
 // resize resizes the active frame to the specified output canvas size.
 func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int, isAnimated, hasAlpha bool) (bool, error) {
-	// Calculate scaling factors
-	scaleX := float64(outputCanvasWidth) / float64(inputCanvasWidth)
-	scaleY := float64(outputCanvasHeight) / float64(inputCanvasHeight)
-
 	// If the image is animated, we need to resize the frame to the input canvas size
 	// and then copy the previous frame's data to the working buffer.
 	if isAnimated {
@@ -202,16 +193,33 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 		return true, nil
 	}
 
-	// If the image is not animated, we can resize it directly.
-	newFrameWidth := int(float64(o.active().Width()) * scaleX)
-	newFrameHeight := int(float64(o.active().Height()) * scaleY)
-
-	if err := o.active().ResizeTo(newFrameWidth, newFrameHeight, o.secondary()); err != nil {
+	if err := o.active().ResizeTo(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
 		return false, err
 	}
 	o.copyFramePropertiesAndSwap()
 
 	return true, nil
+}
+
+func calculateExpectedSize(origWidth, origHeight, reqWidth, reqHeight int) (int, int) {
+	if reqWidth == reqHeight && reqWidth > min(origWidth, origHeight) {
+		// Square resize request larger than smaller original dimension
+		minDim := min(origWidth, origHeight)
+		return minDim, minDim
+	} else if reqWidth > origWidth && reqHeight > origHeight && reqWidth != reqHeight {
+		// Both dimensions larger than original and not square
+		return origWidth, origHeight
+	} else {
+		// All other cases
+		return reqWidth, reqHeight
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // normalizeOrientation flips and rotates the active frame to undo EXIF orientation.
