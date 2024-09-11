@@ -152,7 +152,7 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 			return false, err
 		}
 
-		if err := o.animatedCompositeBuffer.Fit(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
+		if err := o.animatedCompositeBuffer.Fit(newWidth, newHeight, o.secondary()); err != nil {
 			return false, err
 		}
 
