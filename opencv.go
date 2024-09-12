@@ -370,32 +370,48 @@ func (f *Framebuffer) Duration() time.Duration {
 	return f.duration
 }
 
-// CopyToOffsetWithAlphaBlending copies the source framebuffer to a specified rectangle within the destination framebuffer.
-// This function performs alpha blending.
-func (f *Framebuffer) CopyToOffsetWithAlphaBlending(src *Framebuffer, rect image.Rectangle) error {
-	result := C.opencv_copy_with_alpha_blending(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+// handleOpenCVError converts an OpenCV error code to an error
+func handleOpenCVError(result C.int) error {
 	switch result {
 	case C.OPENCV_SUCCESS:
 		return nil
 	case C.OPENCV_ERROR_INVALID_CHANNEL_COUNT:
-		return errors.New("error copying with alpha blending: source image must have 3 or 4 channels")
+		return errors.New("error copying opencv data: source image must have 3 or 4 channels")
 	case C.OPENCV_ERROR_OUT_OF_BOUNDS:
-		return errors.New("error copying with alpha blending: source image with offsets exceeds the bounds of the destination framebuffer")
+		return errors.New("error copying opencv data: source image with offsets exceeds the bounds of the destination framebuffer")
 	case C.OPENCV_ERROR_NULL_MATRIX:
-		return errors.New("error copying with alpha blending: source or destination matrix is null")
+		return errors.New("error copying opencv data: source or destination matrix is null")
+	case C.OPENCV_ERROR_ALPHA_BLENDING_FAILED:
+		return errors.New("error copying opencv data: alpha blending failed")
+	case C.OPENCV_ERROR_FINAL_CONVERSION_FAILED:
+		return errors.New("error copying opencv data: final conversion failed")
+	case C.OPENCV_ERROR_CONVERSION_FAILED:
+		return errors.New("error copying opencv data: conversion failed")
+	case C.OPENCV_ERROR_RESIZE_FAILED:
+		return errors.New("error copying opencv data: resize failed")
+	case C.OPENCV_ERROR_COPY_FAILED:
+		return errors.New("error copying opencv data: copy failed")
+	case C.OPENCV_ERROR_INVALID_DIMENSIONS:
+		return errors.New("error copying opencv data: invalid dimensions")
+	case C.OPENCV_ERROR_UNKNOWN:
+		return errors.New("unknown error copying opencv data")
 	default:
 		return errors.New("unknown error occurred during alpha blending")
 	}
 }
 
+// CopyToOffsetWithAlphaBlending copies the source framebuffer to a specified rectangle within the destination framebuffer.
+// This function performs alpha blending.
+func (f *Framebuffer) CopyToOffsetWithAlphaBlending(src *Framebuffer, rect image.Rectangle) error {
+	result := C.opencv_copy_to_region_with_alpha(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	return handleOpenCVError(result)
+}
+
 // CopyToOffsetNoBlend copies the source framebuffer to a specified rectangle within the destination framebuffer.
 // This function does not perform any blending.
 func (f *Framebuffer) CopyToOffsetNoBlend(src *Framebuffer, rect image.Rectangle) error {
-	result := C.opencv_copy_to_rect(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
-	if result == C.OPENCV_ERROR_NULL_MATRIX {
-		return errors.New("error copying to rect: source or destination matrix is null")
-	}
-	return nil
+	result := C.opencv_copy_to_region(src.mat, f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+	return handleOpenCVError(result)
 }
 
 func newOpenCVDecoder(buf []byte) (*openCVDecoder, error) {

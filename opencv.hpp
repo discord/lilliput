@@ -43,7 +43,8 @@ int opencv_decoder_get_height(const opencv_decoder d);
 int opencv_decoder_get_pixel_type(const opencv_decoder d);
 int opencv_decoder_get_orientation(const opencv_decoder d);
 bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
-int opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
+int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
+int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
 void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 void opencv_mat_reset(opencv_mat mat);
 void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height);
@@ -74,13 +75,18 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 
-int opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height);
-
 // Error codes
 #define OPENCV_SUCCESS 0
 #define OPENCV_ERROR_INVALID_CHANNEL_COUNT 1
 #define OPENCV_ERROR_OUT_OF_BOUNDS 2
 #define OPENCV_ERROR_NULL_MATRIX 3
+#define OPENCV_ERROR_RESIZE_FAILED 4
+#define OPENCV_ERROR_COPY_FAILED 5
+#define OPENCV_ERROR_CONVERSION_FAILED 6
+#define OPENCV_ERROR_ALPHA_BLENDING_FAILED 7
+#define OPENCV_ERROR_FINAL_CONVERSION_FAILED 8
+#define OPENCV_ERROR_INVALID_DIMENSIONS 9
+#define OPENCV_ERROR_UNKNOWN 10
 
 #ifdef __cplusplus
 }
