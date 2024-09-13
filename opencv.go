@@ -284,13 +284,13 @@ func (f *Framebuffer) FillWithColor(color uint32, rect image.Rectangle) error {
 	red := uint8((color >> 16) & 0xFF)
 	alpha := uint8((color >> 24) & 0xFF)
 
+	var result C.int
 	if f.pixelType.Channels() == 4 {
-		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha), C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+		result = C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha), C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	} else {
-		C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), -1, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
+		result = C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), -1, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	}
-
-	return nil
+	return handleOpenCVError(result)
 }
 
 // Fit performs a resizing and cropping transform on the Framebuffer and puts the result

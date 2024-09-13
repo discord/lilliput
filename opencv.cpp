@@ -352,17 +352,34 @@ void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alph
  * @param green Green component of the color (0-255).
  * @param blue Blue component of the color (0-255).
  * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
- * @param x X-coordinate of the top-left corner of the rectangle.
- * @param y Y-coordinate of the top-left corner of the rectangle.
+ * @param xOffset X-coordinate of the top-left corner of the rectangle.
+ * @param yOffset Y-coordinate of the top-left corner of the rectangle.
  * @param width Width of the rectangle.
  * @param height Height of the rectangle.
+ * @return int Error code.
  */
-void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height) {
+int opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int xOffset, int yOffset, int width, int height) {
     auto cvMat = static_cast<cv::Mat*>(mat);
-    if (cvMat) {
-        cv::Rect roi(x, y, width, height);
+    if (!cvMat) {
+        return OPENCV_ERROR_NULL_MATRIX;
+    }
+
+    if (xOffset < 0 || yOffset < 0 || xOffset + width > cvMat->cols || yOffset + height > cvMat->rows) {
+        return OPENCV_ERROR_OUT_OF_BOUNDS;
+    }
+
+    if (width <= 0 || height <= 0) {
+        return OPENCV_ERROR_INVALID_DIMENSIONS;
+    }
+
+    try {
+        cv::Rect roi(xOffset, yOffset, width, height);
         cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
         cvMat->operator()(roi).setTo(color);
+        return OPENCV_SUCCESS;
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_mat_set_color_rect: " << e.what() << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
     }
 }
 
