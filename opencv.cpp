@@ -5,6 +5,7 @@
 #include <jpeglib.h>
 #include <png.h>
 #include <setjmp.h>
+#include <iostream>
 
 opencv_mat opencv_mat_create(int width, int height, int type)
 {
@@ -351,22 +352,39 @@ void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alph
  * @param green Green component of the color (0-255).
  * @param blue Blue component of the color (0-255).
  * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
- * @param x X-coordinate of the top-left corner of the rectangle.
- * @param y Y-coordinate of the top-left corner of the rectangle.
+ * @param xOffset X-coordinate of the top-left corner of the rectangle.
+ * @param yOffset Y-coordinate of the top-left corner of the rectangle.
  * @param width Width of the rectangle.
  * @param height Height of the rectangle.
+ * @return int Error code.
  */
-void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height) {
+int opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int xOffset, int yOffset, int width, int height) {
     auto cvMat = static_cast<cv::Mat*>(mat);
-    if (cvMat) {
-        cv::Rect roi(x, y, width, height);
+    if (!cvMat) {
+        return OPENCV_ERROR_NULL_MATRIX;
+    }
+
+    if (xOffset < 0 || yOffset < 0 || xOffset + width > cvMat->cols || yOffset + height > cvMat->rows) {
+        return OPENCV_ERROR_OUT_OF_BOUNDS;
+    }
+
+    if (width <= 0 || height <= 0) {
+        return OPENCV_ERROR_INVALID_DIMENSIONS;
+    }
+
+    try {
+        cv::Rect roi(xOffset, yOffset, width, height);
         cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
         cvMat->operator()(roi).setTo(color);
+        return OPENCV_SUCCESS;
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_mat_set_color_rect: " << e.what() << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
     }
 }
 
 /**
- * @brief Copy source image to destination with alpha blending.
+ * @brief Blend source image with destination image using alpha blending.
  * 
  * @param src Pointer to the source OpenCV matrix.
  * @param dst Pointer to the destination OpenCV matrix.
@@ -374,62 +392,99 @@ void opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int
  * @param yOffset Y-coordinate offset in the destination image.
  * @param width Width of the region to copy.
  * @param height Height of the region to copy.
- * @return int Error code:
- *             OPENCV_SUCCESS (0) on success,
- *             OPENCV_ERROR_NULL_MATRIX (3) if source or destination matrix is null,
- *             OPENCV_ERROR_INVALID_CHANNEL_COUNT (1) if source image doesn't have 3 or 4 channels,
- *             OPENCV_ERROR_OUT_OF_BOUNDS (2) if it exceeds destination bounds.
+ * @return int Error code.
  */
-int opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
-    auto srcMat = static_cast<cv::Mat*>(src);
-    auto dstMat = static_cast<cv::Mat*>(dst);
+int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+    try {
+        auto srcMat = static_cast<cv::Mat*>(src);
+        auto dstMat = static_cast<cv::Mat*>(dst);
 
-    // Check for null matrices
-    if (!srcMat || !dstMat) {
-        return OPENCV_ERROR_NULL_MATRIX;
-    }
+        if (!srcMat || !dstMat || srcMat->empty() || dstMat->empty()) {
+            return OPENCV_ERROR_NULL_MATRIX;
+        }
 
-    if (srcMat->channels() != 3 && srcMat->channels() != 4) {
-        return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
-    }
-    
-    if (xOffset < 0 || yOffset < 0 || xOffset + srcMat->cols > dstMat->cols || yOffset + srcMat->rows > dstMat->rows) {
-        return OPENCV_ERROR_OUT_OF_BOUNDS;
-    }
+        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols || yOffset + height > dstMat->rows) {
+            return OPENCV_ERROR_OUT_OF_BOUNDS;
+        }
 
-    cv::Rect roi(xOffset, yOffset, srcMat->cols, srcMat->rows);
-    cv::Mat dstROI = (*dstMat)(roi);
+        if (width <= 0 || height <= 0) {
+            return OPENCV_ERROR_INVALID_DIMENSIONS;
+        }
 
-    if (srcMat->channels() == 4) {
-        // Convert to floating-point for precise calculations
-        cv::Mat srcFloat, dstFloat;
-        srcMat->convertTo(srcFloat, CV_32FC4, 1.0 / 255.0);
-        dstROI.convertTo(dstFloat, CV_32FC4, 1.0 / 255.0);
+        cv::Rect roi(xOffset, yOffset, width, height);
+        cv::Mat dstROI = dstMat->operator()(roi);
 
-        // Split into channels for vectorized operations
+        cv::Mat srcResized;
+        if (srcMat->size() != dstROI.size()) {
+            cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
+        } else {
+            srcResized = *srcMat;
+        }
+
+        // Handle grayscale source
+        if (srcResized.channels() == 1) {
+            cv::cvtColor(srcResized, srcResized, cv::COLOR_GRAY2BGR);
+        }
+
+        // Ensure both matrices are 4-channel
+        cv::Mat src4, dst4;
+        if (srcResized.channels() == 3) {
+            cv::cvtColor(srcResized, src4, cv::COLOR_BGR2BGRA);
+        } else if (srcResized.channels() == 4) {
+            src4 = srcResized;
+        } else {
+            return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
+        }
+
+        if (dstROI.channels() == 3) {
+            cv::cvtColor(dstROI, dst4, cv::COLOR_BGR2BGRA);
+        } else if (dstROI.channels() == 4) {
+            dst4 = dstROI;
+        } else {
+            return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
+        }
+
+        // Perform alpha blending
         std::vector<cv::Mat> srcChannels, dstChannels;
-        cv::split(srcFloat, srcChannels);
-        cv::split(dstFloat, dstChannels);
+        cv::split(src4, srcChannels);
+        cv::split(dst4, dstChannels);
 
         cv::Mat srcAlpha = srcChannels[3];
         cv::Mat dstAlpha = dstChannels[3];
-        cv::Mat outAlpha = srcAlpha + dstAlpha.mul(1.0 - srcAlpha);
+        cv::Mat srcAlphaF, dstAlphaF, outAlphaF;
+        srcAlpha.convertTo(srcAlphaF, CV_32F, 1.0 / 255.0);
+        dstAlpha.convertTo(dstAlphaF, CV_32F, 1.0 / 255.0);
+        outAlphaF = srcAlphaF + dstAlphaF.mul(1.0f - srcAlphaF);
 
-        // Perform alpha blending for each channel
         for (int i = 0; i < 3; ++i) {
-            dstChannels[i] = (srcChannels[i].mul(srcAlpha) + dstChannels[i].mul(dstAlpha).mul(1.0 - srcAlpha)) / outAlpha;
+            cv::Mat srcChannelF, dstChannelF;
+            srcChannels[i].convertTo(srcChannelF, CV_32F, 1.0 / 255.0);
+            dstChannels[i].convertTo(dstChannelF, CV_32F, 1.0 / 255.0);
+            cv::Mat blended = (srcChannelF.mul(srcAlphaF) + dstChannelF.mul(dstAlphaF).mul(1.0f - srcAlphaF)) / outAlphaF;
+            blended.convertTo(dstChannels[i], CV_8U, 255.0);
         }
-        dstChannels[3] = outAlpha;
+        outAlphaF.convertTo(dstChannels[3], CV_8U, 255.0);
 
-        // Merge channels and convert back to original type
-        cv::Mat result;
-        cv::merge(dstChannels, result);
-        result.convertTo(dstROI, dstROI.type(), 255.0);
-    } else {
-        srcMat->copyTo(dstROI);
+        cv::merge(dstChannels, dst4);
+
+        // Convert back to original channel count if necessary
+        if (dstROI.channels() == 3) {
+            cv::cvtColor(dst4, dstROI, cv::COLOR_BGRA2BGR);
+        } else {
+            dst4.copyTo(dstROI);
+        }
+
+        return OPENCV_SUCCESS;
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_copy_to_region_with_alpha: " << e.what() << std::endl;
+        return OPENCV_ERROR_ALPHA_BLENDING_FAILED;
+    } catch (const std::exception& e) {
+        std::cerr << "Standard exception in opencv_copy_to_region_with_alpha: " << e.what() << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
+    } catch (...) {
+        std::cerr << "Unknown exception in opencv_copy_to_region_with_alpha" << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
     }
-
-    return OPENCV_SUCCESS;
 }
 
 /**
@@ -437,84 +492,67 @@ int opencv_copy_with_alpha_blending(opencv_mat src, opencv_mat dst, int xOffset,
  * 
  * @param src Pointer to the source OpenCV matrix.
  * @param dst Pointer to the destination OpenCV matrix.
- * @param x X-coordinate of the top-left corner in the destination image.
- * @param y Y-coordinate of the top-left corner in the destination image.
+ * @param xOffset X-coordinate of the top-left corner in the destination image.
+ * @param yOffset Y-coordinate of the top-left corner in the destination image.
  * @param width Width of the region to copy.
  * @param height Height of the region to copy.
- * @return int Error code:
- *             OPENCV_SUCCESS (0) on success,
- *             OPENCV_ERROR_NULL_MATRIX (3) if source or destination matrix is null.
+ * @return int Error code.
  */
-int opencv_copy_to_rect(opencv_mat src, opencv_mat dst, int x, int y, int width, int height) {
-    auto srcMat = static_cast<cv::Mat*>(src);
-    auto dstMat = static_cast<cv::Mat*>(dst);
+int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+    try {
+        auto srcMat = static_cast<cv::Mat*>(src);
+        auto dstMat = static_cast<cv::Mat*>(dst);
 
-    if (!srcMat || !dstMat) {
-        return OPENCV_ERROR_NULL_MATRIX;
-    }
+        if (!srcMat || !dstMat || srcMat->empty() || dstMat->empty()) {
+            return OPENCV_ERROR_NULL_MATRIX;
+        }
 
-    // Ensure coordinates are within bounds
-    x = std::max(0, x);
-    y = std::max(0, y);
-    width = std::min(width, dstMat->cols - x);
-    height = std::min(height, dstMat->rows - y);
+        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols || yOffset + height > dstMat->rows) {
+            return OPENCV_ERROR_OUT_OF_BOUNDS;
+        }
 
-    if (width <= 0 || height <= 0) return OPENCV_SUCCESS;
+        if (width <= 0 || height <= 0) {
+            return OPENCV_ERROR_INVALID_DIMENSIONS;
+        }
 
-    cv::Rect roi(x, y, width, height);
-    cv::Mat dstROI = (*dstMat)(roi);
+        cv::Rect roi(xOffset, yOffset, width, height);
+        cv::Mat dstROI = dstMat->operator()(roi);
 
-    // Resize source if necessary
-    cv::Mat srcResized;
-    if (srcMat->size() != dstROI.size()) {
-        cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
-    } else {
-        srcResized = *srcMat;
-    }
+        // Resize source if necessary
+        cv::Mat srcResized;
+        if (srcMat->size() != dstROI.size()) {
+            cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
+        } else {
+            srcResized = *srcMat;
+        }
 
-    // Fast path for 3-channel to 3-channel copy
-    if (srcResized.channels() == 3 && dstROI.channels() == 3) {
+        // Handle channel count mismatch
+        if (srcResized.channels() != dstROI.channels()) {
+            if (srcResized.channels() == 3 && dstROI.channels() == 4) {
+                cv::cvtColor(srcResized, srcResized, cv::COLOR_BGR2BGRA);
+            } else if (srcResized.channels() == 4 && dstROI.channels() == 3) {
+                cv::cvtColor(srcResized, srcResized, cv::COLOR_BGRA2BGR);
+            } else if (srcResized.channels() == 1 && dstROI.channels() == 3) {
+                cv::cvtColor(srcResized, srcResized, cv::COLOR_GRAY2BGR);
+            } else if (srcResized.channels() == 1 && dstROI.channels() == 4) {
+                cv::cvtColor(srcResized, srcResized, cv::COLOR_GRAY2BGRA);
+            } else {
+                return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
+            }
+        }
+
+        // Perform the copy
         srcResized.copyTo(dstROI);
+
         return OPENCV_SUCCESS;
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_copy_to_region: " << e.what() << std::endl;
+        return OPENCV_ERROR_COPY_FAILED;
+    } catch (const std::exception& e) {
+        std::cerr << "Standard exception in opencv_copy_to_region: " << e.what() << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
+    } catch (...) {
+        std::cerr << "Unknown exception in opencv_copy_to_region" << std::endl;
+        return OPENCV_ERROR_UNKNOWN;
     }
-
-    // Ensure both matrices are 4-channel
-    cv::Mat src4 = srcResized.channels() == 3 ? cv::Mat() : srcResized;
-    cv::Mat dst4 = dstROI.channels() == 3 ? cv::Mat() : dstROI;
-
-    if (src4.empty()) cv::cvtColor(srcResized, src4, cv::COLOR_BGR2BGRA);
-    if (dst4.empty()) cv::cvtColor(dstROI, dst4, cv::COLOR_BGR2BGRA);
-
-    // Perform alpha blending
-    std::vector<cv::Mat> srcChannels, dstChannels;
-    cv::split(src4, srcChannels);
-    cv::split(dst4, dstChannels);
-
-    cv::Mat srcAlpha = srcChannels[3];
-    cv::Mat dstAlpha = dstChannels[3];
-    cv::Mat srcAlphaF, dstAlphaF, outAlphaF;
-    srcAlpha.convertTo(srcAlphaF, CV_32F, 1.0 / 255.0);
-    dstAlpha.convertTo(dstAlphaF, CV_32F, 1.0 / 255.0);
-    outAlphaF = srcAlphaF + dstAlphaF.mul(1.0f - srcAlphaF);
-
-    for (int i = 0; i < 3; ++i) {
-        cv::Mat srcChannelF, dstChannelF;
-        srcChannels[i].convertTo(srcChannelF, CV_32F, 1.0 / 255.0);
-        dstChannels[i].convertTo(dstChannelF, CV_32F, 1.0 / 255.0);
-        cv::Mat blended = (srcChannelF.mul(srcAlphaF) + dstChannelF.mul(dstAlphaF).mul(1.0f - srcAlphaF)) / outAlphaF;
-        blended.convertTo(dstChannels[i], CV_8U, 255.0);
-    }
-    outAlphaF.convertTo(dstChannels[3], CV_8U, 255.0);
-
-    cv::merge(dstChannels, dst4);
-
-    // Convert back to 3-channel if necessary
-    if (dstROI.channels() == 3) {
-        cv::cvtColor(dst4, dstROI, cv::COLOR_BGRA2BGR);
-    } else {
-        dst4.copyTo(dstROI);
-    }
-
-    return OPENCV_SUCCESS;
 }
-
