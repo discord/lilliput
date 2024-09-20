@@ -121,7 +121,7 @@ func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputC
 			}
 		}
 		rect := image.Rect(0, 0, inputCanvasWidth, inputCanvasHeight)
-		return o.animatedCompositeBuffer.FillWithColor(d.BackgroundColor(), rect)
+		return o.animatedCompositeBuffer.ClearToTransparent(rect)
 	}
 
 	return nil
@@ -393,7 +393,7 @@ func (o *ImageOps) applyDisposeMethod(d Decoder) error {
 	switch active.dispose {
 	case DisposeToBackgroundColor:
 		rect := image.Rect(active.xOffset, active.yOffset, active.xOffset+active.Width(), active.yOffset+active.Height())
-		return o.animatedCompositeBuffer.FillWithColor(d.BackgroundColor(), rect)
+		return o.animatedCompositeBuffer.ClearToTransparent(rect)
 	case NoDispose:
 		// Do nothing
 	}

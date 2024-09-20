@@ -267,29 +267,13 @@ func (f *Framebuffer) ResizeTo(width, height int, dst *Framebuffer) error {
 	return nil
 }
 
-// FillWithColor fills the entire framebuffer with the specified color.
-// The color is a 32-bit value in the format 0xAARRGGBB, where:
-// - AA: Alpha channel (transparency)
-// - RR: Red channel
-// - GG: Green channel
-// - BB: Blue channel
-func (f *Framebuffer) FillWithColor(color uint32, rect image.Rectangle) error {
+// ClearToTransparent clears a rectangular region of the framebuffer to transparent.
+func (f *Framebuffer) ClearToTransparent(rect image.Rectangle) error {
 	if f.mat == nil {
 		return errors.New("framebuffer matrix is nil")
 	}
 
-	// Extract the color components
-	blue := uint8(color & 0xFF)
-	green := uint8((color >> 8) & 0xFF)
-	red := uint8((color >> 16) & 0xFF)
-	alpha := uint8((color >> 24) & 0xFF)
-
-	var result C.int
-	if f.pixelType.Channels() == 4 {
-		result = C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), C.int(alpha), C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
-	} else {
-		result = C.opencv_mat_set_color_rect(f.mat, C.int(red), C.int(green), C.int(blue), -1, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
-	}
+	result := C.opencv_mat_clear_to_transparent(f.mat, C.int(rect.Min.X), C.int(rect.Min.Y), C.int(rect.Dx()), C.int(rect.Dy()))
 	return handleOpenCVError(result)
 }
 
