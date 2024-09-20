@@ -122,6 +122,10 @@ func (d *gifDecoder) BackgroundColor() uint32 {
 	return 0x00FFFFFF // use a non-opaque alpha value so we can see the background if needed
 }
 
+func (d *gifDecoder) LoopCount() int {
+	return 0 // loop indefinitely
+}
+
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	h, err := d.Header()
 	if err != nil {
