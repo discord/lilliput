@@ -370,6 +370,10 @@ webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, siz
  */
 size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay, int blend, int dispose, int x_offset, int y_offset)
 {
+    if (!e || !e->mux) {
+        return 0;
+    }
+
     // if the source is null, finalize the animation/image and return the size of the output buffer
     if (!src) {
         if (e->frame_count == 1) {
@@ -492,7 +496,13 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             // Store the first frame
             WebPMuxFrameInfo first_frame;
             memset(&first_frame, 0, sizeof(WebPMuxFrameInfo));
-            WebPMuxGetFrame(e->mux, 1, &first_frame);  // Get the first frame as it was set initially
+            WebPMuxError get_frame_error = WebPMuxGetFrame(e->mux, 1, &first_frame);
+            if (get_frame_error != WEBP_MUX_OK) {
+                if (out_picture) {
+                    WebPFree(out_picture);
+                }
+                return 0;
+            }
 
             // Delete the old single-image mux and create a new one for animation
             WebPMuxDelete(e->mux);
@@ -502,7 +512,6 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             if (e->icc && e->icc_len > 0) {
                 WebPData icc_data = { e->icc, e->icc_len };
                 WebPMuxError mux_error = WebPMuxSetChunk(e->mux, "ICCP", &icc_data, 1);
-                WebPDataClear(&icc_data);
                 if (mux_error != WEBP_MUX_OK) {
                     if (out_picture) {
                         WebPFree(out_picture);
@@ -516,8 +525,8 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             anim_params.loop_count = 0;  // Infinite loop
             anim_params.bgcolor = e->bgcolor;
 
-            WebPMuxError mux_error = WebPMuxSetAnimationParams(e->mux, &anim_params);
-            if (mux_error != WEBP_MUX_OK) {
+            WebPMuxError anim_params_error = WebPMuxSetAnimationParams(e->mux, &anim_params);
+            if (anim_params_error != WEBP_MUX_OK) {
                 if (out_picture) {
                     WebPFree(out_picture);
                 }
@@ -531,8 +540,8 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             first_frame.y_offset = e->first_frame_y_offset;
             first_frame.dispose_method = (WebPMuxAnimDispose)e->first_frame_dispose;
             first_frame.blend_method = (WebPMuxAnimBlend)e->first_frame_blend;
-            mux_error = WebPMuxPushFrame(e->mux, &first_frame, 1);
-            if (mux_error != WEBP_MUX_OK) {
+            WebPMuxError push_frame_error = WebPMuxPushFrame(e->mux, &first_frame, 1);
+            if (push_frame_error != WEBP_MUX_OK) {
                 if (out_picture) {
                     WebPFree(out_picture);
                 }
@@ -553,8 +562,8 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         frame.blend_method = (WebPMuxAnimBlend)blend;
 
         // Add the frame to the mux object
-        WebPMuxError mux_error = WebPMuxPushFrame(e->mux, &frame, 1);
-        if (mux_error != WEBP_MUX_OK) {
+        WebPMuxError push_frame_error = WebPMuxPushFrame(e->mux, &frame, 1);
+        if (push_frame_error != WEBP_MUX_OK) {
             if (out_picture) {
                 WebPFree(out_picture);
             }
@@ -576,8 +585,12 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
  */
 void webp_encoder_release(webp_encoder e)
 {
-    WebPMuxDelete(e->mux);
-    delete e;
+    if (e) {
+        if (e->mux) {
+            WebPMuxDelete(e->mux);
+        }
+        delete e;
+    }
 }
 
 /**

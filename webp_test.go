@@ -289,6 +289,15 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod:          ImageOpsFit,
 			disableAnimatedOutput: true,
 		},
+		{
+			name:         "Animated WebP - Crashing input",
+			inputPath:    "testdata/8202024-BGS-Headless-Horseman-OO-1200x1200-optimize.webp",
+			outputPath:   "testdata/out/8202024-BGS-Headless-Horseman-OO-1200x1200-optimize_out.webp",
+			width:        200,
+			height:       200,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
 	}
 
 	for _, tc := range testCases {
