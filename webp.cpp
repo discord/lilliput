@@ -480,7 +480,9 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
         WebPMuxError mux_error = WebPMuxSetImage(e->mux, &picture, 1);
         if (mux_error != WEBP_MUX_OK) {
-            WebPFree(out_picture);
+            if (out_picture) {
+                WebPFree(out_picture);
+            }
             return 0;
         }
     } else {
@@ -502,7 +504,9 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
                 WebPMuxError mux_error = WebPMuxSetChunk(e->mux, "ICCP", &icc_data, 1);
                 WebPDataClear(&icc_data);
                 if (mux_error != WEBP_MUX_OK) {
-                    WebPFree(out_picture);
+                    if (out_picture) {
+                        WebPFree(out_picture);
+                    }
                     return 0;
                 }
             }
@@ -514,7 +518,9 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
             WebPMuxError mux_error = WebPMuxSetAnimationParams(e->mux, &anim_params);
             if (mux_error != WEBP_MUX_OK) {
-                WebPFree(out_picture);
+                if (out_picture) {
+                    WebPFree(out_picture);
+                }
                 return 0;
             }
 
@@ -527,7 +533,9 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             first_frame.blend_method = (WebPMuxAnimBlend)e->first_frame_blend;
             mux_error = WebPMuxPushFrame(e->mux, &first_frame, 1);
             if (mux_error != WEBP_MUX_OK) {
-                WebPFree(out_picture);
+                if (out_picture) {
+                    WebPFree(out_picture);
+                }
                 return 0;
             }
             WebPDataClear(&first_frame.bitstream);
@@ -547,14 +555,18 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         // Add the frame to the mux object
         WebPMuxError mux_error = WebPMuxPushFrame(e->mux, &frame, 1);
         if (mux_error != WEBP_MUX_OK) {
-            WebPFree(out_picture);
+            if (out_picture) {
+                WebPFree(out_picture);
+            }
             return 0;
         }
     }
 
     e->frame_count++;
 
-    WebPFree(out_picture);
+    if (out_picture) {
+        WebPFree(out_picture);
+    }
     return size;
 }
 
