@@ -345,20 +345,16 @@ void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alph
 }
 
 /**
- * @brief Set a rectangular region of the matrix to a specific color.
+ * @brief Clear a rectangular region of the matrix to transparent.
  * 
  * @param mat Pointer to the OpenCV matrix to be modified.
- * @param red Red component of the color (0-255).
- * @param green Green component of the color (0-255).
- * @param blue Blue component of the color (0-255).
- * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
  * @param xOffset X-coordinate of the top-left corner of the rectangle.
  * @param yOffset Y-coordinate of the top-left corner of the rectangle.
  * @param width Width of the rectangle.
  * @param height Height of the rectangle.
  * @return int Error code.
  */
-int opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int xOffset, int yOffset, int width, int height) {
+int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height) {
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (!cvMat) {
         return OPENCV_ERROR_NULL_MATRIX;
@@ -374,11 +370,17 @@ int opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int 
 
     try {
         cv::Rect roi(xOffset, yOffset, width, height);
-        cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
-        cvMat->operator()(roi).setTo(color);
+        if (cvMat->channels() == 4) {
+            cvMat->operator()(roi).setTo(cv::Scalar(0, 0, 0, 0));
+        } else if (cvMat->channels() == 3) {
+            // For 3-channel images, we'll use black as "transparent"
+            cvMat->operator()(roi).setTo(cv::Scalar(0, 0, 0));
+        } else {
+            return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
+        }
         return OPENCV_SUCCESS;
     } catch (const cv::Exception& e) {
-        std::cerr << "OpenCV exception in opencv_mat_set_color_rect: " << e.what() << std::endl;
+        std::cerr << "OpenCV exception in opencv_mat_clear_to_transparent: " << e.what() << std::endl;
         return OPENCV_ERROR_UNKNOWN;
     }
 }

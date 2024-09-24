@@ -47,7 +47,7 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
 int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
 void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 void opencv_mat_reset(opencv_mat mat);
-int opencv_mat_set_color_rect(opencv_mat mat, int red, int green, int blue, int alpha, int x, int y, int width, int height);
+int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width,
