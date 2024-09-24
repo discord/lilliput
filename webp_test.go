@@ -298,6 +298,15 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			quality:      60,
 			resizeMethod: ImageOpsFit,
 		},
+		{
+			name:         "Animated WebP - complex dispose and blend",
+			inputPath:    "testdata/complex_dispose_and_blend.webp",
+			outputPath:   "testdata/out/complex_dispose_and_blend_out.webp",
+			width:        960,
+			height:       540,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
 	}
 
 	for _, tc := range testCases {
