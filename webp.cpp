@@ -9,6 +9,7 @@ struct webp_decoder_struct {
     WebPMux* mux;
     int total_frame_count;
     uint32_t bgcolor;
+    uint32_t loop_count;
     bool has_alpha;
     bool has_animation;
     int width;
@@ -29,6 +30,7 @@ struct webp_encoder_struct {
     const uint8_t* icc;
     size_t icc_len;
     uint32_t bgcolor;
+    uint32_t loop_count;
 
     // output fields
     WebPMux* mux;
@@ -104,6 +106,7 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
         WebPMuxAnimParams anim_params;
         if (WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
             d->bgcolor = anim_params.bgcolor;
+            d->loop_count = anim_params.loop_count;
         }
         d->has_animation = true;
     }
@@ -203,6 +206,16 @@ int webp_decoder_get_prev_frame_blend(const webp_decoder d)
 uint32_t webp_decoder_get_bg_color(const webp_decoder d)
 {
     return d->bgcolor;
+}
+
+/**
+ * Gets the loop count of the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @return The loop count of the WebP image.
+ */
+uint32_t webp_decoder_get_loop_count(const webp_decoder d)
+{
+    return d->loop_count;
 }
 
 /**
@@ -338,7 +351,7 @@ void webp_decoder_release(webp_decoder d)
  * @param bgcolor The background color for the WebP image.
  * @return A pointer to the created webp_encoder_struct, or nullptr if creation failed.
  */
-webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor)
+webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor, int loop_count)
 {
     webp_encoder e = new struct webp_encoder_struct();
     memset(e, 0, sizeof(struct webp_encoder_struct));
@@ -348,6 +361,7 @@ webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, siz
     e->frame_count = 1;
     e->first_frame_delay = 0;
     e->bgcolor = bgcolor;
+    e->loop_count = loop_count;
     if (icc_len) {
         e->icc = (const uint8_t*)(icc);
         e->icc_len = icc_len;
@@ -522,7 +536,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
             // Set animation parameters
             WebPMuxAnimParams anim_params;
-            anim_params.loop_count = 0;  // Infinite loop
+            anim_params.loop_count = e->loop_count;
             anim_params.bgcolor = e->bgcolor;
 
             WebPMuxError anim_params_error = WebPMuxSetAnimationParams(e->mux, &anim_params);

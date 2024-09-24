@@ -653,6 +653,10 @@ func (d *openCVDecoder) BackgroundColor() uint32 {
 	return 0xFFFFFFFF
 }
 
+func (d *openCVDecoder) LoopCount() int {
+	return 0 // loop indefinitely
+}
+
 func (d *openCVDecoder) HasSubtitles() bool {
 	return false
 }

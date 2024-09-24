@@ -64,6 +64,9 @@ type Decoder interface {
 
 	// ICC returns the ICC color profile, if any
 	ICC() []byte
+
+	// LoopCount() returns the number of loops in the image
+	LoopCount() int
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

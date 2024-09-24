@@ -106,6 +106,10 @@ func (d *webpDecoder) BackgroundColor() uint32 {
 	return uint32(C.webp_decoder_get_bg_color(d.decoder))
 }
 
+func (d *webpDecoder) LoopCount() int {
+	return int(C.webp_decoder_get_loop_count(d.decoder))
+}
+
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	if f == nil {
 		return io.EOF
@@ -154,12 +158,13 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
 	icc := decodedBy.ICC()
 	bgColor := decodedBy.BackgroundColor()
+	loopCount := decodedBy.LoopCount()
 
 	var enc C.webp_encoder
 	if len(icc) > 0 {
-		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)), C.uint32_t(bgColor))
+		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)), C.uint32_t(bgColor), C.int(loopCount))
 	} else {
-		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), nil, 0, C.uint32_t(bgColor))
+		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), nil, 0, C.uint32_t(bgColor), C.int(loopCount))
 	}
 	if enc == nil {
 		return nil, ErrBufTooSmall
