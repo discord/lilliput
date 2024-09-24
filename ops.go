@@ -180,15 +180,15 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 			return false, err
 		}
 
-		if err := o.applyDisposeMethod(d); err != nil {
-			return false, err
-		}
-
 		if err := o.applyBlendMethod(d); err != nil {
 			return false, err
 		}
 
 		if err := o.animatedCompositeBuffer.ResizeTo(outputCanvasWidth, outputCanvasHeight, o.secondary()); err != nil {
+			return false, err
+		}
+
+		if err := o.applyDisposeMethod(d); err != nil {
 			return false, err
 		}
 
