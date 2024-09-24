@@ -144,15 +144,18 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 			return false, err
 		}
 
-		if err := o.applyDisposeMethod(d); err != nil {
-			return false, err
-		}
-
+		// blend transparent pixels of the active frame with corresponding pixels of the previous canvas, creating a composite
 		if err := o.applyBlendMethod(d); err != nil {
 			return false, err
 		}
 
+		// resize the composite to the output canvas size
 		if err := o.animatedCompositeBuffer.Fit(newWidth, newHeight, o.secondary()); err != nil {
+			return false, err
+		}
+
+		// apply dispose method of the active frame to the composite
+		if err := o.applyDisposeMethod(d); err != nil {
 			return false, err
 		}
 
