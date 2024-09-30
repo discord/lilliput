@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,9 +12,9 @@ import (
 )
 
 var EncodeOptions = map[string]map[int]int{
-	".jpeg": map[int]int{lilliput.JpegQuality: 85},
-	".png":  map[int]int{lilliput.PngCompression: 7},
-	".webp": map[int]int{lilliput.WebpQuality: 85},
+	".jpeg": {lilliput.JpegQuality: 85},
+	".png":  {lilliput.PngCompression: 7},
+	".webp": {lilliput.WebpQuality: 85},
 }
 
 func main() {
@@ -41,7 +40,7 @@ func main() {
 	}
 
 	// decoder wants []byte, so read the whole file into a buffer
-	inputBuf, err := ioutil.ReadFile(inputFilename)
+	inputBuf, err := os.ReadFile(inputFilename)
 	if err != nil {
 		fmt.Printf("failed to read input file, %s\n", err)
 		os.Exit(1)
