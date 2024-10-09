@@ -14,7 +14,7 @@
 #define CUDA_ARCH_PTX ""
 
 /* AVFoundation video libraries */
-#define HAVE_AVFOUNDATION
+/* #undef HAVE_AVFOUNDATION */
 
 /* V4L capturing support */
 /* #undef HAVE_CAMV4L */
@@ -66,7 +66,7 @@
 /* #undef HAVE_DSHOW */
 
 /* Eigen Matrix & Linear Algebra Library */
-#define HAVE_EIGEN
+/* #undef HAVE_EIGEN */
 
 /* FFMpeg video library */
 #define HAVE_FFMPEG
@@ -90,8 +90,8 @@
 /* #undef HAVE_INTELPERC */
 
 /* Intel Integrated Performance Primitives */
-#define HAVE_IPP
-#define HAVE_IPP_ICV_ONLY
+/* #undef HAVE_IPP */
+/* #undef HAVE_IPP_ICV_ONLY */
 
 /* Intel IPP Async */
 /* #undef HAVE_IPP_A */

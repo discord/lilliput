@@ -8,7 +8,7 @@ package lilliput
 // #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
 // #cgo LDFLAGS:  -lopencv_core -lopencv_imgproc -lwebp -lwebpmux
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
+// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib
 // #include "webp.hpp"
 import "C"
 

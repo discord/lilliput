@@ -7,7 +7,7 @@
 // be found in the AUTHORS file in the root of the source tree.
 // -----------------------------------------------------------------------------
 //
-//  Common types
+//  Common types + memory wrappers
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
@@ -40,13 +40,33 @@ typedef long long int int64_t;
 // This explicitly marks library functions and allows for changing the
 // signature for e.g., Windows DLL builds.
 # if defined(__GNUC__) && __GNUC__ >= 4
-#  define WEBP_EXTERN(type) extern __attribute__ ((visibility ("default"))) type
+#  define WEBP_EXTERN extern __attribute__ ((visibility ("default")))
 # else
-#  define WEBP_EXTERN(type) extern type
+#  if defined(_MSC_VER) && defined(WEBP_DLL)
+#   define WEBP_EXTERN __declspec(dllexport)
+#  else
+#   define WEBP_EXTERN extern
+#  endif
 # endif  /* __GNUC__ >= 4 */
 #endif  /* WEBP_EXTERN */
 
 // Macro to check ABI compatibility (same major revision number)
 #define WEBP_ABI_IS_INCOMPATIBLE(a, b) (((a) >> 8) != ((b) >> 8))
 
-#endif  /* WEBP_WEBP_TYPES_H_ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Allocates 'size' bytes of memory. Returns NULL upon error. Memory
+// must be deallocated by calling WebPFree(). This function is made available
+// by the core 'libwebp' library.
+WEBP_EXTERN void* WebPMalloc(size_t size);
+
+// Releases memory returned by the WebPDecode*() functions (from decode.h).
+WEBP_EXTERN void WebPFree(void* ptr);
+
+#ifdef __cplusplus
+}    // extern "C"
+#endif
+
+#endif  // WEBP_WEBP_TYPES_H_
