@@ -1,4 +1,4 @@
-prefix=/Users/brianarmstrong/code/lilliput/deps/osx
+prefix=/Users/scottkidder/go/src/github.com/discord/lilliput/deps/osx
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 sharedlibdir=${libdir}

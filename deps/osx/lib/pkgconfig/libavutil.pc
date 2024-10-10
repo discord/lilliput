@@ -1,14 +1,14 @@
-prefix=/Users/brianarmstrong/code/lilliput/deps/osx
+prefix=/Users/scottkidder/go/src/github.com/discord/lilliput/deps/osx
 exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
+libdir=/Users/scottkidder/go/src/github.com/discord/lilliput/deps/osx/lib
+includedir=/Users/scottkidder/go/src/github.com/discord/lilliput/deps/osx/include
 
 Name: libavutil
 Description: FFmpeg utility library
-Version: 55.58.100
+Version: 57.28.100
 Requires: 
 Requires.private: 
 Conflicts:
-Libs: -L${libdir}  -lavutil -lm
+Libs: -L${libdir}  -lavutil -pthread -lm -framework VideoToolbox -L/opt/homebrew/Cellar/libx11/1.8.10/lib -lX11 -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices
 Libs.private: 
 Cflags: -I${includedir}

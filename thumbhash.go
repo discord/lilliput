@@ -6,9 +6,9 @@ package lilliput
 // #cgo CXXFLAGS: -std=c++11
 // #cgo darwin CXXFLAGS: -I${SRCDIR}/deps/osx/include
 // #cgo linux CXXFLAGS: -I${SRCDIR}/deps/linux/include
-// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lippicv -lz
+// #cgo LDFLAGS:  -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -ljpeg -lpng -lwebp -lz
 // #cgo darwin LDFLAGS: -L${SRCDIR}/deps/osx/lib -L${SRCDIR}/deps/osx/share/OpenCV/3rdparty/lib
-// #cgo linux LDFLAGS: -L${SRCDIR}/deps/linux/lib -L${SRCDIR}/deps/linux/share/OpenCV/3rdparty/lib
+// #cgo linux LDFLAGS: -lippicv -L${SRCDIR}/deps/linux/lib
 // #include "thumbhash.hpp"
 import "C"
 
