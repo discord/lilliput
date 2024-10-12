@@ -60,7 +60,15 @@ tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-co
 cd $BASEDIR/libjpeg-turbo
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
-cmake $BASEDIR/libjpeg-turbo -DENABLE_STATIC=1 -DENABLE_SHARED=0 -DWITH_JPEG8=1 -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake $BASEDIR/libjpeg-turbo \
+    -DENABLE_STATIC=1 \
+    -DENABLE_SHARED=0 \
+    -DWITH_JPEG8=1 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DCMAKE_C_FLAGS="-mmacosx-version-min=14.0" \
+    -DCMAKE_CXX_FLAGS="-mmacosx-version-min=14.0"
 make
 make install
 
