@@ -413,7 +413,7 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
             NULL, NULL, NULL);
 
         // Configure colorspace
-        int colorspace = SWS_CS_ITU709;
+        int colorspace;
         switch (frame->colorspace) {
             case AVCOL_SPC_BT2020_NCL:
             case AVCOL_SPC_BT2020_CL:
@@ -427,6 +427,9 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
                 break;
             case AVCOL_SPC_SMPTE240M:
                 colorspace = SWS_CS_SMPTE240M;
+                break;
+            default:
+                colorspace = SWS_CS_ITU709;
                 break;
         }
         const int* inv_table = sws_getCoefficients(colorspace);
