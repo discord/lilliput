@@ -346,6 +346,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			newDst, err = ops.Transform(decoder, options, dstBuf)
 			if err != nil {
 				decoder.Close()
+				ops.Close()
 				t.Errorf("Transform() error for %s: %v", tc.inputPath, err)
 				return
 			}
@@ -353,6 +354,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			// verify length of newDst
 			if len(newDst) == 0 {
 				decoder.Close()
+				ops.Close()
 				t.Errorf("Transform() returned empty data for %s", tc.inputPath)
 			}
 
@@ -362,6 +364,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 				if _, err := os.Stat("testdata/out"); os.IsNotExist(err) {
 					if err = os.Mkdir("testdata/out", 0755); err != nil {
 						decoder.Close()
+						ops.Close()
 						t.Errorf("Failed to create output directory: %v", err)
 						return
 					}
@@ -369,10 +372,12 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 
 				if err = os.WriteFile(tc.outputPath, newDst, 0644); err != nil {
 					decoder.Close()
+					ops.Close()
 					t.Errorf("Failed to write %s: %v", tc.outputPath, err)
 				}
 			}
 			decoder.Close()
+			ops.Close()
 		})
 	}
 }
@@ -434,6 +439,7 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 			newDst, err = ops.Transform(decoder, options, dstBuf)
 			if err != nil {
 				decoder.Close()
+				ops.Close()
 				t.Errorf("Transform() error for %s: %v", tc.inputPath, err)
 				return
 			}
@@ -441,6 +447,7 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 			// verify length of newDst
 			if len(newDst) == 0 {
 				decoder.Close()
+				ops.Close()
 				t.Errorf("Transform() returned empty data for %s", tc.inputPath)
 			}
 
@@ -450,6 +457,7 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 				if _, err := os.Stat("testdata/out"); os.IsNotExist(err) {
 					if err = os.Mkdir("testdata/out", 0755); err != nil {
 						decoder.Close()
+						ops.Close()
 						t.Errorf("Failed to create output directory: %v", err)
 						return
 					}
@@ -457,10 +465,12 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 
 				if err = os.WriteFile(tc.outputPath, newDst, 0644); err != nil {
 					decoder.Close()
+					ops.Close()
 					t.Errorf("Failed to write %s: %v", tc.outputPath, err)
 				}
 			}
 			decoder.Close()
+			ops.Close()
 		})
 	}
 }
