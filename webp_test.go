@@ -235,7 +235,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod: ImageOpsResize,
 		},
 		{
-			name:         "Animated WebP - Supported",
+			name:         "Animated WebP - Resize #1",
 			inputPath:    "testdata/ferry_sunset.webp",
 			outputPath:   "testdata/out/ferry_sunset_out_resize.webp",
 			width:        266,
@@ -244,7 +244,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod: ImageOpsResize,
 		},
 		{
-			name:         "Animated WebP - Supported",
+			name:         "Animated WebP - Resize #2",
 			inputPath:    "testdata/animated-webp-supported.webp",
 			outputPath:   "testdata/out/animated-webp-supported_out_resize.webp",
 			width:        400,
@@ -253,7 +253,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod: ImageOpsResize,
 		},
 		{
-			name:         "Animated WebP - Supported",
+			name:         "Animated WebP - Fit #1",
 			inputPath:    "testdata/animated-webp-supported.webp",
 			outputPath:   "testdata/out/animated-webp-supported_out_fit.webp",
 			width:        400,
@@ -262,7 +262,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod: ImageOpsFit,
 		},
 		{
-			name:         "Animated WebP - Supported",
+			name:         "Animated WebP - No resize",
 			inputPath:    "testdata/animated-webp-supported.webp",
 			outputPath:   "testdata/out/animated-webp-supported_out_no_resize.webp",
 			width:        0,
@@ -271,7 +271,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 			resizeMethod: ImageOpsNoResize,
 		},
 		{
-			name:         "Animated WebP - Supported",
+			name:         "Animated WebP - Fit #2",
 			inputPath:    "testdata/animated-webp-supported.webp",
 			outputPath:   "testdata/out/animated-webp-supported_out.webp",
 			width:        200,
