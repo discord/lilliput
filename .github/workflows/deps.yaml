@@ -2,11 +2,15 @@ name: Build dependencies
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - master
     paths:
       - 'deps/**'
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - master
     paths:
       - 'deps/**'
   workflow_dispatch:
