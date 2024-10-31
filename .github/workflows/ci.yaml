@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+
+  build:
+    name: Build
+    strategy:
+      matrix:
+        runs-on:
+          - macos-14
+          - ubuntu-22.04
+      fail-fast: false
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v4
+
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        cache: false
+        go-version: "1.23"
+
+    - name: Build
+      run: go build
+
+    - name: Test
+      run: go test -v
+
+    - name: Build examples
+      run: |
+        cd examples
+        go build
