@@ -341,7 +341,7 @@ func testNewWebpEncoderWithAnimatedWebPSource(t *testing.T) {
 				DisableAnimatedOutput: tc.disableAnimatedOutput,
 			}
 
-			ops := NewImageOps(50000)
+			ops := NewImageOps(2000)
 			var newDst []byte
 			newDst, err = ops.Transform(decoder, options, dstBuf)
 			if err != nil {
@@ -429,7 +429,7 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 				EncodeTimeout:        time.Second * 300,
 			}
 
-			ops := NewImageOps(50000)
+			ops := NewImageOps(2000)
 			var newDst []byte
 			newDst, err = ops.Transform(decoder, options, dstBuf)
 			if err != nil {
