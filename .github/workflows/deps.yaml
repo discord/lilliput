@@ -26,12 +26,14 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install nasm
+          sudo apt-get install nasm python3
 
       - name: Build deps
         run: |
+          echo "Starting dependency build..."
           export MAKEFLAGS="-j$(nproc)"
           ./deps/build-deps-linux.sh
+          echo "Dependency build completed"
 
       - run: |
           git status
@@ -48,14 +50,22 @@ jobs:
           go build
           go test -v
 
-      - name: Compress deps
-        run: tar -czf deps.tar.gz deps/linux
+      - name: Generate build info
+        run: |
+          ./deps/verify_deps.py generate \
+            --deps-dir deps/linux \
+            --platform linux \
+            --commit ${{ github.sha }}
+
+      - name: Create deps archive
+        run: |
+          tar -czf deps-linux.tar.gz deps/linux/
 
       - name: Upload deps artifact
         uses: actions/upload-artifact@v4
         with:
           name: deps-linux.tar.gz
-          path: deps.tar.gz
+          path: deps-linux.tar.gz
 
   macos:
     name: macOS
@@ -73,8 +83,10 @@ jobs:
 
       - name: Build deps
         run: |
+          echo "Starting dependency build..."
           export MAKEFLAGS="-j$(nproc)"
           ./deps/build-deps-osx.sh
+          echo "Dependency build completed"
 
       - run: |
           git status
@@ -90,12 +102,129 @@ jobs:
         run: |
           go build
           go test -v
-      
-      - name: Compress deps
-        run: tar -czf deps.tar.gz deps/osx
+
+      - name: Generate build info
+        run: |
+          ./deps/verify_deps.py generate \
+            --deps-dir deps/osx \
+            --platform macos \
+            --commit ${{ github.sha }}
+
+      - name: Create deps archive
+        run: |
+          tar -czf deps-macos.tar.gz deps/osx/
 
       - name: Upload deps artifact
         uses: actions/upload-artifact@v4
         with:
           name: deps-macos.tar.gz
-          path: deps.tar.gz
+          path: deps-macos.tar.gz
+
+  verify:
+    name: Verify Build Artifacts
+    needs: [linux, macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-linux.tar.gz
+          path: .
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-macos.tar.gz
+          path: .
+
+      - name: Extract artifacts
+        run: |
+          tar xzf deps-linux.tar.gz
+          tar xzf deps-macos.tar.gz
+
+      - name: Verify artifacts match checked-in deps
+        run: |
+          python3 ./deps/verify_deps.py verify \
+            --deps-dir deps/linux \
+            --build-info deps/linux/build-info.json
+
+          python3 ./deps/verify_deps.py verify \
+            --deps-dir deps/osx \
+            --build-info deps/osx/build-info.json
+
+  update-deps:
+    name: Update Checked-in Dependencies
+    needs: [linux, macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    timeout-minutes: 15
+    
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-linux.tar.gz
+          path: .
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-macos.tar.gz
+          path: .
+
+      - name: Extract and update deps
+        run: |
+          # Remove existing deps directories to avoid stale files
+          rm -rf deps/linux/* deps/osx/*
+
+          tar xzf deps-linux.tar.gz
+          tar xzf deps-macos.tar.gz
+
+      - name: Commit updated deps
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git config --local commit.gpgsign false
+          
+          # Stage each type of file explicitly
+          shopt -s nullglob # Handle case where globs don't match
+          
+          # Binary files
+          for f in deps/*/lib/*.{so,so.*,dylib,dylib.*,a}; do
+            if [ -f "$f" ]; then
+              git add -f "$f"
+            fi
+          done
+          
+          # Header files
+          for f in deps/*/include/**/*.h; do
+            if [ -f "$f" ]; then
+              git add -f "$f"
+            fi
+          done
+          
+          # Build info
+          for f in deps/*/build-info.json; do
+            if [ -f "$f" ]; then
+              git add -f "$f"
+            fi
+          done
+
+          # Only commit if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "Update native dependencies from ${{ github.sha }} [skip ci]
+
+            Dependencies built by workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            
+            git push
+          else
+            echo "No changes to checked-in dependencies"
+          fi
