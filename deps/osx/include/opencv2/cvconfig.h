@@ -69,7 +69,7 @@
 /* #undef HAVE_EIGEN */
 
 /* FFMpeg video library */
-#define HAVE_FFMPEG
+/* #undef HAVE_FFMPEG */
 
 /* Geospatial Data Abstraction Library */
 /* #undef HAVE_GDAL */
