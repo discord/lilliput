@@ -4,6 +4,7 @@ package lilliput
 import "C"
 
 import (
+	"fmt"
 	"io"
 	"time"
 	"unsafe"
@@ -76,31 +77,9 @@ func (d *webpDecoder) IsStreamable() bool {
 	return false
 }
 
-// hasReachedEndOfFrames checks if the decoder has reached the end of all frames.
-func (d *webpDecoder) hasReachedEndOfFrames() bool {
-	return C.webp_decoder_has_more_frames(d.decoder) == 0
-}
-
-// advanceFrameIndex advances the internal frame index for the next decoding call.
-func (d *webpDecoder) advanceFrameIndex() {
-	// Advance the frame index within the C++ decoder
-	C.webp_decoder_advance_frame(d.decoder)
-}
-
-func (d *webpDecoder) ICC() []byte {
-	iccDst := make([]byte, 8192)
-	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
-	return iccDst[:iccLength]
-}
-
-func (d *webpDecoder) BackgroundColor() uint32 {
-	return uint32(C.webp_decoder_get_bg_color(d.decoder))
-}
-
-func (d *webpDecoder) LoopCount() int {
-	return int(C.webp_decoder_get_loop_count(d.decoder))
-}
-
+// DecodeTo decodes the current frame into the provided Framebuffer.
+// Returns io.EOF when there are no more frames to decode.
+// Returns ErrDecodingFailed if decoding fails for any other reason.
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	if f == nil {
 		return io.EOF
@@ -109,35 +88,31 @@ func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	// Get image header information
 	h, err := d.Header()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get header: %w", err)
 	}
 
 	// Resize the framebuffer matrix to fit the image dimensions and pixel type
 	err = f.resizeMat(h.Width(), h.Height(), h.PixelType())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to resize framebuffer: %w", err)
 	}
 
 	// Decode the current frame into the framebuffer
-	ret := C.webp_decoder_decode(d.decoder, f.mat)
-	if !ret {
-		// Check if the decoder has reached the end of the frames
+	if !C.webp_decoder_decode(d.decoder, f.mat) {
 		if d.hasReachedEndOfFrames() {
 			return io.EOF
 		}
-		return ErrDecodingFailed
+		return fmt.Errorf("%w: frame decode failed", ErrDecodingFailed)
 	}
 
-	// Set the frame properties
+	// Set frame properties
 	f.duration = time.Duration(C.webp_decoder_get_prev_frame_delay(d.decoder)) * time.Millisecond
 	f.xOffset = int(C.webp_decoder_get_prev_frame_x_offset(d.decoder))
 	f.yOffset = int(C.webp_decoder_get_prev_frame_y_offset(d.decoder))
 	f.dispose = DisposeMethod(C.webp_decoder_get_prev_frame_dispose(d.decoder))
 	f.blend = BlendMethod(C.webp_decoder_get_prev_frame_blend(d.decoder))
 
-	// Advance to the next frame
 	d.advanceFrameIndex()
-
 	return nil
 }
 
@@ -168,22 +143,27 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	}, nil
 }
 
+// Encode encodes a frame into WebP format using the provided options.
+// If f is nil, it finalizes the WebP animation and returns the encoded bytes.
+// Returns io.EOF if encoding has already been finalized.
+// Returns ErrInvalidImage if encoding fails.
 func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.hasFlushed {
 		return nil, io.EOF
 	}
 
+	// Finalize animation if frame is nil
 	if f == nil {
-		// Finalize the WebP animation
 		length := C.webp_encoder_flush(e.encoder)
 		if length == 0 {
-			return nil, ErrInvalidImage
+			return nil, fmt.Errorf("%w: failed to flush encoder", ErrInvalidImage)
 		}
 
 		e.hasFlushed = true
 		return e.dstBuf[:length], nil
 	}
 
+	// Convert options to C array
 	var optList []C.int
 	var firstOpt *C.int
 	for k, v := range opt {
@@ -191,21 +171,54 @@ func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 		optList = append(optList, C.int(v))
 	}
 	if len(optList) > 0 {
-		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
+		firstOpt = &optList[0]
 	}
 
-	// Encode the current frame
 	frameDelay := int(f.duration.Milliseconds())
-	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
+	length := C.webp_encoder_write(
+		e.encoder,
+		f.mat,
+		firstOpt,
+		C.size_t(len(optList)),
+		C.int(frameDelay),
+		C.int(f.blend),
+		C.int(f.dispose),
+		C.int(f.xOffset),
+		C.int(f.yOffset),
+	)
+
 	if length == 0 {
-		return nil, ErrInvalidImage
+		return nil, fmt.Errorf("%w: failed to encode frame %d", ErrInvalidImage, e.frameIndex)
 	}
 
 	e.frameIndex++
-
 	return nil, nil
 }
 
 func (e *webpEncoder) Close() {
 	C.webp_encoder_release(e.encoder)
+}
+
+// hasReachedEndOfFrames checks if the decoder has reached the end of all frames.
+func (d *webpDecoder) hasReachedEndOfFrames() bool {
+	return C.webp_decoder_has_more_frames(d.decoder) == 0
+}
+
+// advanceFrameIndex advances the internal frame index for the next decoding call.
+func (d *webpDecoder) advanceFrameIndex() {
+	C.webp_decoder_advance_frame(d.decoder)
+}
+
+func (d *webpDecoder) ICC() []byte {
+	iccDst := make([]byte, 8192)
+	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
+	return iccDst[:iccLength]
+}
+
+func (d *webpDecoder) BackgroundColor() uint32 {
+	return uint32(C.webp_decoder_get_bg_color(d.decoder))
+}
+
+func (d *webpDecoder) LoopCount() int {
+	return int(C.webp_decoder_get_loop_count(d.decoder))
 }

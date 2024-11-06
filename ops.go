@@ -144,7 +144,7 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 			return false, err
 		}
 
-		// blend transparent pixels of the active frame with corresponding pixels of the previous canvas, creating a composite
+		// blend transparent pixels of the active frame with corresponding pixels of the previous canvas
 		if err := o.applyBlendMethod(d); err != nil {
 			return false, err
 		}
@@ -163,7 +163,7 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 		return true, nil
 	}
 
-	// If the image is not animated, we can fit it directly.
+	// If the image is not animated, we can fit it directly
 	if err := o.active().Fit(newWidth, newHeight, o.secondary()); err != nil {
 		return false, err
 	}
@@ -172,9 +172,9 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 }
 
 // resize resizes the active frame to the specified output canvas size.
-func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int, isAnimated, hasAlpha bool) (bool, error) {
+func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight int, isAnimated, hasAlpha bool) (bool, error) {
 	// If the image is animated, we need to resize the frame to the input canvas size
-	// and then copy the previous frame's data to the working buffer.
+	// and then copy the previous frame's data to the working buffer
 	if isAnimated {
 		if err := o.setupAnimatedFrameBuffers(d, inputCanvasWidth, inputCanvasHeight, hasAlpha); err != nil {
 			return false, err
@@ -200,7 +200,6 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 		return false, err
 	}
 	o.copyFramePropertiesAndSwap()
-
 	return true, nil
 }
 
@@ -212,10 +211,9 @@ func calculateExpectedSize(origWidth, origHeight, reqWidth, reqHeight int) (int,
 	} else if reqWidth > origWidth && reqHeight > origHeight && reqWidth != reqHeight {
 		// Both dimensions larger than original and not square
 		return origWidth, origHeight
-	} else {
-		// All other cases
-		return reqWidth, reqHeight
 	}
+	// All other cases
+	return reqWidth, reqHeight
 }
 
 func min(a, b int) int {
@@ -308,7 +306,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		// transform the frame, resizing if necessary
 		var swapped bool
 		if !emptyFrame {
-			swapped, err = o.transformCurrentFrame(d, opt, inputHeader, frameCount)
+			swapped, err = o.transformCurrentFrame(d, opt, inputHeader)
 			if err != nil {
 				return nil, err
 			}
@@ -355,7 +353,7 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 // transformCurrentFrame transforms the current frame using the decoder specified by d.
 // It returns true if the frame was resized and false if it was not.
 // It returns an error if the frame could not be resized.
-func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHeader *ImageHeader, frameCount int) (bool, error) {
+func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHeader *ImageHeader) (bool, error) {
 	if opt.ResizeMethod == ImageOpsNoResize && !inputHeader.IsAnimated() {
 		return false, nil
 	}
@@ -367,9 +365,11 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHead
 
 	switch opt.ResizeMethod {
 	case ImageOpsFit, ImageOpsNoResize:
-		return o.fit(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, inputHeader.IsAnimated(), inputHeader.HasAlpha())
+		return o.fit(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight,
+			inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	case ImageOpsResize:
-		return o.resize(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, frameCount, inputHeader.IsAnimated(), inputHeader.HasAlpha())
+		return o.resize(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight,
+			inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	default:
 		return false, fmt.Errorf("unknown resize method: %v", opt.ResizeMethod)
 	}
@@ -395,10 +395,13 @@ func (o *ImageOps) applyDisposeMethod(d Decoder) error {
 	active := o.active()
 	switch active.dispose {
 	case DisposeToBackgroundColor:
-		rect := image.Rect(active.xOffset, active.yOffset, active.xOffset+active.Width(), active.yOffset+active.Height())
-		return o.animatedCompositeBuffer.ClearToTransparent(rect)
+		if o.animatedCompositeBuffer != nil {
+			rect := image.Rect(active.xOffset, active.yOffset,
+				active.xOffset+active.Width(), active.yOffset+active.Height())
+			return o.animatedCompositeBuffer.ClearToTransparent(rect)
+		}
 	case NoDispose:
-		// Do nothing
+		return nil
 	}
 	return nil
 }
