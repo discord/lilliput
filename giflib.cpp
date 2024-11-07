@@ -1112,3 +1112,54 @@ int giflib_encoder_get_output_length(giflib_encoder e)
 {
     return e->dst_offset;
 }
+
+int giflib_decoder_get_loop_count(const giflib_decoder d) {
+    // Default to 1 loop (play once) if no NETSCAPE2.0 extension is found
+    int loop_count = 1;
+
+    // Create a temporary decoder to read extension blocks
+    // We need a separate decoder because reading extension blocks modifies decoder state
+    giflib_decoder loopReader = new struct giflib_decoder_struct();
+    if (!loopReader) {
+        return loop_count; // Return default on allocation failure
+    }
+
+    memset(loopReader, 0, sizeof(struct giflib_decoder_struct));
+    loopReader->mat = d->mat;  // Share the source data
+
+    int error = 0;
+    GifFileType* gif = DGifOpen(loopReader, decode_func, &error);
+    if (error) {
+        delete loopReader;
+        return loop_count;
+    }
+
+    // Read extension blocks
+    GifRecordType recordType;
+    if (DGifGetRecordType(gif, &recordType) == GIF_OK && 
+        recordType == EXTENSION_RECORD_TYPE) {
+
+        GifByteType* ExtData;
+        int ExtFunction;
+
+        if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
+            // Look for NETSCAPE2.0 extension
+            if (ExtFunction == APPLICATION_EXT_FUNC_CODE && ExtData[0] >= 11 &&
+                memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
+                // Get the next block with loop count
+                if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && 
+                    ExtData != NULL && 
+                    ExtData[0] >= 3 && 
+                    ExtData[1] == 1) {
+
+                    loop_count = ExtData[2] | (ExtData[3] << 8);
+                }
+            }
+        }
+    }
+
+    DGifCloseFile(gif, &error);
+    delete loopReader;
+
+    return loop_count;
+}

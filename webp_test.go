@@ -391,6 +391,7 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 		height       int
 		quality      int
 		resizeMethod ImageOpsSizeMethod
+		wantLoops    int
 	}{
 		{
 			name:         "Animated GIF with alpha channel",
@@ -400,6 +401,17 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 			height:       17,
 			quality:      80,
 			resizeMethod: ImageOpsResize,
+			wantLoops:    0,
+		},
+		{
+			name:         "Animated GIF with specific loop count",
+			inputPath:    "testdata/no-loop.gif",
+			outputPath:   "testdata/out/no-loop_out.webp",
+			width:        200,
+			height:       200,
+			quality:      80,
+			resizeMethod: ImageOpsResize,
+			wantLoops:    1,
 		},
 	}
 
@@ -420,6 +432,11 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 			if decoder, err = newGifDecoder(testWebPImage); err != nil {
 				t.Errorf("Unexpected error while decoding %s: %v", tc.inputPath, err)
 				return
+			}
+
+			// Verify loop count
+			if decoder.LoopCount() != tc.wantLoops {
+				t.Errorf("Loop count = %d, want %d", decoder.LoopCount(), tc.wantLoops)
 			}
 
 			dstBuf := make([]byte, destinationBufferSize)
