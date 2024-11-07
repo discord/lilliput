@@ -12,10 +12,12 @@ import (
 )
 
 type gifDecoder struct {
-	decoder    C.giflib_decoder
-	mat        C.opencv_mat
-	buf        []byte
-	frameIndex int
+	decoder       C.giflib_decoder
+	mat           C.opencv_mat
+	buf           []byte
+	frameIndex    int
+	loopCount     int
+	loopCountRead bool
 }
 
 type gifEncoder struct {
@@ -114,7 +116,11 @@ func (d *gifDecoder) BackgroundColor() uint32 {
 }
 
 func (d *gifDecoder) LoopCount() int {
-	return 0 // loop indefinitely
+	if !d.loopCountRead {
+		d.loopCount = int(C.giflib_decoder_get_loop_count(d.decoder))
+		d.loopCountRead = true
+	}
+	return d.loopCount
 }
 
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {

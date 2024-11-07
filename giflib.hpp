@@ -34,6 +34,7 @@ bool giflib_encoder_encode_frame(giflib_encoder e, const giflib_decoder d, const
 bool giflib_encoder_flush(giflib_encoder e, const giflib_decoder d);
 void giflib_encoder_release(giflib_encoder e);
 int giflib_encoder_get_output_length(giflib_encoder e);
+int giflib_decoder_get_loop_count(const giflib_decoder d);
 
 #ifdef __cplusplus
 }
