@@ -1134,32 +1134,55 @@ int giflib_decoder_get_loop_count(const giflib_decoder d) {
         return loop_count;
     }
 
-    // Read extension blocks
+    // Read all blocks until we find NETSCAPE2.0 or hit end
     GifRecordType recordType;
-    if (DGifGetRecordType(gif, &recordType) == GIF_OK && 
-        recordType == EXTENSION_RECORD_TYPE) {
-
-        GifByteType* ExtData;
-        int ExtFunction;
-
-        if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
-            // Look for NETSCAPE2.0 extension
-            if (ExtFunction == APPLICATION_EXT_FUNC_CODE && ExtData[0] >= 11 &&
-                memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
-                // Get the next block with loop count
-                if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && 
-                    ExtData != NULL && 
-                    ExtData[0] >= 3 && 
-                    ExtData[1] == 1) {
-
-                    loop_count = ExtData[2] | (ExtData[3] << 8);
+    while (DGifGetRecordType(gif, &recordType) == GIF_OK) {
+        switch (recordType) {
+            case EXTENSION_RECORD_TYPE: {
+                GifByteType* ExtData;
+                int ExtFunction;
+                
+                if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
+                    // Look for NETSCAPE2.0 extension
+                    if (ExtFunction == APPLICATION_EXT_FUNC_CODE && ExtData[0] >= 11 &&
+                        memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
+                        // Get the next block with loop count
+                        if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && 
+                            ExtData != NULL && 
+                            ExtData[0] >= 3 && 
+                            ExtData[1] == 1) {
+                            loop_count = ExtData[2] | (ExtData[3] << 8);
+                            goto cleanup; // Found what we need
+                        }
+                    }
+                    
+                    // Skip any remaining extension blocks
+                    while (ExtData != NULL) {
+                        if (DGifGetExtensionNext(gif, &ExtData) != GIF_OK) {
+                            goto cleanup;
+                        }
+                    }
                 }
+                break;
             }
+            
+            case IMAGE_DESC_RECORD_TYPE:
+                // Skip image data
+                if (DGifGetImageDesc(gif) != GIF_OK) {
+                    goto cleanup;
+                }
+                break;
+                
+            case TERMINATE_RECORD_TYPE:
+                goto cleanup;
+                
+            default:
+                break;
         }
     }
 
+cleanup:
     DGifCloseFile(gif, &error);
     delete loopReader;
-
     return loop_count;
 }

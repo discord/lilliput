@@ -413,6 +413,26 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 			resizeMethod: ImageOpsResize,
 			wantLoops:    1,
 		},
+		{
+			name:         "Animated GIF with duplicate number of loop count, use the first loop count",
+			inputPath:    "testdata/duplicate_number_of_loops.gif",
+			outputPath:   "testdata/out/duplicate_number_of_loops.webp",
+			width:        200,
+			height:       200,
+			quality:      80,
+			resizeMethod: ImageOpsResize,
+			wantLoops:    2,
+		},
+		{
+			name:         "Animated GIF with multiple extension blocks",
+			inputPath:    "testdata/dispose_bgnd.gif",
+			outputPath:   "testdata/out/dispose_bgnd.webp",
+			width:        200,
+			height:       200,
+			quality:      80,
+			resizeMethod: ImageOpsResize,
+			wantLoops:    0,
+		},
 	}
 
 	for _, tc := range testCases {
