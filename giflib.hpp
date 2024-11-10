@@ -12,8 +12,8 @@ struct GifAnimationInfo {
     int frame_count;
 };
 
-#define GIF_DISPOSE_NONE 1
-#define GIF_DISPOSE_BACKGROUND 2
+#define GIF_DISPOSE_NONE 0
+#define GIF_DISPOSE_BACKGROUND 1
 
 typedef struct giflib_decoder_struct* giflib_decoder;
 typedef struct giflib_encoder_struct* giflib_encoder;
