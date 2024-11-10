@@ -123,6 +123,16 @@ int giflib_decoder_get_prev_frame_delay(const giflib_decoder d)
     return d->prev_frame_delay_time;
 }
 
+int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
+{
+    switch (d->prev_frame_disposal) {
+        case DISPOSE_DO_NOT:
+            return GIF_DISPOSE_NONE;
+        default:
+            return GIF_DISPOSE_BACKGROUND;
+    }
+}
+
 void giflib_decoder_release(giflib_decoder d)
 {
     if (d->pixels) {
@@ -1113,15 +1123,15 @@ int giflib_encoder_get_output_length(giflib_encoder e)
     return e->dst_offset;
 }
 
-int giflib_decoder_get_loop_count(const giflib_decoder d) {
+struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d) {
     // Default to 1 loop (play once) if no NETSCAPE2.0 extension is found
-    int loop_count = 1;
+    GifAnimationInfo info = {1, 0};  // Initialize with defaults
 
     // Create a temporary decoder to read extension blocks
     // We need a separate decoder because reading extension blocks modifies decoder state
     giflib_decoder loopReader = new struct giflib_decoder_struct();
     if (!loopReader) {
-        return loop_count; // Return default on allocation failure
+        return info; // Return default on allocation failure
     }
 
     memset(loopReader, 0, sizeof(struct giflib_decoder_struct));
@@ -1131,10 +1141,11 @@ int giflib_decoder_get_loop_count(const giflib_decoder d) {
     GifFileType* gif = DGifOpen(loopReader, decode_func, &error);
     if (error) {
         delete loopReader;
-        return loop_count;
+        return info;
     }
 
-    // Read all blocks until we find NETSCAPE2.0 or hit end
+    bool found_loop_count = false;
+    // Read all blocks until we hit end
     GifRecordType recordType;
     while (DGifGetRecordType(gif, &recordType) == GIF_OK) {
         switch (recordType) {
@@ -1144,15 +1155,17 @@ int giflib_decoder_get_loop_count(const giflib_decoder d) {
                 
                 if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
                     // Look for NETSCAPE2.0 extension
-                    if (ExtFunction == APPLICATION_EXT_FUNC_CODE && ExtData[0] >= 11 &&
+                    if (!found_loop_count && 
+                        ExtFunction == APPLICATION_EXT_FUNC_CODE && 
+                        ExtData[0] >= 11 &&
                         memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
                         // Get the next block with loop count
                         if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && 
                             ExtData != NULL && 
                             ExtData[0] >= 3 && 
                             ExtData[1] == 1) {
-                            loop_count = ExtData[2] | (ExtData[3] << 8);
-                            goto cleanup; // Found what we need
+                            info.loop_count = ExtData[2] | (ExtData[3] << 8);
+                            found_loop_count = true;
                         }
                     }
                     
@@ -1167,9 +1180,22 @@ int giflib_decoder_get_loop_count(const giflib_decoder d) {
             }
             
             case IMAGE_DESC_RECORD_TYPE:
-                // Skip image data
+                // Count frame and skip image data
+                info.frame_count++;
                 if (DGifGetImageDesc(gif) != GIF_OK) {
                     goto cleanup;
+                }
+                // Skip the image data
+                {
+                    GifByteType* CodeBlock;
+                    if (DGifGetCode(gif, &error, &CodeBlock) == GIF_ERROR) {
+                        goto cleanup;
+                    }
+                    while (CodeBlock != NULL) {
+                        if (DGifGetCodeNext(gif, &CodeBlock) == GIF_ERROR) {
+                            goto cleanup;
+                        }
+                    }
                 }
                 break;
                 
@@ -1184,5 +1210,5 @@ int giflib_decoder_get_loop_count(const giflib_decoder d) {
 cleanup:
     DGifCloseFile(gif, &error);
     delete loopReader;
-    return loop_count;
+    return info;
 }

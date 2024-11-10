@@ -12,12 +12,13 @@ import (
 )
 
 type gifDecoder struct {
-	decoder       C.giflib_decoder
-	mat           C.opencv_mat
-	buf           []byte
-	frameIndex    int
-	loopCount     int
-	loopCountRead bool
+	decoder           C.giflib_decoder
+	mat               C.opencv_mat
+	buf               []byte
+	frameIndex        int
+	loopCount         int
+	frameCount        int
+	animationInfoRead bool
 }
 
 type gifEncoder struct {
@@ -69,7 +70,7 @@ func (d *gifDecoder) Header() (*ImageHeader, error) {
 		height:        int(C.giflib_decoder_get_height(d.decoder)),
 		pixelType:     PixelType(C.CV_8UC4),
 		orientation:   OrientationTopLeft,
-		numFrames:     int(C.giflib_decoder_get_num_frames(d.decoder)),
+		numFrames:     d.FrameCount(),
 		contentLength: len(d.buf),
 	}, nil
 }
@@ -115,12 +116,26 @@ func (d *gifDecoder) BackgroundColor() uint32 {
 	return 0x00FFFFFF // use a non-opaque alpha value so we can see the background if needed
 }
 
-func (d *gifDecoder) LoopCount() int {
-	if !d.loopCountRead {
-		d.loopCount = int(C.giflib_decoder_get_loop_count(d.decoder))
-		d.loopCountRead = true
+// readAnimationInfo reads the GIF info from the decoder and caches it
+// this involves reading extension blocks and is relatively expensive
+// so we only do it once when we need it
+func (d *gifDecoder) readAnimationInfo() {
+	if !d.animationInfoRead {
+		info := C.giflib_decoder_get_animation_info(d.decoder)
+		d.loopCount = int(info.loop_count)
+		d.frameCount = int(info.frame_count)
+		d.animationInfoRead = true
 	}
+}
+
+func (d *gifDecoder) LoopCount() int {
+	d.readAnimationInfo()
 	return d.loopCount
+}
+
+func (d *gifDecoder) FrameCount() int {
+	d.readAnimationInfo()
+	return d.frameCount
 }
 
 func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
@@ -157,7 +172,7 @@ func (d *gifDecoder) DecodeTo(f *Framebuffer) error {
 	}
 	f.duration = time.Duration(C.giflib_decoder_get_prev_frame_delay(d.decoder)) * 10 * time.Millisecond
 	f.blend = NoBlend
-	f.dispose = DisposeToBackgroundColor
+	f.dispose = DisposeMethod(C.giflib_decoder_get_prev_frame_disposal(d.decoder))
 	f.xOffset = 0
 	f.yOffset = 0
 	d.frameIndex++
