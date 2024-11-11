@@ -10,10 +10,10 @@ extern "C" {
 struct GifAnimationInfo {
     int loop_count;
     int frame_count;
-    uint8_t bg_red;
-    uint8_t bg_green;
-    uint8_t bg_blue;
-    uint8_t bg_alpha;
+    int bg_red;
+    int bg_green;
+    int bg_blue;
+    int bg_alpha;
 };
 
 #define GIF_DISPOSE_NONE 0

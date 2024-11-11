@@ -1168,8 +1168,13 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
                         found_gcb = true;
                         DGifExtensionToGCB(ExtData[0], &ExtData[1], &gcb);
                         // Get background color as soon as we have the GCB
-                        extract_background_color(gif, &gcb, &info.bg_red, &info.bg_green, 
-                                              &info.bg_blue, &info.bg_alpha);
+                        uint8_t bg_red, bg_green, bg_blue, bg_alpha;
+                        extract_background_color(gif, &gcb, &bg_red, &bg_green,
+                                              &bg_blue, &bg_alpha);
+                        info.bg_red = bg_red;
+                        info.bg_green = bg_green;
+                        info.bg_blue = bg_blue;
+                        info.bg_alpha = bg_alpha;
                     }
                     // Look for NETSCAPE2.0 extension
                     else if (!found_loop_count && 
@@ -1225,8 +1230,15 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
 
     // If we never found a GCB, still need to set background color
     if (!found_gcb) {
-        extract_background_color(gif, &gcb, &info.bg_red, &info.bg_green, 
-                               &info.bg_blue, &info.bg_alpha);
+        uint8_t bg_red, bg_green, bg_blue, bg_alpha;
+        extract_background_color(gif, &gcb, &bg_red, &bg_green,
+                               &bg_blue, &bg_alpha);
+
+        // convert to int to handle uint limitations in rust FFI
+        info.bg_red = bg_red;
+        info.bg_green = bg_green;
+        info.bg_blue = bg_blue;
+        info.bg_alpha = bg_alpha;
     }
 
 cleanup:
