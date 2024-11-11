@@ -113,7 +113,7 @@ func (d *gifDecoder) Duration() time.Duration {
 }
 
 func (d *gifDecoder) BackgroundColor() uint32 {
-	return 0x00FFFFFF // use a non-opaque alpha value so we can see the background if needed
+	return uint32(C.giflib_decoder_get_background_color(d.decoder))
 }
 
 // readAnimationInfo reads the GIF info from the decoder and caches it

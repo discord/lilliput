@@ -18,6 +18,7 @@ struct giflib_decoder_struct {
     uint8_t bg_red;
     uint8_t bg_blue;
     uint8_t bg_alpha;
+    uint32_t background_color;
     bool have_read_first_frame;
     bool seek_clear_extensions;
 };
@@ -131,6 +132,11 @@ int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
         default:
             return GIF_DISPOSE_BACKGROUND;
     }
+}
+
+uint32_t giflib_decoder_get_background_color(const giflib_decoder d)
+{
+    return d->background_color;
 }
 
 void giflib_decoder_release(giflib_decoder d)
@@ -564,6 +570,8 @@ bool giflib_decoder_decode_frame(giflib_decoder d, opencv_mat mat)
         else {
             d->bg_red = d->bg_green = d->bg_blue = d->bg_alpha = 255;
         }
+        d->background_color = (uint32_t)d->bg_alpha << 24 | ((uint32_t)d->bg_red << 16) |
+                              ((uint32_t)d->bg_green << 8) | (uint32_t)d->bg_blue;
     }
 
     if (!giflib_decoder_render_frame(d, &gcb, mat)) {
