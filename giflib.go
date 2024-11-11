@@ -19,6 +19,10 @@ type gifDecoder struct {
 	loopCount         int
 	frameCount        int
 	animationInfoRead bool
+	bgRed             uint8
+	bgGreen           uint8
+	bgBlue            uint8
+	bgAlpha           uint8
 }
 
 type gifEncoder struct {
@@ -113,7 +117,8 @@ func (d *gifDecoder) Duration() time.Duration {
 }
 
 func (d *gifDecoder) BackgroundColor() uint32 {
-	return uint32(C.giflib_decoder_get_background_color(d.decoder))
+	d.readAnimationInfo()
+	return uint32(d.bgRed)<<16 | uint32(d.bgGreen)<<8 | uint32(d.bgBlue) | uint32(d.bgAlpha)<<24
 }
 
 // readAnimationInfo reads the GIF info from the decoder and caches it
@@ -125,6 +130,10 @@ func (d *gifDecoder) readAnimationInfo() {
 		d.loopCount = int(info.loop_count)
 		d.frameCount = int(info.frame_count)
 		d.animationInfoRead = true
+		d.bgRed = uint8(info.bg_red)
+		d.bgGreen = uint8(info.bg_green)
+		d.bgBlue = uint8(info.bg_blue)
+		d.bgAlpha = uint8(info.bg_alpha)
 	}
 }
 

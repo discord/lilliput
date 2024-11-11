@@ -10,6 +10,10 @@ extern "C" {
 struct GifAnimationInfo {
     int loop_count;
     int frame_count;
+    uint8_t bg_red;
+    uint8_t bg_green;
+    uint8_t bg_blue;
+    uint8_t bg_alpha;
 };
 
 #define GIF_DISPOSE_NONE 0
@@ -44,7 +48,6 @@ void giflib_encoder_release(giflib_encoder e);
 int giflib_encoder_get_output_length(giflib_encoder e);
 struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d);
 int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d);
-uint32_t giflib_decoder_get_background_color(const giflib_decoder d);
 #ifdef __cplusplus
 }
 #endif
