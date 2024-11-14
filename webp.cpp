@@ -469,11 +469,44 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             size = WebPEncodeLosslessBGRA(mat->data, mat->cols, mat->rows, mat->step, &out_picture);
         }
     } else {
-        if (mat->channels() == 3) {
-            size = WebPEncodeBGR(mat->data, mat->cols, mat->rows, mat->step, quality, &out_picture);
-        } else {
-            size = WebPEncodeBGRA(mat->data, mat->cols, mat->rows, mat->step, quality, &out_picture);
+        // For lossy encoding
+        WebPConfig config;
+        WebPConfigInit(&config);
+        WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, quality);
+        config.method = 2;        // Faster compression (0=fastest, 6=slowest)
+        config.use_sharp_yuv = 1;
+        config.autofilter = 0;       // Disable auto filter
+        config.pass = 1;             // Single pass encoding
+        config.segments = 2;         // Reduce segments
+        config.partition_limit = 50;  // Reduce partition search
+
+        WebPPicture pic;
+        WebPPictureInit(&pic);
+        pic.width = mat->cols;
+        pic.height = mat->rows;
+        pic.use_argb = 1;
+
+        // Pre-allocate picture buffer
+        if (!WebPPictureAlloc(&pic)) {
+            return 0;
         }
+
+        WebPMemoryWriter writer;
+        WebPMemoryWriterInit(&writer);
+        pic.writer = WebPMemoryWrite;
+        pic.custom_ptr = &writer;
+
+        if (mat->channels() == 3) {
+            WebPPictureImportBGR(&pic, mat->data, mat->step);
+        } else {
+            WebPPictureImportBGRA(&pic, mat->data, mat->step);
+        }
+
+        if (WebPEncode(&config, &pic)) {
+            size = writer.size;
+            out_picture = writer.mem;
+        }
+        WebPPictureFree(&pic);
     }
 
     if (size == 0) {

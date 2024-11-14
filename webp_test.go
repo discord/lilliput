@@ -511,3 +511,75 @@ func testNewWebpEncoderWithAnimatedGIFSource(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkWebPTransform(b *testing.B) {
+	// Read test image once before benchmark
+	testWebPImage, err := os.ReadFile("testdata/animated-webp-supported.webp")
+	if err != nil {
+		b.Fatalf("Failed to read test image: %v", err)
+	}
+
+	benchCases := []struct {
+		name         string
+		width        int
+		height       int
+		quality      int
+		resizeMethod ImageOpsSizeMethod
+	}{
+		{
+			name:         "Resize_400x400_Q60",
+			width:        400,
+			height:       400,
+			quality:      60,
+			resizeMethod: ImageOpsResize,
+		},
+		{
+			name:         "Fit_56x56_Q80",
+			width:        56,
+			height:       56,
+			quality:      80,
+			resizeMethod: ImageOpsFit,
+		},
+		{
+			name:         "NoResize_Q100",
+			width:        0,
+			height:       0,
+			quality:      100,
+			resizeMethod: ImageOpsNoResize,
+		},
+	}
+
+	for _, bc := range benchCases {
+		b.Run(bc.name, func(b *testing.B) {
+			// Create reusable objects outside the benchmark loop
+			ops := NewImageOps(2000)
+			defer ops.Close()
+
+			dstBuf := make([]byte, destinationBufferSize)
+			options := &ImageOptions{
+				FileType:             ".webp",
+				NormalizeOrientation: true,
+				EncodeOptions:        map[int]int{WebpQuality: bc.quality},
+				ResizeMethod:         bc.resizeMethod,
+				Width:                bc.width,
+				Height:               bc.height,
+				EncodeTimeout:        time.Second * 30,
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				// Create new decoder for each iteration since it can't be reused
+				decoder, err := newWebpDecoder(testWebPImage)
+				if err != nil {
+					b.Fatalf("Failed to create decoder: %v", err)
+				}
+
+				_, err = ops.Transform(decoder, options, dstBuf)
+				decoder.Close()
+				if err != nil {
+					b.Fatalf("Transform failed: %v", err)
+				}
+			}
+		})
+	}
+}
