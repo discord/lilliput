@@ -279,10 +279,6 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 
 	// transform the frames and encode them until we run out of frames or the timeout is reached
 	for {
-		// break out if we're creating a single frame and we've already done one
-		if opt.DisableAnimatedOutput && frameCount > 0 {
-			return o.encodeEmpty(enc, opt.EncodeOptions)
-		}
 		err = o.decode(d)
 		emptyFrame := false
 		if err != nil {
@@ -332,6 +328,11 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 		}
 
 		frameCount++
+
+		// break out if we're creating a single frame and we've already done one
+		if opt.DisableAnimatedOutput {
+			return o.encodeEmpty(enc, opt.EncodeOptions)
+		}
 
 		if opt.MaxEncodeFrames != 0 && frameCount == opt.MaxEncodeFrames {
 			err = o.skipToEnd(d)
