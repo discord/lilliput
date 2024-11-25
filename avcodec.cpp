@@ -500,7 +500,7 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
                 success = true;
                 done = true;
             }
-            else if (res != AVERROR(EAGAIN)) {
+            else if (res != AVERROR(EAGAIN) && res != AVERROR_INVALIDDATA) {
                 done = true;
             }
         }
