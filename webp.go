@@ -19,7 +19,6 @@ type webpEncoder struct {
 	encoder    C.webp_encoder
 	dstBuf     []byte
 	icc        []byte
-	isAnimated bool
 	frameIndex int
 	hasFlushed bool
 }
@@ -65,7 +64,7 @@ func (d *webpDecoder) Description() string {
 }
 
 func (d *webpDecoder) Duration() time.Duration {
-	return time.Duration(0)
+	return time.Duration(C.webp_decoder_get_total_duration(d.decoder)) * time.Millisecond
 }
 
 func (d *webpDecoder) HasSubtitles() bool {
@@ -83,7 +82,6 @@ func (d *webpDecoder) hasReachedEndOfFrames() bool {
 
 // advanceFrameIndex advances the internal frame index for the next decoding call.
 func (d *webpDecoder) advanceFrameIndex() {
-	// Advance the frame index within the C++ decoder
 	C.webp_decoder_advance_frame(d.decoder)
 }
 

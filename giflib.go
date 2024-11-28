@@ -23,6 +23,7 @@ type gifDecoder struct {
 	bgGreen           uint8
 	bgBlue            uint8
 	bgAlpha           uint8
+	durationMs        int
 }
 
 type gifEncoder struct {
@@ -113,7 +114,8 @@ func (d *gifDecoder) ICC() []byte {
 }
 
 func (d *gifDecoder) Duration() time.Duration {
-	return time.Duration(0)
+	d.readAnimationInfo()
+	return time.Duration(d.durationMs) * time.Millisecond
 }
 
 func (d *gifDecoder) BackgroundColor() uint32 {
@@ -134,6 +136,7 @@ func (d *gifDecoder) readAnimationInfo() {
 		d.bgGreen = uint8(info.bg_green)
 		d.bgBlue = uint8(info.bg_blue)
 		d.bgAlpha = uint8(info.bg_alpha)
+		d.durationMs = int(info.duration_ms)
 	}
 }
 

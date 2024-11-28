@@ -23,6 +23,7 @@ struct webp_decoder_struct {
     WebPMuxAnimBlend prev_frame_blend;
     uint8_t* decode_buffer;
     size_t decode_buffer_size;
+    int total_duration;
 };
 
 struct webp_encoder_struct {
@@ -93,10 +94,12 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
         return nullptr;
     }
 
-    // Calculate total frame count
+    // Calculate total frame count and duration
     d->total_frame_count = 0;
+    d->total_duration = 0;
     do {
         d->total_frame_count++;
+        d->total_duration += frame.duration;
         WebPDataClear(&frame.bitstream);
     } while (WebPMuxGetFrame(mux, d->total_frame_count + 1, &frame) == WEBP_MUX_OK);
 
@@ -109,6 +112,9 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
             d->loop_count = anim_params.loop_count;
         }
         d->has_animation = true;
+    } else {
+        // For static images, ensure duration is 0
+        d->total_duration = 0;
     }
 
     // Pre-allocate decode buffer
@@ -226,6 +232,16 @@ uint32_t webp_decoder_get_loop_count(const webp_decoder d)
 int webp_decoder_get_num_frames(const webp_decoder d)
 {
     return d ? d->total_frame_count : 0;
+}
+
+/**
+ * Gets the total duration of the WebP animation in milliseconds.
+ * @param d The webp_decoder_struct pointer.
+ * @return The total duration in milliseconds, 0 for static images.
+ */
+int webp_decoder_get_total_duration(const webp_decoder d)
+{
+    return d ? d->total_duration : 0;
 }
 
 /**
