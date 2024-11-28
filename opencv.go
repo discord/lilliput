@@ -17,7 +17,9 @@ import (
 type DisposeMethod int
 
 const (
+	// NoDispose indicates the previous frame should remain as-is
 	NoDispose DisposeMethod = iota
+	// DisposeToBackgroundColor indicates the previous frame area should be cleared to background color
 	DisposeToBackgroundColor
 )
 
@@ -25,7 +27,9 @@ const (
 type BlendMethod int
 
 const (
+	// UseAlphaBlending indicates alpha blending should be used when compositing frames
 	UseAlphaBlending BlendMethod = iota
+	// NoBlend indicates frames should be copied directly without blending
 	NoBlend
 )
 
@@ -33,12 +37,13 @@ const (
 type ImageOrientation int
 
 const (
-	JpegQuality    = int(C.CV_IMWRITE_JPEG_QUALITY)
-	PngCompression = int(C.CV_IMWRITE_PNG_COMPRESSION)
-	WebpQuality    = int(C.CV_IMWRITE_WEBP_QUALITY)
+	// Standard image encoding constants
+	JpegQuality     = int(C.CV_IMWRITE_JPEG_QUALITY)     // Quality parameter for JPEG encoding (0-100)
+	PngCompression  = int(C.CV_IMWRITE_PNG_COMPRESSION)  // Compression level for PNG encoding (0-9)
+	WebpQuality     = int(C.CV_IMWRITE_WEBP_QUALITY)     // Quality parameter for WebP encoding (0-100)
+	JpegProgressive = int(C.CV_IMWRITE_JPEG_PROGRESSIVE) // Enable progressive JPEG encoding
 
-	JpegProgressive = int(C.CV_IMWRITE_JPEG_PROGRESSIVE)
-
+	// Image orientation constants
 	OrientationTopLeft     = ImageOrientation(C.CV_IMAGE_ORIENTATION_TL)
 	OrientationTopRight    = ImageOrientation(C.CV_IMAGE_ORIENTATION_TR)
 	OrientationBottomRight = ImageOrientation(C.CV_IMAGE_ORIENTATION_BR)
@@ -48,32 +53,35 @@ const (
 	OrientationRightBottom = ImageOrientation(C.CV_IMAGE_ORIENTATION_RB)
 	OrientationLeftBottom  = ImageOrientation(C.CV_IMAGE_ORIENTATION_LB)
 
+	// PNG chunk field lengths
 	pngChunkSizeFieldLen = 4
 	pngChunkTypeFieldLen = 4
 	pngChunkAllFieldsLen = 12
 
-	jpegEOISegmentType byte = 0xD9
-	jpegSOSSegmentType byte = 0xDA
+	// JPEG segment type markers
+	jpegEOISegmentType byte = 0xD9 // End of Image marker
+	jpegSOSSegmentType byte = 0xDA // Start of Scan marker
 )
 
+// PNG chunk type identifiers
 var (
-	pngActlChunkType = []byte{byte('a'), byte('c'), byte('T'), byte('L')}
-	pngFctlChunkType = []byte{byte('f'), byte('c'), byte('T'), byte('L')}
-	pngFdatChunkType = []byte{byte('f'), byte('d'), byte('A'), byte('T')}
-	pngIendChunkType = []byte{byte('I'), byte('E'), byte('N'), byte('D')}
+	pngActlChunkType = []byte{byte('a'), byte('c'), byte('T'), byte('L')} // Animation Control Chunk
+	pngFctlChunkType = []byte{byte('f'), byte('c'), byte('T'), byte('L')} // Frame Control Chunk
+	pngFdatChunkType = []byte{byte('f'), byte('d'), byte('A'), byte('T')} // Frame Data Chunk
+	pngIendChunkType = []byte{byte('I'), byte('E'), byte('N'), byte('D')} // Image End Chunk
 
-	// Helpful: https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
+	// Map of JPEG segment types that don't have a size field
 	jpegUnsizedSegmentTypes = map[byte]bool{
-		0xD0:               true, // RST segments
-		0xD1:               true,
-		0xD2:               true,
-		0xD3:               true,
-		0xD4:               true,
-		0xD5:               true,
-		0xD6:               true,
-		0xD7:               true, // end RST segments
-		0xD8:               true, // SOI
-		jpegEOISegmentType: true,
+		0xD0:               true, // RST0 marker
+		0xD1:               true, // RST1 marker
+		0xD2:               true, // RST2 marker
+		0xD3:               true, // RST3 marker
+		0xD4:               true, // RST4 marker
+		0xD5:               true, // RST5 marker
+		0xD6:               true, // RST6 marker
+		0xD7:               true, // RST7 marker
+		0xD8:               true, // SOI marker
+		jpegEOISegmentType: true, // EOI marker
 	}
 )
 
@@ -82,40 +90,42 @@ type PixelType int
 
 // ImageHeader contains basic decoded image metadata.
 type ImageHeader struct {
-	width         int
-	height        int
-	pixelType     PixelType
-	orientation   ImageOrientation
-	numFrames     int
-	contentLength int
+	width         int              // Width of the image in pixels
+	height        int              // Height of the image in pixels
+	pixelType     PixelType        // Type of pixels in the image
+	orientation   ImageOrientation // Orientation from image metadata
+	numFrames     int              // Number of frames (1 for static images)
+	contentLength int              // Length of actual image content
 }
 
 // Framebuffer contains an array of raw, decoded pixel data.
 type Framebuffer struct {
-	buf       []byte
-	mat       C.opencv_mat
-	width     int
-	height    int
-	pixelType PixelType
-	duration  time.Duration
-	xOffset   int
-	yOffset   int
-	dispose   DisposeMethod
-	blend     BlendMethod
+	buf       []byte        // Raw pixel data
+	mat       C.opencv_mat  // OpenCV matrix containing the pixel data
+	width     int           // Width of the frame in pixels
+	height    int           // Height of the frame in pixels
+	pixelType PixelType     // Type of pixels in the frame
+	duration  time.Duration // Duration to display this frame
+	xOffset   int           // X offset for drawing this frame
+	yOffset   int           // Y offset for drawing this frame
+	dispose   DisposeMethod // How to dispose previous frame
+	blend     BlendMethod   // How to blend with previous frame
 }
 
+// openCVDecoder implements the Decoder interface for images supported by OpenCV.
 type openCVDecoder struct {
-	decoder       C.opencv_decoder
-	mat           C.opencv_mat
-	buf           []byte
-	hasReadHeader bool
-	hasDecoded    bool
+	decoder       C.opencv_decoder // Native OpenCV decoder
+	mat           C.opencv_mat     // OpenCV matrix containing the image data
+	buf           []byte           // Original encoded image data
+	hasReadHeader bool             // Whether header has been read
+	hasDecoded    bool             // Whether image has been decoded
 }
 
+// openCVEncoder implements the Encoder interface for images supported by OpenCV.
 type openCVEncoder struct {
-	encoder C.opencv_encoder
-	dst     C.opencv_mat
-	dstBuf  []byte
+	encoder C.opencv_encoder // Native OpenCV encoder
+	dst     C.opencv_mat     // Destination OpenCV matrix
+	dstBuf  []byte           // Destination buffer for encoded data
 }
 
 // Depth returns the number of bits in the PixelType.
@@ -143,29 +153,30 @@ func (h *ImageHeader) PixelType() PixelType {
 	return h.pixelType
 }
 
-// ImageOrientation returns the metadata-based image orientation.
+// Orientation returns the metadata-based image orientation.
 func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
 }
 
+// IsAnimated returns true if the image contains multiple frames.
 func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
 }
 
+// HasAlpha returns true if the image has an alpha channel.
 func (h *ImageHeader) HasAlpha() bool {
 	return h.pixelType.Channels() == 4
 }
 
-// Some images have extra padding bytes at the end that aren't needed.
-// In the worst case, this might be unwanted data that the user intended
-// to crop (e.g. "acropalypse" bug).
-// This function returns the length of the necessary image data. Data
-// past this point can be safely truncated `data[:h.ContentLength()]`
+// ContentLength returns the length of the necessary image data.
+// Data past this point can be safely truncated using data[:h.ContentLength()].
+// This helps handle padding bytes and potential unwanted trailing data.
+// This could be applicable to images with unwanted data at the end (e.g. "acropalypse" bug).
 func (h *ImageHeader) ContentLength() int {
 	return h.contentLength
 }
 
-// NewFramebuffer creates the backing store for a pixel frame buffer.
+// NewFramebuffer creates a backing store for a pixel frame buffer with the specified dimensions.
 func NewFramebuffer(width, height int) *Framebuffer {
 	return &Framebuffer{
 		buf: make([]byte, width*height*4),
@@ -181,8 +192,7 @@ func (f *Framebuffer) Close() {
 	}
 }
 
-// Clear resets all of the pixel data in Framebuffer for the active frame
-// It also resets the mat if it exists.
+// Clear resets all pixel data in Framebuffer for the active frame and resets the mat if it exists.
 func (f *Framebuffer) Clear() {
 	C.memset(unsafe.Pointer(&f.buf[0]), 0, C.size_t(len(f.buf)))
 	if f.mat != nil {
@@ -190,6 +200,7 @@ func (f *Framebuffer) Clear() {
 	}
 }
 
+// Create3Channel initializes the framebuffer for 3-channel (RGB) image data.
 func (f *Framebuffer) Create3Channel(width, height int) error {
 	if err := f.resizeMat(width, height, C.CV_8UC3); err != nil {
 		return err
@@ -198,6 +209,7 @@ func (f *Framebuffer) Create3Channel(width, height int) error {
 	return nil
 }
 
+// Create4Channel initializes the framebuffer for 4-channel (RGBA) image data.
 func (f *Framebuffer) Create4Channel(width, height int) error {
 	if err := f.resizeMat(width, height, C.CV_8UC4); err != nil {
 		return err
@@ -206,6 +218,8 @@ func (f *Framebuffer) Create4Channel(width, height int) error {
 	return nil
 }
 
+// resizeMat resizes the OpenCV matrix to the specified dimensions and pixel type.
+// Returns ErrBufTooSmall if the matrix cannot be created at the specified size.
 func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	if f.mat != nil {
 		C.opencv_mat_release(f.mat)
@@ -225,8 +239,8 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	return nil
 }
 
-// OrientationTransform rotates and/or mirrors the Framebuffer. Passing the
-// orientation given by the ImageHeader will normalize the orientation of the Framebuffer.
+// OrientationTransform rotates and/or mirrors the Framebuffer according to the given orientation.
+// Passing the orientation from ImageHeader will normalize the orientation.
 func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 	if f.mat == nil {
 		return
