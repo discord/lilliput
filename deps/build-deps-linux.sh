@@ -21,6 +21,9 @@ rm -rf giflib
 rm -rf opencv
 rm -rf bzip2
 rm -rf ffmpeg
+rm -rf libyuv
+rm -rf aom
+rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
     git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
@@ -114,6 +117,51 @@ tar -xjf $SRCDIR/ffmpeg-5.1.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --disable-cuda --disable-cuvid --disable-nvenc --disable-xlib
+make
+make install
+
+echo '\n--------------------'
+echo 'Building libyuv'
+echo '--------------------\n'
+mkdir -p $BASEDIR/libyuv
+tar -xzf $SRCDIR/libyuv.tar.gz -C $BASEDIR/libyuv --strip-components 1
+cd $BASEDIR/libyuv
+make V=1 -f linux.mk
+cp libyuv.a "$PREFIX/lib"
+cp -r include/* "$PREFIX/include/"
+
+echo '\n--------------------'
+echo 'Building libaom'
+echo '--------------------\n'
+mkdir -p $BASEDIR/aom
+tar -xzf $SRCDIR/aom.tar.gz -C $BASEDIR/aom --strip-components 1
+mkdir -p $BUILDDIR/aom
+cd $BUILDDIR/aom
+cmake $BASEDIR/aom -DENABLE_SHARED=0 -DENABLE_STATIC=1 -DENABLE_TESTS=0 -DENABLE_TOOLS=0 -DENABLE_DOCS=0 -DCMAKE_INSTALL_PREFIX=$PREFIX
+make
+make install
+
+echo '\n--------------------'
+echo 'Building libavif'
+echo '--------------------\n'
+mkdir -p $BASEDIR/libavif
+tar -xzf $SRCDIR/libavif.tar.gz -C $BASEDIR/libavif --strip-components 1
+mkdir -p $BUILDDIR/libavif
+cd $BUILDDIR/libavif
+cmake $BASEDIR/libavif \
+    -DAVIF_CODEC_AOM=SYSTEM \
+    -DAVIF_BUILD_APPS=OFF \
+    -DLIBYUV_LIBRARY=$PREFIX/lib/libyuv.a \
+    -DLIBYUV_INCLUDE_DIR=$PREFIX/include \
+    -DAOM_LIBRARY=$PREFIX/lib/libaom.a \
+    -DAOM_INCLUDE_DIR=$PREFIX/include \
+    -DJPEG_INCLUDE_DIR=$PREFIX/include \
+    -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
+    -DPNG_PNG_INCLUDE_DIR=$PREFIX/include \
+    -DPNG_LIBRARY=$PREFIX/lib/libpng.a \
+    -DCMAKE_PREFIX_PATH=$PREFIX \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 

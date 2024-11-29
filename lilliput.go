@@ -90,6 +90,13 @@ func isWebp(maybeWebp []byte) bool {
 	return bytes.HasPrefix(maybeWebp, webpMagic) && bytes.Equal(maybeWebp[8:12], webpFormat)
 }
 
+func isAvif(maybeAvif []byte) bool {
+	if len(maybeAvif) < 12 {
+		return false
+	}
+	return bytes.Equal(maybeAvif[4:8], []byte("ftyp")) && (bytes.Equal(maybeAvif[8:12], []byte("avif")) || bytes.Equal(maybeAvif[8:12], []byte("avis")))
+}
+
 func isMP4(maybeMP4 []byte) bool {
 	if len(maybeMP4) < 12 {
 		return false
@@ -118,11 +125,17 @@ func NewDecoder(buf []byte) (Decoder, error) {
 		return newWebpDecoder(buf)
 	}
 
-	maybeDecoder, err := newOpenCVDecoder(buf)
-	if err == nil {
-		return maybeDecoder, nil
+	isBufAvif := isAvif(buf)
+	if isBufAvif {
+		return newAvifDecoder(buf)
 	}
 
+	maybeOpenCVDecoder, err := newOpenCVDecoder(buf)
+	if err == nil {
+		return maybeOpenCVDecoder, nil
+	}
+
+	// Try AVCodec decoder as a fallback
 	return newAVCodecDecoder(buf)
 }
 
@@ -137,6 +150,10 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 
 	if strings.ToLower(ext) == ".webp" {
 		return newWebpEncoder(decodedBy, dst)
+	}
+
+	if strings.ToLower(ext) == ".avif" {
+		return newAvifEncoder(decodedBy, dst)
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {

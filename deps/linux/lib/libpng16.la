@@ -17,7 +17,7 @@ old_library='libpng16.a'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=' -L/src/deps/linux/lib -lz -lm'
+dependency_libs=' -L/home/scott/go/src/github.com/discord/lilliput/deps/linux/lib -lz -lm'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
@@ -28,7 +28,7 @@ age=38
 revision=0
 
 # Is this an already installed library?
-installed=yes
+installed=no
 
 # Should we warn about portability when linking against -modules?
 shouldnotlink=no
@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/src/deps/linux/lib'
+libdir='/home/scott/go/src/github.com/discord/lilliput/deps/linux/lib'

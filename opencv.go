@@ -1,6 +1,7 @@
 package lilliput
 
 // #include "opencv.hpp"
+// #include "avif.hpp"
 import "C"
 
 import (
@@ -42,6 +43,8 @@ const (
 	PngCompression  = int(C.CV_IMWRITE_PNG_COMPRESSION)  // Compression level for PNG encoding (0-9)
 	WebpQuality     = int(C.CV_IMWRITE_WEBP_QUALITY)     // Quality parameter for WebP encoding (0-100)
 	JpegProgressive = int(C.CV_IMWRITE_JPEG_PROGRESSIVE) // Enable progressive JPEG encoding
+	AvifQuality     = int(C.AVIF_QUALITY)                // Quality parameter for AVIF encoding (0-100)
+	AvifSpeed       = int(C.AVIF_SPEED)                  // Speed parameter for AVIF encoding (0-10)
 
 	// Image orientation constants
 	OrientationTopLeft     = ImageOrientation(C.CV_IMAGE_ORIENTATION_TL)
