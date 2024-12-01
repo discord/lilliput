@@ -15,6 +15,7 @@ int webp_decoder_get_width(const webp_decoder d);
 int webp_decoder_get_height(const webp_decoder d);
 int webp_decoder_get_pixel_type(const webp_decoder d);
 int webp_decoder_get_num_frames(const webp_decoder d);
+int webp_decoder_get_total_duration(const webp_decoder d);
 int webp_decoder_get_prev_frame_delay(const webp_decoder d);
 int webp_decoder_get_prev_frame_dispose(const webp_decoder d);
 int webp_decoder_get_prev_frame_blend(const webp_decoder d);

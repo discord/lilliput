@@ -14,6 +14,7 @@ struct GifAnimationInfo {
     int bg_green;
     int bg_blue;
     int bg_alpha;
+    int duration_ms;
 };
 
 #define GIF_DISPOSE_NONE 0
