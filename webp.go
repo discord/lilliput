@@ -9,12 +9,14 @@ import (
 	"unsafe"
 )
 
+// webpDecoder implements the Decoder interface for WebP images.
 type webpDecoder struct {
 	decoder C.webp_decoder
 	mat     C.opencv_mat
 	buf     []byte
 }
 
+// webpEncoder implements the Encoder interface for WebP images.
 type webpEncoder struct {
 	encoder    C.webp_encoder
 	dstBuf     []byte
@@ -24,6 +26,8 @@ type webpEncoder struct {
 	hasFlushed bool
 }
 
+// newWebpDecoder creates a new WebP decoder from the provided byte buffer.
+// Returns an error if the buffer is too small or contains invalid WebP data.
 func newWebpDecoder(buf []byte) (*webpDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 
@@ -43,6 +47,7 @@ func newWebpDecoder(buf []byte) (*webpDecoder, error) {
 	}, nil
 }
 
+// Header returns the image metadata including dimensions, pixel type, and frame count.
 func (d *webpDecoder) Header() (*ImageHeader, error) {
 	return &ImageHeader{
 		width:         int(C.webp_decoder_get_width(d.decoder)),
@@ -54,24 +59,30 @@ func (d *webpDecoder) Header() (*ImageHeader, error) {
 	}, nil
 }
 
+// Close releases all resources associated with the decoder.
 func (d *webpDecoder) Close() {
 	C.webp_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 	d.buf = nil
 }
 
+// Description returns the image format description ("WEBP").
 func (d *webpDecoder) Description() string {
 	return "WEBP"
 }
 
+// Duration returns the total duration of the WebP animation.
+// Returns 0 for static images.
 func (d *webpDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
 
+// HasSubtitles returns whether the image contains subtitle data (always false for WebP).
 func (d *webpDecoder) HasSubtitles() bool {
 	return false
 }
 
+// IsStreamable returns whether the image format supports streaming (always false for WebP).
 func (d *webpDecoder) IsStreamable() bool {
 	return false
 }
@@ -87,20 +98,26 @@ func (d *webpDecoder) advanceFrameIndex() {
 	C.webp_decoder_advance_frame(d.decoder)
 }
 
+// ICC returns the ICC color profile data embedded in the WebP image.
 func (d *webpDecoder) ICC() []byte {
 	iccDst := make([]byte, 8192)
 	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
 	return iccDst[:iccLength]
 }
 
+// BackgroundColor returns the background color of the WebP image.
 func (d *webpDecoder) BackgroundColor() uint32 {
 	return uint32(C.webp_decoder_get_bg_color(d.decoder))
 }
 
+// LoopCount returns the number of times the animation should loop.
 func (d *webpDecoder) LoopCount() int {
 	return int(C.webp_decoder_get_loop_count(d.decoder))
 }
 
+// DecodeTo decodes the current frame into the provided Framebuffer.
+// Returns io.EOF when all frames have been decoded.
+// Returns ErrDecodingFailed if the frame cannot be decoded.
 func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	if f == nil {
 		return io.EOF
@@ -141,10 +158,13 @@ func (d *webpDecoder) DecodeTo(f *Framebuffer) error {
 	return nil
 }
 
+// SkipFrame is not supported for WebP images and always returns ErrSkipNotSupported.
 func (d *webpDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
+// newWebpEncoder creates a new WebP encoder using the provided decoder for metadata
+// and destination buffer for the encoded output.
 func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
 	icc := decodedBy.ICC()
@@ -168,6 +188,10 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	}, nil
 }
 
+// Encode encodes a frame into the WebP format.
+// If f is nil, finalizes the WebP animation and returns the encoded data.
+// Returns io.EOF after the animation has been finalized.
+// The opt parameter allows specifying encoding options as key-value pairs.
 func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.hasFlushed {
 		return nil, io.EOF
@@ -206,6 +230,7 @@ func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	return nil, nil
 }
 
+// Close releases all resources associated with the encoder.
 func (e *webpEncoder) Close() {
 	C.webp_encoder_release(e.encoder)
 }
