@@ -69,7 +69,7 @@ func TestNewDecoder(t *testing.T) {
 			sourceFilePath:       "testdata/big_buck_bunny_720_5s.webp",
 			wantWidth:            480,
 			wantHeight:           270,
-			wantNegativeDuration: true,
+			wantNegativeDuration: false,
 			wantAnimated:         true,
 		},
 		{

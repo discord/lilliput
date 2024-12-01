@@ -24,6 +24,7 @@ type gifDecoder struct {
 	bgGreen           uint8
 	bgBlue            uint8
 	bgAlpha           uint8
+	durationMs        int
 }
 
 // gifEncoder implements image encoding for GIF format
@@ -125,7 +126,8 @@ func (d *gifDecoder) ICC() []byte {
 
 // Duration returns the total duration of the GIF animation.
 func (d *gifDecoder) Duration() time.Duration {
-	return time.Duration(0)
+	d.readAnimationInfo()
+	return time.Duration(d.durationMs) * time.Millisecond
 }
 
 // BackgroundColor returns the GIF background color as a 32-bit RGBA value.
@@ -146,6 +148,7 @@ func (d *gifDecoder) readAnimationInfo() {
 		d.bgGreen = uint8(info.bg_green)
 		d.bgBlue = uint8(info.bg_blue)
 		d.bgAlpha = uint8(info.bg_alpha)
+		d.durationMs = int(info.duration_ms)
 	}
 }
 

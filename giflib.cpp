@@ -1132,7 +1132,7 @@ int giflib_encoder_get_output_length(giflib_encoder e)
 
 struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d) {
     // Default to 1 loop (play once) if no NETSCAPE2.0 extension is found
-    GifAnimationInfo info = {1, 0, 255, 255, 255, 0};  // loop_count, frame_count, bg_r, bg_g, bg_b, bg_a
+    GifAnimationInfo info = {1, 0, 255, 255, 255, 0, 0};  // loop_count, frame_count, bg_r, bg_g, bg_b, bg_a, duration_ms
 
     // Create a temporary decoder to read extension blocks
     giflib_decoder loopReader = new struct giflib_decoder_struct();
@@ -1163,18 +1163,28 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
                 int ExtFunction;
                 
                 if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
-                    // Look for GraphicsControlBlock if we haven't found it yet
-                    if (!found_gcb && ExtFunction == GRAPHICS_EXT_FUNC_CODE) {
-                        found_gcb = true;
-                        DGifExtensionToGCB(ExtData[0], &ExtData[1], &gcb);
-                        // Get background color as soon as we have the GCB
-                        uint8_t bg_red, bg_green, bg_blue, bg_alpha;
-                        extract_background_color(gif, &gcb, &bg_red, &bg_green,
-                                              &bg_blue, &bg_alpha);
-                        info.bg_red = bg_red;
-                        info.bg_green = bg_green;
-                        info.bg_blue = bg_blue;
-                        info.bg_alpha = bg_alpha;
+                    // Check for GraphicsControlBlock to get frame delay
+                    if (ExtFunction == GRAPHICS_EXT_FUNC_CODE) {
+                        GraphicsControlBlock frame_gcb;
+                        DGifExtensionToGCB(ExtData[0], &ExtData[1], &frame_gcb);
+
+                        // Add frame delay with 20ms minimum for multi-frame GIFs
+                        int frame_delay_ms = (info.frame_count > 0 && frame_gcb.DelayTime < 2) ?
+                            20 : frame_gcb.DelayTime * 10;
+                        info.duration_ms += frame_delay_ms;
+
+                        // If this is first GCB, handle background color
+                        if (!found_gcb) {
+                            found_gcb = true;
+                            gcb = frame_gcb;
+                            uint8_t bg_red, bg_green, bg_blue, bg_alpha;
+                            extract_background_color(gif, &gcb, &bg_red, &bg_green,
+                                                  &bg_blue, &bg_alpha);
+                            info.bg_red = bg_red;
+                            info.bg_green = bg_green;
+                            info.bg_blue = bg_blue;
+                            info.bg_alpha = bg_alpha;
+                        }
                     }
                     // Look for NETSCAPE2.0 extension
                     else if (!found_loop_count && 
