@@ -61,7 +61,8 @@ type ImageOps struct {
 }
 
 // NewImageOps creates a new ImageOps object that will operate
-// on images up to maxSize on each axis.
+// on images up to maxSize on each axis. It initializes two framebuffers
+// for double-buffering operations.
 func NewImageOps(maxSize int) *ImageOps {
 	frames := make([]*Framebuffer, 2)
 	frames[0] = NewFramebuffer(maxSize, maxSize)
@@ -72,21 +73,24 @@ func NewImageOps(maxSize int) *ImageOps {
 	}
 }
 
+// active returns the currently active framebuffer used for operations
 func (o *ImageOps) active() *Framebuffer {
 	return o.frames[o.frameIndex]
 }
 
+// secondary returns the secondary framebuffer used for double-buffering operations
 func (o *ImageOps) secondary() *Framebuffer {
 	return o.frames[1-o.frameIndex]
 }
 
+// swap toggles between the active and secondary framebuffers
 func (o *ImageOps) swap() {
 	o.frameIndex = 1 - o.frameIndex
 }
 
-// Clear resets all pixel data in ImageOps. This need not be called
-// between calls to Transform. You may choose to call this to remove
-// image data from memory.
+// Clear frees the pixel data held in all framebuffers. While not required between
+// Transform operations, you can call this to reduce memory usage when the ImageOps
+// object will be idle for a while.
 func (o *ImageOps) Clear() {
 	o.frames[0].Clear()
 	o.frames[1].Clear()
@@ -105,8 +109,9 @@ func (o *ImageOps) Close() {
 	}
 }
 
-// setupAnimatedFrameBuffers sets up the animated frame buffer.
-// It returns an error if the frame could not be created.
+// setupAnimatedFrameBuffers initializes the composite buffer needed for animated image processing.
+// It creates a buffer with the appropriate number of channels based on whether the image has alpha.
+// Returns an error if buffer creation fails.
 func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputCanvasHeight int, hasAlpha bool) error {
 	// Create a buffer to hold the composite of the current frame and the previous frame
 	if o.animatedCompositeBuffer == nil {
@@ -127,15 +132,16 @@ func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputC
 	return nil
 }
 
-// decode decodes the active frame from the decoder specified by d.
+// decode reads the current frame from the decoder into the active framebuffer.
+// Returns an error if decoding fails.
 func (o *ImageOps) decode(d Decoder) error {
 	active := o.active()
 	return d.DecodeTo(active)
 }
 
-// fit fits the active frame to the specified output canvas size.
-// It returns true if the frame was resized and false if it was not.
-// It returns an error if the frame could not be resized.
+// fit resizes the active frame to fit within the specified dimensions while maintaining aspect ratio.
+// For animated images, it handles frame compositing and disposal.
+// Returns (true, nil) if resizing was performed successfully, (false, error) if an error occurred.
 func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight int, isAnimated, hasAlpha bool) (bool, error) {
 	newWidth, newHeight := calculateExpectedSize(inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight)
 
@@ -171,7 +177,9 @@ func (o *ImageOps) fit(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCan
 	return true, nil
 }
 
-// resize resizes the active frame to the specified output canvas size.
+// resize scales the active frame to exactly match the specified dimensions.
+// For animated images, it handles frame compositing and disposal.
+// Returns (true, nil) if resizing was performed successfully, (false, error) if an error occurred.
 func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, outputCanvasWidth, outputCanvasHeight, frameCount int, isAnimated, hasAlpha bool) (bool, error) {
 	// If the image is animated, we need to resize the frame to the input canvas size
 	// and then copy the previous frame's data to the working buffer.
@@ -204,6 +212,9 @@ func (o *ImageOps) resize(d Decoder, inputCanvasWidth, inputCanvasHeight, output
 	return true, nil
 }
 
+// calculateExpectedSize determines the final dimensions for an image based on
+// original and requested sizes, handling special cases for square resizing
+// and oversized requests.
 func calculateExpectedSize(origWidth, origHeight, reqWidth, reqHeight int) (int, int) {
 	if reqWidth == reqHeight && reqWidth > min(origWidth, origHeight) {
 		// Square resize request larger than smaller original dimension
@@ -218,6 +229,7 @@ func calculateExpectedSize(origWidth, origHeight, reqWidth, reqHeight int) (int,
 	}
 }
 
+// min returns the smaller of two integers
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -225,24 +237,28 @@ func min(a, b int) int {
 	return b
 }
 
-// normalizeOrientation flips and rotates the active frame to undo EXIF orientation.
+// normalizeOrientation applies EXIF orientation corrections to the active frame
+// by performing the necessary flips and rotations.
 func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
 	active := o.active()
 	active.OrientationTransform(orientation)
 }
 
-// encode encodes the active frame using the encoder specified by e.
+// encode writes the active frame to an encoded format using the provided encoder
+// and encoding options. Returns the encoded bytes or an error.
 func (o *ImageOps) encode(e Encoder, opt map[int]int) ([]byte, error) {
 	active := o.active()
 	return e.Encode(active, opt)
 }
 
-// encodeEmpty encodes an empty frame using the encoder specified by e.
+// encodeEmpty signals the encoder to finalize the encoding process without
+// additional frame data. Used for handling animation termination.
 func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
 	return e.Encode(nil, opt)
 }
 
-// skipToEnd skips to the end of the animation specified by d.
+// skipToEnd advances the decoder to the final frame of an animation.
+// Returns io.EOF when the end is reached or an error if seeking fails.
 func (o *ImageOps) skipToEnd(d Decoder) error {
 	var err error
 	for {
@@ -353,9 +369,9 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 	}
 }
 
-// transformCurrentFrame transforms the current frame using the decoder specified by d.
-// It returns true if the frame was resized and false if it was not.
-// It returns an error if the frame could not be resized.
+// transformCurrentFrame applies the requested resize operation to the current frame.
+// Handles both static and animated images, managing frame compositing when needed.
+// Returns (true, nil) if transformation was performed, (false, error) if an error occurred.
 func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHeader *ImageHeader, frameCount int) (bool, error) {
 	if opt.ResizeMethod == ImageOpsNoResize && !inputHeader.IsAnimated() {
 		return false, nil
@@ -376,8 +392,8 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHead
 	}
 }
 
-// initializeTransform initializes the transform process.
-// It returns the image header, encoder, and error.
+// initializeTransform prepares for image transformation by reading the input header
+// and creating an appropriate encoder. Returns the header, encoder, and any error.
 func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte) (*ImageHeader, Encoder, error) {
 	inputHeader, err := d.Header()
 	if err != nil {
@@ -392,6 +408,10 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 	return inputHeader, enc, nil
 }
 
+// applyDisposeMethod handles frame disposal according to the active frame's
+// dispose method in animated images. For frames marked with DisposeToBackgroundColor,
+// it clears the affected region to transparent. For NoDispose, the previous frame's
+// content is preserved.
 func (o *ImageOps) applyDisposeMethod(d Decoder) error {
 	active := o.active()
 	switch active.dispose {
@@ -404,6 +424,8 @@ func (o *ImageOps) applyDisposeMethod(d Decoder) error {
 	return nil
 }
 
+// applyBlendMethod composites the active frame onto the animation buffer using
+// the specified blending mode (alpha blending or direct copy).
 func (o *ImageOps) applyBlendMethod(d Decoder) error {
 	active := o.active()
 	rect := image.Rect(
@@ -422,8 +444,8 @@ func (o *ImageOps) applyBlendMethod(d Decoder) error {
 	return nil
 }
 
-// copyFrameProperties copies the properties from the active frame to the secondary frame
-// and then swaps the frames.
+// copyFramePropertiesAndSwap transfers animation metadata (duration, disposal method,
+// and blend mode) from the active frame to the secondary frame, then swaps buffers.
 func (o *ImageOps) copyFramePropertiesAndSwap() {
 	o.secondary().duration = o.active().duration
 	o.secondary().dispose = o.active().dispose
