@@ -124,7 +124,7 @@ echo '\n--------------------'
 echo 'Building libyuv'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
-tar -xzf $SRCDIR/libyuv.tar.gz -C $BASEDIR/libyuv --strip-components 1
+tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv --strip-components 1
 cd $BASEDIR/libyuv
 make V=1 -f linux.mk
 cp libyuv.a "$PREFIX/lib"
@@ -134,7 +134,7 @@ echo '\n--------------------'
 echo 'Building libaom'
 echo '--------------------\n'
 mkdir -p $BASEDIR/aom
-tar -xzf $SRCDIR/aom.tar.gz -C $BASEDIR/aom --strip-components 1
+tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom --strip-components 1
 mkdir -p $BUILDDIR/aom
 cd $BUILDDIR/aom
 cmake $BASEDIR/aom -DENABLE_SHARED=0 -DENABLE_STATIC=1 -DENABLE_TESTS=0 -DENABLE_TOOLS=0 -DENABLE_DOCS=0 -DCMAKE_INSTALL_PREFIX=$PREFIX
@@ -145,7 +145,7 @@ echo '\n--------------------'
 echo 'Building libavif'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libavif
-tar -xzf $SRCDIR/libavif.tar.gz -C $BASEDIR/libavif --strip-components 1
+tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
 mkdir -p $BUILDDIR/libavif
 cd $BUILDDIR/libavif
 cmake $BASEDIR/libavif \
