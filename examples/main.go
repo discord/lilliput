@@ -15,6 +15,7 @@ var EncodeOptions = map[string]map[int]int{
 	".jpeg": {lilliput.JpegQuality: 85},
 	".png":  {lilliput.PngCompression: 7},
 	".webp": {lilliput.WebpQuality: 85},
+	".avif": {lilliput.AvifQuality: 85, lilliput.AvifSpeed: 10},
 }
 
 func main() {
