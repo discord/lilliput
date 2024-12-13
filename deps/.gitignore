@@ -8,3 +8,6 @@ opencv/
 bzip2/
 ffmpeg/
 lilliput-dep-source/
+libyuv/
+libaom/
+libavif/
