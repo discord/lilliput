@@ -862,13 +862,6 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
             int least_dist = INT_MAX;
             int best_color = 0;
             if (!(e->palette_lookup[crushed].present)) {
-                // calculate the best palette entry based on the midpoint of the crushed colors
-                // what this means is that we drop the crushed bits (& 0xf8)
-                // and then OR the highest-order crushed bit back in, which is approx midpoint
-                uint32_t R_center = (R & 0xf8) | 4;
-                uint32_t G_center = (G & 0xf8) | 4;
-                uint32_t B_center = (B & 0xf8) | 4;
-
                 // we're calculating the best, so keep track of which palette entry has least
                 // distance
                 int count = color_map->ColorCount;
@@ -877,9 +870,9 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
                         // this index doesn't point to an actual color
                         continue;
                     }
-                    int dist = rgb_distance(R_center,
-                                            G_center,
-                                            B_center,
+                    int dist = rgb_distance(R,
+                                            G,
+                                            B,
                                             color_map->Colors[i].Red,
                                             color_map->Colors[i].Green,
                                             color_map->Colors[i].Blue);
