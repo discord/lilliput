@@ -758,6 +758,29 @@ static inline int rgb_distance(int r0, int g0, int b0, int r1, int g1, int b1)
     return dist;
 }
 
+static int find_best_color(uint8_t R, uint8_t G, uint8_t B, ColorMapObject* colorMap, int transparency_index) {
+    int best_color = 0;
+    int min_distance = INT_MAX;
+    
+    for (int i = 0; i < colorMap->ColorCount; i++) {
+        if (i == transparency_index) {
+            continue;  // Skip the transparent color
+        }        
+
+        int dist = rgb_distance(R, G, B,
+                              colorMap->Colors[i].Red,
+                              colorMap->Colors[i].Green,
+                              colorMap->Colors[i].Blue);
+        if (dist < min_distance) {
+            min_distance = dist;
+            best_color = i;
+        }
+    }
+
+    return best_color;
+}
+
+
 static bool giflib_encoder_render_frame(giflib_encoder e,
                                         const giflib_decoder d,
                                         const opencv_mat opaque_frame)
@@ -838,88 +861,20 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
 
     int raster_index = 0;
     for (int y = frame_top; y < frame_top + frame_height; y++) {
-        uint8_t* src = frame->data + y * frame->step + (frame_left * 4);
-        for (int x = frame_left; x < frame_left + frame_width; x++) {
-            uint32_t B = *src++;
-            uint32_t G = *src++;
-            uint32_t R = *src++;
-            uint32_t A = *src++;
+      uint8_t *src = frame->data + y * frame->step + (frame_left * 4);
+      for (int x = frame_left; x < frame_left + frame_width; x++) {
+        uint32_t B = *src++;
+        uint32_t G = *src++;
+        uint32_t R = *src++;
+        uint32_t A = *src++;
 
-            // TODO come up with what this threshold value should be
-            // probably ought to be a lot smaller, but greater than 0
-            // for now we just pick halfway
-            if (A < 128 && have_transparency) {
-                // this composite frame pixel is actually transparent
-                // what this means is that the background color must be transparent
-                // AND this frame pixel must be transparent
-                // for now we'll just assume bg is transparent since otherwise decoder
-                // could not have generated this frame pixel with a low opacity
-                *raster_out++ = transparency_index;
-                continue;
-            }
-
-            uint32_t crushed = ((R >> 3) << 10) | ((G >> 3) << 5) | ((B >> 3));
-            int least_dist = INT_MAX;
-            int best_color = 0;
-            if (!(e->palette_lookup[crushed].present)) {
-                // calculate the best palette entry based on the midpoint of the crushed colors
-                // what this means is that we drop the crushed bits (& 0xf8)
-                // and then OR the highest-order crushed bit back in, which is approx midpoint
-                uint32_t R_center = (R & 0xf8) | 4;
-                uint32_t G_center = (G & 0xf8) | 4;
-                uint32_t B_center = (B & 0xf8) | 4;
-
-                // we're calculating the best, so keep track of which palette entry has least
-                // distance
-                int count = color_map->ColorCount;
-                for (int i = 0; i < count; i++) {
-                    if (i == transparency_index) {
-                        // this index doesn't point to an actual color
-                        continue;
-                    }
-                    int dist = rgb_distance(R_center,
-                                            G_center,
-                                            B_center,
-                                            color_map->Colors[i].Red,
-                                            color_map->Colors[i].Green,
-                                            color_map->Colors[i].Blue);
-                    if (dist < least_dist) {
-                        least_dist = dist;
-                        best_color = i;
-                    }
-                }
-                e->palette_lookup[crushed].present = 1;
-                e->palette_lookup[crushed].index = best_color;
-            }
-            else {
-                best_color = e->palette_lookup[crushed].index;
-                least_dist = rgb_distance(R,
-                                          G,
-                                          B,
-                                          color_map->Colors[best_color].Red,
-                                          color_map->Colors[best_color].Green,
-                                          color_map->Colors[best_color].Blue);
-            }
-
-            // now that we for sure know which palette entry to pick, we have one more test
-            // to perform. it's possible that the best color for this pixel is actually
-            // the color of this pixel in the previous frame. if that's true, we'll just
-            // choose the transparency color, which will compress better on average
-            // (plus it improves color range of image)
-            if (prev_frame_valid && have_transparency) {
-                ptrdiff_t frame_index = 4 * ((y * e->gif->SWidth) + x);
-                uint32_t last_B = e->prev_frame_bgra[frame_index];
-                uint32_t last_G = e->prev_frame_bgra[frame_index + 1];
-                uint32_t last_R = e->prev_frame_bgra[frame_index + 2];
-                int dist = rgb_distance(R, G, B, last_R, last_G, last_B);
-                if (dist < least_dist) {
-                    least_dist = dist;
-                    best_color = transparency_index;
-                }
-            }
-
-            *raster_out++ = best_color;
+        if (A < 32 && have_transparency) { // Only for truly transparent pixels
+          *raster_out++ = transparency_index;
+          continue;
         }
+
+        *raster_out++ = find_best_color(R, G, B, color_map, transparency_index);
+      }
     }
 
     // XXX change this if we do partial frames (only copy over some)
