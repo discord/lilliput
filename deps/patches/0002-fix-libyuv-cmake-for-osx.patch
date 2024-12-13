@@ -1,0 +1,81 @@
+--- CMakeLists.txt.orig	2024-12-12 17:06:48
++++ CMakeLists.txt	2024-12-12 17:07:22
+@@ -5,6 +5,7 @@
+ PROJECT ( YUV C CXX )	# "C" is required even for C++ projects
+ CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
+ OPTION( TEST "Built unit tests" OFF )
++OPTION( BUILD_SHARED_LIBS "Build shared libraries" OFF )
+ 
+ SET ( ly_base_dir	${PROJECT_SOURCE_DIR} )
+ SET ( ly_src_dir	${ly_base_dir}/source )
+@@ -12,7 +13,6 @@
+ SET ( ly_tst_dir	${ly_base_dir}/unit_test )
+ SET ( ly_lib_name	yuv )
+ SET ( ly_lib_static	${ly_lib_name} )
+-SET ( ly_lib_shared	${ly_lib_name}_shared )
+ 
+ FILE ( GLOB_RECURSE	ly_source_files ${ly_src_dir}/*.cc )
+ LIST ( SORT			ly_source_files )
+@@ -22,26 +22,33 @@
+ 
+ INCLUDE_DIRECTORIES( BEFORE ${ly_inc_dir} )
+ 
++INCLUDE ( FindJPEG )
++if (JPEG_FOUND)
++  include_directories( ${JPEG_INCLUDE_DIR} )
++  add_definitions( -DHAVE_JPEG )
++endif()
++
+ # this creates the static library (.a)
+ ADD_LIBRARY				( ${ly_lib_static} STATIC ${ly_source_files} )
++if (JPEG_FOUND)
++  target_link_libraries( ${ly_lib_static} ${JPEG_LIBRARY} )
++endif()
+ 
+-# this creates the shared library (.so)
+-ADD_LIBRARY				( ${ly_lib_shared} SHARED ${ly_source_files} )
+-SET_TARGET_PROPERTIES	( ${ly_lib_shared} PROPERTIES OUTPUT_NAME "${ly_lib_name}" )
+-SET_TARGET_PROPERTIES	( ${ly_lib_shared} PROPERTIES PREFIX "lib" )
++if (BUILD_SHARED_LIBS)
++  # this creates the shared library (.so)
++  SET ( ly_lib_shared	${ly_lib_name}_shared )
++  ADD_LIBRARY				( ${ly_lib_shared} SHARED ${ly_source_files} )
++  SET_TARGET_PROPERTIES	( ${ly_lib_shared} PROPERTIES OUTPUT_NAME "${ly_lib_name}" )
++  SET_TARGET_PROPERTIES	( ${ly_lib_shared} PROPERTIES PREFIX "lib" )
++  if (JPEG_FOUND)
++    target_link_libraries( ${ly_lib_shared} ${JPEG_LIBRARY} )
++  endif()
++endif()
+ 
+ # this creates the conversion tool
+ ADD_EXECUTABLE			( yuvconvert ${ly_base_dir}/util/yuvconvert.cc )
+ TARGET_LINK_LIBRARIES	( yuvconvert ${ly_lib_static} )
+ 
+-
+-INCLUDE ( FindJPEG )
+-if (JPEG_FOUND)
+-  include_directories( ${JPEG_INCLUDE_DIR} )
+-  target_link_libraries( yuvconvert ${JPEG_LIBRARY} )
+-  add_definitions( -DHAVE_JPEG )
+-endif()
+-
+ if(TEST)
+   find_library(GTEST_LIBRARY gtest)
+   if(GTEST_LIBRARY STREQUAL "GTEST_LIBRARY-NOTFOUND")
+@@ -73,13 +80,13 @@
+   endif()
+ endif()
+ 
+-
+ # install the conversion tool, .so, .a, and all the header files
+ INSTALL ( PROGRAMS ${CMAKE_BINARY_DIR}/yuvconvert			DESTINATION bin )
+ INSTALL ( TARGETS ${ly_lib_static}						DESTINATION lib )
+-INSTALL ( TARGETS ${ly_lib_shared} LIBRARY				DESTINATION lib RUNTIME DESTINATION bin )
++if (BUILD_SHARED_LIBS)
++  INSTALL ( TARGETS ${ly_lib_shared} LIBRARY				DESTINATION lib RUNTIME DESTINATION bin )
++endif()
+ INSTALL ( DIRECTORY ${PROJECT_SOURCE_DIR}/include/		DESTINATION include )
+ 
+ # create the .deb and .rpm packages using cpack
+ INCLUDE ( CM_linux_packages.cmake )
+-

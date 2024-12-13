@@ -145,7 +145,7 @@ echo '\n--------------------'
 echo 'Building libavif'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libavif
-tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif
+tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
 mkdir -p $BUILDDIR/libavif
 cd $BUILDDIR/libavif
 cmake $BASEDIR/libavif \

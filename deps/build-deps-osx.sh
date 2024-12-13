@@ -360,19 +360,24 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
 tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv
 cd $BASEDIR/libyuv
+patch -p0 < $BASEDIR/patches/0002-fix-libyuv-cmake-for-osx.patch
 mkdir -p $BUILDDIR/libyuv
 cd $BUILDDIR/libyuv
 
 cmake $BASEDIR/libyuv \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DCMAKE_CXX_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DBUILD_STATIC_LIBS=ON \
+    -DCMAKE_PREFIX_PATH=$PREFIX \
+    -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
+    -DJPEG_INCLUDE_DIR=$PREFIX/include \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$PREFIX/lib" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-L$PREFIX/lib" \
     -DLIBYUV_BUILD_SHARED_LIBS=OFF \
     -DLIBYUV_DISABLE_SHARED=ON \
     -DLIBYUV_ENABLE_STATIC=ON
@@ -392,7 +397,7 @@ mkdir -p $BUILDDIR/aom
 cd $BUILDDIR/aom
 cmake $BASEDIR/aom \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DENABLE_SHARED=0 \
@@ -412,12 +417,12 @@ echo '\n--------------------'
 echo 'Building libavif'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libavif
-tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif
+tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
 mkdir -p $BUILDDIR/libavif
 cd $BUILDDIR/libavif
 cmake $BASEDIR/libavif \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DAVIF_CODEC_AOM=SYSTEM \
