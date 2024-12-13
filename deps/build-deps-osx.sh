@@ -47,6 +47,9 @@ rm -rf giflib
 rm -rf opencv
 rm -rf bzip2
 rm -rf ffmpeg
+rm -rf libyuv
+rm -rf aom
+rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
     git clone https://github.com/discord/lilliput-dep-source "$SRCDIR"
@@ -348,6 +351,94 @@ tar -xjf $SRCDIR/ffmpeg-5.1.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --arch=arm64 --enable-cross-compile --target-os=darwin
+make
+make install
+
+echo '\n--------------------'
+echo 'Building libyuv'
+echo '--------------------\n'
+mkdir -p $BASEDIR/libyuv
+tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv
+cd $BASEDIR/libyuv
+patch -p0 < $BASEDIR/patches/0002-fix-libyuv-cmake-for-osx.patch
+mkdir -p $BUILDDIR/libyuv
+cd $BUILDDIR/libyuv
+
+cmake $BASEDIR/libyuv \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DCMAKE_C_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_CXX_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_PREFIX_PATH=$PREFIX \
+    -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
+    -DJPEG_INCLUDE_DIR=$PREFIX/include \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$PREFIX/lib" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-L$PREFIX/lib" \
+    -DLIBYUV_BUILD_SHARED_LIBS=OFF \
+    -DLIBYUV_DISABLE_SHARED=ON \
+    -DLIBYUV_ENABLE_STATIC=ON
+
+make
+make install
+
+# Remove any dylib if it was created
+rm -f $PREFIX/lib/libyuv.dylib
+
+echo '\n--------------------'
+echo 'Building libaom'
+echo '--------------------\n'
+mkdir -p $BASEDIR/aom
+tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
+mkdir -p $BUILDDIR/aom
+cd $BUILDDIR/aom
+cmake $BASEDIR/aom \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DENABLE_SHARED=0 \
+    -DENABLE_STATIC=1 \
+    -DENABLE_TESTS=0 \
+    -DENABLE_TOOLS=0 \
+    -DENABLE_DOCS=0 \
+    -DENABLE_NEON=1 \
+    -DENABLE_VSX=0 \
+    -DCONFIG_MULTITHREAD=1 \
+    -DCONFIG_RUNTIME_CPU_DETECT=1 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX
+make
+make install
+
+echo '\n--------------------'
+echo 'Building libavif'
+echo '--------------------\n'
+mkdir -p $BASEDIR/libavif
+tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
+mkdir -p $BUILDDIR/libavif
+cd $BUILDDIR/libavif
+cmake $BASEDIR/libavif \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DAVIF_CODEC_AOM=SYSTEM \
+    -DAVIF_BUILD_APPS=OFF \
+    -DAVIF_ENABLE_NEON=ON \
+    -DLIBYUV_LIBRARY=$PREFIX/lib/libyuv.a \
+    -DLIBYUV_INCLUDE_DIR=$PREFIX/include \
+    -DAOM_LIBRARY=$PREFIX/lib/libaom.a \
+    -DAOM_INCLUDE_DIR=$PREFIX/include \
+    -DJPEG_INCLUDE_DIR=$PREFIX/include \
+    -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
+    -DPNG_PNG_INCLUDE_DIR=$PREFIX/include \
+    -DPNG_LIBRARY=$PREFIX/lib/libpng.a \
+    -DCMAKE_PREFIX_PATH=$PREFIX \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 
