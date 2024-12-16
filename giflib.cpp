@@ -862,24 +862,28 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
             int least_dist = INT_MAX;
             int best_color = 0;
             if (!(e->palette_lookup[crushed].present)) {
-                // calculate the best palette entry based on the midpoint of the crushed colors
-                // what this means is that we drop the crushed bits (& 0xf8)
-                // and then OR the highest-order crushed bit back in, which is approx midpoint
-                uint32_t R_center = (R & 0xf8) | 4;
-                uint32_t G_center = (G & 0xf8) | 4;
-                uint32_t B_center = (B & 0xf8) | 4;
 
-                // we're calculating the best, so keep track of which palette entry has least
-                // distance
-                int count = color_map->ColorCount;
-                for (int i = 0; i < count; i++) {
-                    if (i == transparency_index) {
+                    bool is_extreme_color = (R > 240 && G > 240 && B > 240) || (R < 15 && G < 15 && B < 15);
+
+                    // calculate the best palette entry based on the midpoint of the crushed colors.
+                    // what this means is that we drop the crushed bits (& 0xf8)
+                    // and then OR the highest-order crushed bit back in, which is approx midpoint.
+                    // for extreme colors, use actual values
+                    uint32_t R_compare = is_extreme_color ? R : (R & 0xf8) | 4;
+                    uint32_t G_compare = is_extreme_color ? G : (G & 0xf8) | 4;
+                    uint32_t B_compare = is_extreme_color ? B : (B & 0xf8) | 4;
+
+                    // we're calculating the best, so keep track of which
+                    // palette entry has least distance
+                    int count = color_map->ColorCount;
+                    for (int i = 0; i < count; i++) {
+                      if (i == transparency_index) {
                         // this index doesn't point to an actual color
                         continue;
                     }
-                    int dist = rgb_distance(R_center,
-                                            G_center,
-                                            B_center,
+                    int dist = rgb_distance(R_compare,
+                                            G_compare,
+                                            B_compare,
                                             color_map->Colors[i].Red,
                                             color_map->Colors[i].Green,
                                             color_map->Colors[i].Blue);
