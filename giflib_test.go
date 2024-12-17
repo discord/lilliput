@@ -1,6 +1,7 @@
 package lilliput
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 func TestGIFOperations(t *testing.T) {
 	t.Run("GIFDuration", testGIFDuration)
+	t.Run("NewGifEncoderWithWebpSource", testNewGifEncoderWithWebpSource)
 }
 
 func testGIFDuration(t *testing.T) {
@@ -118,6 +120,98 @@ func testGIFDuration(t *testing.T) {
 			if totalDuration != tc.wantDuration {
 				t.Errorf("Sum of frame durations (%v) doesn't match total duration (%v)",
 					totalDuration, tc.wantDuration)
+			}
+		})
+	}
+}
+
+func testNewGifEncoderWithWebpSource(t *testing.T) {
+	testCases := []struct {
+		name          string
+		filename      string
+		width         int
+		height        int
+		quality       int
+		resizeMethod  ImageOpsSizeMethod
+		encodeTimeout time.Duration
+	}{
+		{
+			name:          "Animated WebP to GIF - Party Discord",
+			filename:      "testdata/party-discord.webp",
+			width:         26,
+			height:        17,
+			encodeTimeout: 300,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// slurp input file
+			webpData, err := os.ReadFile(tc.filename)
+			if err != nil {
+				t.Fatalf("Failed to read WebP file %s: %v", tc.filename, err)
+			}
+
+			// decode webp
+			decoder, err := newWebpDecoder(webpData)
+			if err != nil {
+				t.Fatalf("Unexpected error while decoding webp image data: %v", err)
+			}
+			defer decoder.Close()
+
+			// prep image opts for transformation
+			dstBuf := make([]byte, 5*1024*1024) // 5MB buffer
+			options := &ImageOptions{
+				FileType:             ".gif",
+				Width:                tc.width,
+				Height:               tc.height,
+				ResizeMethod:         tc.resizeMethod,
+				NormalizeOrientation: true,
+				EncodeTimeout:        tc.encodeTimeout,
+				EncodeOptions:        map[int]int{},
+			}
+			ops := NewImageOps(2000) // 2000px max dimension
+			defer ops.Close()
+
+			// transform
+			gifData, err := ops.Transform(decoder, options, dstBuf)
+			if err != nil {
+				t.Fatalf("Failed to transform WebP to GIF: %v", err)
+			}
+
+			// verify validity
+			if len(gifData) < 6 {
+				t.Fatal("Output too small to be valid GIF")
+			}
+			if string(gifData[:6]) != "GIF87a" && string(gifData[:6]) != "GIF89a" {
+				t.Fatal("Output is not a valid GIF file")
+			}
+
+			// output for manual verification
+			if _, err := os.Stat("testdata/out"); os.IsNotExist(err) {
+				if err = os.Mkdir("testdata/out", 0755); err != nil {
+					t.Fatalf("Failed to create output directory: %v", err)
+				}
+			}
+			outputPath := fmt.Sprintf("testdata/out/%s_webpsrc.gif", tc.filename)
+			if err = os.WriteFile(outputPath, gifData, 0644); err != nil {
+				t.Fatalf("Failed to write output GIF %s: %v", outputPath, err)
+			}
+
+			// verify animation properties
+			outDecoder, err := newGifDecoder(gifData)
+			if err != nil {
+				t.Fatalf("Failed to decode output GIF: %v", err)
+			}
+			defer outDecoder.Close()
+
+			// compare frame counts (or not, since this might not...make sense)
+			// compare number of loops
+
+			// Compare durations
+			if outDecoder.Duration() != decoder.Duration() {
+				t.Errorf("Duration mismatch: got %v, want %v",
+					outDecoder.Duration(), decoder.Duration())
 			}
 		})
 	}
