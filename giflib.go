@@ -30,7 +30,7 @@ type gifDecoder struct {
 // gifEncoder implements image encoding for GIF format
 type gifEncoder struct {
 	encoder    C.giflib_encoder
-	decoder    C.giflib_decoder
+	srcDecoder Decoder // Store the source decoder
 	buf        []byte
 	frameIndex int
 	hasFlushed bool
@@ -225,29 +225,38 @@ func (d *gifDecoder) SkipFrame() error {
 
 // newGifEncoder creates a new GIF encoder that will write to the provided buffer.
 // Requires the original decoder that was used to decode the source GIF.
-func newGifEncoder(decodedBy Decoder, buf []byte) (*gifEncoder, error) {
-	// we must have a decoder since we can't build our own palettes
-	// so if we don't get a gif decoder, bail out
-	if decodedBy == nil {
+func newGifEncoder(d Decoder, dstBuf []byte) (*gifEncoder, error) {
+	var srcType C.giflib_source_type
+	var srcPtr unsafe.Pointer
+
+	// Determine source type and get appropriate pointer
+	switch d := d.(type) {
+	case *gifDecoder:
+		srcType = C.SOURCE_GIF
+		srcPtr = unsafe.Pointer(d.decoder)
+	case *webpDecoder:
+		srcType = C.SOURCE_WEBP
+		srcPtr = unsafe.Pointer(d.decoder)
+	default:
 		return nil, ErrGifEncoderNeedsDecoder
 	}
 
-	gifDecoder, ok := decodedBy.(*gifDecoder)
-	if !ok {
-		return nil, ErrGifEncoderNeedsDecoder
-	}
+	dstBuf = dstBuf[:1]
+	enc := C.giflib_encoder_create(
+		unsafe.Pointer(&dstBuf[0]),
+		C.size_t(cap(dstBuf)),
+		srcPtr,
+		srcType,
+	)
 
-	buf = buf[:1]
-	enc := C.giflib_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
 	if enc == nil {
 		return nil, ErrBufTooSmall
 	}
 
 	return &gifEncoder{
 		encoder:    enc,
-		decoder:    gifDecoder.decoder,
-		buf:        buf,
-		frameIndex: 0,
+		srcDecoder: d,
+		buf:        dstBuf,
 	}, nil
 }
 
@@ -259,7 +268,7 @@ func (e *gifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	}
 
 	if f == nil {
-		ret := C.giflib_encoder_flush(e.encoder, e.decoder)
+		ret := C.giflib_encoder_flush(e.encoder, e.srcDecoder.(*gifDecoder).decoder)
 		if !ret {
 			return nil, ErrInvalidImage
 		}
@@ -273,10 +282,10 @@ func (e *gifEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	if e.frameIndex == 0 {
 		// first run setup
 		// TODO figure out actual gif width/height?
-		C.giflib_encoder_init(e.encoder, e.decoder, C.int(f.Width()), C.int(f.Height()))
+		C.giflib_encoder_init(e.encoder, e.srcDecoder.(*gifDecoder).decoder, C.int(f.Width()), C.int(f.Height()))
 	}
 
-	if !C.giflib_encoder_encode_frame(e.encoder, e.decoder, f.mat) {
+	if !C.giflib_encoder_encode_frame(e.encoder, e.srcDecoder.(*gifDecoder).decoder, f.mat) {
 		return nil, ErrInvalidImage
 	}
 

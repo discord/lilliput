@@ -1,6 +1,8 @@
 #include "giflib.hpp"
 #include "gif_lib.h"
 #include <stdbool.h>
+#include "webp.hpp"
+#include <webp/decode.h>
 
 struct giflib_decoder_struct {
     GifFileType* gif;
@@ -36,6 +38,11 @@ struct giflib_encoder_struct {
     uint8_t* dst;
     size_t dst_len;
     ptrdiff_t dst_offset;
+
+    // Add source type and union (?!) of possible decoders
+    giflib_source_type src_type;
+    giflib_decoder gif_src;
+    webp_decoder webp_src;
 
     // palette lookup is a computational-saving structure to convert
     // (reduced-depth) RGB values into the frame's 256-entry palette
@@ -635,8 +642,9 @@ int encode_func(GifFileType* gif, const GifByteType* buf, int len)
     return len;
 }
 
-giflib_encoder giflib_encoder_create(void* buf, size_t buf_len)
-{
+giflib_encoder giflib_encoder_create(void* buf, size_t buf_len, 
+                                   const void* src_decoder,
+                                   giflib_source_type src_type) {
     giflib_encoder e = new struct giflib_encoder_struct();
     memset(e, 0, sizeof(struct giflib_encoder_struct));
     e->dst = (uint8_t*)(buf);
@@ -656,6 +664,19 @@ giflib_encoder giflib_encoder_create(void* buf, size_t buf_len)
     // between fidelity and computation/storage
     e->palette_lookup =
       (encoder_palette_lookup*)(malloc((1 << 15) * sizeof(encoder_palette_lookup)));
+
+    e->src_type = src_type;
+    switch (src_type) {
+        case SOURCE_GIF:
+            e->gif_src = static_cast<giflib_decoder>(src_decoder);
+            break;
+        case SOURCE_WEBP:
+            e->webp_src = static_cast<webp_decoder>(src_decoder);
+            break;
+        default:
+            delete e;
+            return nullptr;
+    }
 
     return e;
 }
@@ -1183,7 +1204,7 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
                             gcb = frame_gcb;
                             uint8_t bg_red, bg_green, bg_blue, bg_alpha;
                             extract_background_color(gif, &gcb, &bg_red, &bg_green,
-                                                  &bg_blue, &bg_alpha);
+                                                    &bg_blue, &bg_alpha);
                             info.bg_red = bg_red;
                             info.bg_green = bg_green;
                             info.bg_blue = bg_blue;
@@ -1246,7 +1267,7 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
     if (!found_gcb) {
         uint8_t bg_red, bg_green, bg_blue, bg_alpha;
         extract_background_color(gif, &gcb, &bg_red, &bg_green,
-                               &bg_blue, &bg_alpha);
+                                &bg_blue, &bg_alpha);
 
         // convert to int to handle uint limitations in rust FFI
         info.bg_red = bg_red;
@@ -1259,4 +1280,23 @@ cleanup:
     DGifCloseFile(gif, &error);
     delete loopReader;
     return info;
+}
+
+bool giflib_encoder_write_frame(giflib_encoder e, const uint8_t* frame_data, 
+                               int width, int height, int delay_time) {
+    // Get animation properties based on source type
+    int dispose_method, blend_method;
+    switch (e->src_type) {
+        case SOURCE_WEBP:
+            dispose_method = webp_decoder_get_prev_frame_dispose(e->webp_src);
+            blend_method = webp_decoder_get_prev_frame_blend(e->webp_src);
+            break;
+        case SOURCE_GIF:
+            // ... handle GIF source ...
+            break;
+        default:
+            return false;
+    }
+
+    // ... rest of frame encoding logic ...
 }
