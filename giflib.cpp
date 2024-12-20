@@ -668,10 +668,10 @@ giflib_encoder giflib_encoder_create(void* buf, size_t buf_len,
     e->src_type = src_type;
     switch (src_type) {
         case SOURCE_GIF:
-            e->gif_src = static_cast<giflib_decoder>(src_decoder);
+            e->gif_src = (giflib_decoder)(src_decoder);
             break;
         case SOURCE_WEBP:
-            e->webp_src = static_cast<webp_decoder>(src_decoder);
+            e->webp_src = (webp_decoder)(src_decoder);
             break;
         default:
             delete e;

@@ -227,16 +227,13 @@ func (d *gifDecoder) SkipFrame() error {
 // Requires the original decoder that was used to decode the source GIF.
 func newGifEncoder(d Decoder, dstBuf []byte) (*gifEncoder, error) {
 	var srcType C.giflib_source_type
-	var srcPtr unsafe.Pointer
 
 	// Determine source type and get appropriate pointer
-	switch d := d.(type) {
+	switch d.(type) {
 	case *gifDecoder:
 		srcType = C.SOURCE_GIF
-		srcPtr = unsafe.Pointer(d.decoder)
 	case *webpDecoder:
 		srcType = C.SOURCE_WEBP
-		srcPtr = unsafe.Pointer(d.decoder)
 	default:
 		return nil, ErrGifEncoderNeedsDecoder
 	}
@@ -245,7 +242,7 @@ func newGifEncoder(d Decoder, dstBuf []byte) (*gifEncoder, error) {
 	enc := C.giflib_encoder_create(
 		unsafe.Pointer(&dstBuf[0]),
 		C.size_t(cap(dstBuf)),
-		srcPtr,
+		unsafe.Pointer(d.decoder),
 		srcType,
 	)
 
