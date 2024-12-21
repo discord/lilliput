@@ -58,7 +58,7 @@ endif()
 add_library(opencv_core STATIC IMPORTED)
 
 set_target_properties(opencv_core PROPERTIES
-  INTERFACE_LINK_LIBRARIES "/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "${SRCDIR}/deps/osx/lib/libz.a"
 )
 
 # Create imported target opencv_imgproc
