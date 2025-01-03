@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/Users/scottkidder/go/src/github.com/discord/lilliput/deps/osx/lib'
+libdir='/Users/runner/work/lilliput/lilliput/deps/osx/lib'

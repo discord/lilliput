@@ -1,7 +1,7 @@
-prefix=/src/deps/linux
-exec_prefix=/src/deps/linux
-libdir=/src/deps/linux/lib
-includedir=/src/deps/linux/include
+prefix=/home/runner/work/lilliput/lilliput/deps/linux
+exec_prefix=/home/runner/work/lilliput/lilliput/deps/linux
+libdir=/home/runner/work/lilliput/lilliput/deps/linux/lib
+includedir=/home/runner/work/lilliput/lilliput/deps/linux/include
 
 Name: libjpeg
 Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
