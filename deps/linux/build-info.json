@@ -1,5 +1,5 @@
 {
-    "commit_sha": "7d427943ca9d57b7cbe7d91fc5630dc105f9a565",
+    "commit_sha": "f69d0d3767ebc9a17f3d6eed9971e2253ded2883",
     "platform": "linux",
     "files": {
         "include/gif_lib.h": "7c73854e2d7be4fc50e475c098cfcda5d704d5a10414db668c93c362d0c92db8",
@@ -254,9 +254,9 @@
         "include/libavutil/twofish.h": "f6823a45af3a076bcf3f3f3361f1fa6b7aa0ee85a75ca0e8480b9b27b4532189",
         "include/libavutil/avconfig.h": "975611ad5eba15212d9e1d5fca9d4fdf0daec6d2269b2fcab8e29af8667164bc",
         "lib/libyuv.a": "e82fc2d4c8e96c889115b1afef8b319f054a83a48935fe70dd13b20f9b0dc941",
-        "lib/libturbojpeg.a": "789d13f8812d2dced7dd941fc3efc7792ebf2c7a14741223c5f9ca05ff36f876",
+        "lib/libturbojpeg.a": "fada3836b593199bd4417f851cc6a1af7f7c9773f8e541d2d3b50ffea053b5af",
         "lib/libopencv_imgproc.a": "cbe4d0511d5a83b0d220b2c80884aa22d8dc72f1b6945ab74d53a0eac55ca8f0",
-        "lib/libjpeg.a": "16eee2d63d523becd2f201e4a0d6c3fb6f7ea4f9c0e7d5024850e61a1cdbb4bc",
+        "lib/libjpeg.a": "3260e951d60899e5b88cf05797ec013315b68b541d0d50cfd8091e9fa851307c",
         "lib/libopencv_shape.a": "e09eb9726766a2bc8b05ec19bbd38712f4656ec592b1dcacc07df860c86a75a0",
         "lib/libopencv_video.a": "e7f2fb504e90b98afc0986856b69889ea476c36c11f7650d9e0d738964b8a9cd",
         "lib/libwebpmux.a": "a05954846b5a2a24f5ba5675450859d53a7944b2dd82d733b8c63e4f63bb7e54",
@@ -277,7 +277,7 @@
         "lib/libopencv_flann.a": "820493a23846f6e201dab06d5250b3f728e9d31518f99e0c99f0de0ca2bc486e",
         "lib/libswscale.a": "5f49418bae924873892a758cb3e01aafa3bf271e82a7a44d9f9003e7992cd0ad",
         "lib/libwebpdemux.a": "b449c90e7c9029e3ac0d4a75017ae9850aa6940da347608886f25f999ae9b882",
-        "lib/libopencv_core.a": "741e4f7e447bb731274738dce80fa50fc03fafad8a89fde8c811b85f5b7cb22e",
+        "lib/libopencv_core.a": "b6a8378835753278c712d7955ecd709257bce95f2aab3c81b846b9e63c1ee042",
         "lib/libpng16.a": "3df65dceb8e42990f443167b440de4946240678e3ad88d4c0dca1665ceead67c",
         "lib/libavcodec.a": "d592082dabdbfc6ce4343b8a58821063ddf618d4f3774e7438223f43a8f7598c",
         "lib/libswresample.a": "a24931d4cd8833d5dca689185d582471c3b222d1f0e4494f69e7a372881badb8",

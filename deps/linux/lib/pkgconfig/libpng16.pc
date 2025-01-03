@@ -1,4 +1,4 @@
-prefix=/src/deps/linux
+prefix=/home/runner/work/lilliput/lilliput/deps/linux
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include/libpng16
