@@ -378,7 +378,6 @@ size_t avif_encoder_write(avif_encoder e, const opencv_mat src, const int* opt, 
 
     // Handle flush case
     if (!src) {
-        fprintf(stderr, "AVIF Encoder: flushing with frame count %d\n", e->frame_count);
         avifRWData output = AVIF_DATA_EMPTY;
         avifResult result = avifEncoderFinish(e->encoder, &output);
         
