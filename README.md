@@ -7,7 +7,7 @@ decompressing, resizing and compressing images. It aims to do as little memory
 allocation as possible and especially not to create garbage in Go. As a result,
 it is suitable for very high throughput image resizing services.
 
-Lilliput supports resizing JPEG, PNG, static WEBP, and animated GIFs & WEBPs. It can also convert formats.
+Lilliput supports resizing JPEG, PNG, WebP (both static and animated), AVIF (both static and animated), and animated GIFs. It can also convert between these formats.
 Lilliput also has some support for getting the first frame from MOV and WEBM
 videos.
 
@@ -258,6 +258,7 @@ Valid keys/values for `opts` are
 * `JpegQuality` (1 - 100)
 * `PngCompression` (0 - 9)
 * `WebpQuality` (0 - 100).
+* `AvifQuality` (0 - 100)
 
 ```go
 func (e lilliput.Encoder) Close()
