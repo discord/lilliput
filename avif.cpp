@@ -167,11 +167,13 @@ uint32_t avif_decoder_get_duration(const avif_decoder d) {
 }
 
 uint32_t avif_decoder_get_loop_count(const avif_decoder d) {
+    if (!d || !d->decoder) {
+        return 0;
+    }
     switch (d->decoder->repetitionCount) {
         case AVIF_REPETITION_COUNT_INFINITE:
-            return 0;
         case AVIF_REPETITION_COUNT_UNKNOWN:
-            return 1;
+            return 0;
         default:
             return d->decoder->repetitionCount;
     }
