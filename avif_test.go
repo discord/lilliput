@@ -19,6 +19,7 @@ func TestAvifOperations(t *testing.T) {
 		t.Run("NewAvifEncoder", testNewAvifEncoder)
 		t.Run("AvifDecoder_DecodeTo", testAvifDecoderDecodeTo)
 		t.Run("AvifEncoder_Encode", testAvifEncoderEncode)
+		t.Run("AvifDecoder_UnknownLoopCount", testAvifDecoderUnknownLoopCount)
 	})
 
 	t.Run("Conversion Operations", func(t *testing.T) {
@@ -112,6 +113,29 @@ func testAvifDecoderDuration(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func testAvifDecoderUnknownLoopCount(t *testing.T) {
+	testAvifImage, err := os.ReadFile("testdata/spinning-globe-unknown-loop-count.avif")
+	if err != nil {
+		t.Fatalf("Unexpected error while reading AVIF image: %v", err)
+	}
+	decoder, err := newAvifDecoder(testAvifImage)
+	if err != nil {
+		t.Fatalf("Unexpected error while decoding AVIF image data: %v", err)
+	}
+	defer decoder.Close()
+
+	// Verify the image is animated
+	if !decoder.IsAnimated() {
+		t.Error("Expected image to be animated")
+	}
+
+	// Check that unknown loop count is treated as infinite (0)
+	loopCount := decoder.LoopCount()
+	if loopCount != 0 {
+		t.Errorf("Expected loop count to be 0 (infinite) for unknown loop count, got %d", loopCount)
 	}
 }
 
