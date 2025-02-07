@@ -304,6 +304,15 @@ func testAvifToWebPConversion(t *testing.T) {
 			quality:      60,
 			resizeMethod: ImageOpsFit,
 		},
+		{
+			name:         "AVIF to WebP conversion with ICC Profile",
+			inputPath:    "testdata/hdr_color_preservation.avif",
+			outputPath:   "testdata/out/hdr_color_preservation_converted.webp",
+			width:        600,
+			height:       550,
+			quality:      60,
+			resizeMethod: ImageOpsFit,
+		},
 	}
 
 	runConversionTest(t, testCases, func(tc struct {
@@ -510,7 +519,7 @@ func runConversionTest(t *testing.T, testCases interface{}, decoderFactory inter
 				EncodeTimeout:        time.Second * 30,
 			}
 
-			ops := NewImageOps(2000)
+			ops := NewImageOps(20000)
 			defer ops.Close()
 
 			newDst, err := ops.Transform(decoder, options, dstBuf)
