@@ -194,13 +194,13 @@ jobs:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          name: deps-macos-14.tar.gz
+          name: deps-macos-15.tar.gz
           path: .
 
       - name: Extract artifacts
         run: |
           tar xzf deps-linux.tar.gz
-          tar xzf deps-macos-14.tar.gz
+          tar xzf deps-macos-15.tar.gz
 
       - name: Verify artifacts match checked-in deps
         run: |
