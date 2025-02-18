@@ -177,7 +177,7 @@ jobs:
 
   verify:
     name: Verify Build Artifacts
-    needs: [linux, macos]
+    needs: [linux, macos-15]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     
@@ -191,7 +191,7 @@ jobs:
           name: deps-linux.tar.gz
           path: .
 
-      - name: Download macOS artifact
+      - name: Download macOS 15 artifact
         uses: actions/download-artifact@v4
         with:
           name: deps-macos-15.tar.gz
@@ -202,12 +202,14 @@ jobs:
           tar xzf deps-linux.tar.gz
           tar xzf deps-macos-15.tar.gz
 
-      - name: Verify artifacts match checked-in deps
+      - name: Verify Linux artifacts
         run: |
           python3 ./deps/verify_deps.py verify \
             --deps-dir deps/linux \
             --build-info deps/linux/build-info.json
 
+      - name: Verify macOS 15 artifacts
+        run: |  
           python3 ./deps/verify_deps.py verify \
             --deps-dir deps/osx \
             --build-info deps/osx/build-info.json
