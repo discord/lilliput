@@ -7,7 +7,7 @@ export PATH="/opt/homebrew/bin:$PATH"
 
 # Function to check and install build tools
 install_build_tools() {
-    for tool in automake libtool autoconf coreutils; do
+    for tool in automake libtool autoconf coreutils cmake; do
         if ! command -v $tool >/dev/null 2>&1; then
             echo "Installing $tool..."
             brew install $tool
@@ -280,7 +280,10 @@ cmake $BASEDIR/opencv \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
     -DCMAKE_C_FLAGS="-arch arm64 -I$PREFIX/include" \
-    -DCMAKE_CXX_FLAGS="-arch arm64 -I$PREFIX/include" \
+    -DCMAKE_CXX_FLAGS="-arch arm64 -I$PREFIX/include -stdlib=libc++ -std=c++11" \
+    -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
+    -DCMAKE_MODULE_LINKER_FLAGS="-stdlib=libc++" \
     -DWITH_JPEG=ON \
     -DJPEG_INCLUDE_DIR=$PREFIX/include \
     -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
@@ -324,7 +327,10 @@ cmake $BASEDIR/opencv \
     -DWITH_CAROTENE=OFF \
     -DWITH_VIDEOTOOLBOX=ON \
     -DBUILD_opencv_java=OFF \
-    -DBUILD_opencv_python=OFF
+    -DBUILD_opencv_python=OFF \
+    -DCMAKE_CXX_STANDARD=11 \
+    -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+    -DCMAKE_CXX_EXTENSIONS=OFF
 
 # Remove iOS-specific build files
 sed -i '' "s|;$BASEDIR/opencv/modules/imgcodecs/include/opencv2/imgcodecs/ios.h||" $BASEDIR/build/opencv/CMakeCache.txt
@@ -368,7 +374,7 @@ cmake $BASEDIR/libyuv \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
-    -DCMAKE_CXX_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_CXX_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -std=c++11" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -388,6 +394,17 @@ make install
 # Remove any dylib if it was created
 rm -f $PREFIX/lib/libyuv.dylib
 
+# Detect macOS version
+MACOS_VERSION=$(sw_vers -productVersion | cut -d. -f1)
+
+# Configure C++ flags based on macOS version
+if [ "$MACOS_VERSION" = "14" ]; then
+    CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1"
+else
+    # macOS 15 needs more specific include paths and nostdinc++
+    CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
+fi
+
 echo '\n--------------------'
 echo 'Building libaom'
 echo '--------------------\n'
@@ -399,7 +416,10 @@ cmake $BASEDIR/aom \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
-    -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_CXX_FLAGS="$CXX_FLAGS" \
+    -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
+    -DCMAKE_MODULE_LINKER_FLAGS="-stdlib=libc++" \
     -DENABLE_SHARED=0 \
     -DENABLE_STATIC=1 \
     -DENABLE_TESTS=0 \
@@ -409,7 +429,11 @@ cmake $BASEDIR/aom \
     -DENABLE_VSX=0 \
     -DCONFIG_MULTITHREAD=1 \
     -DCONFIG_RUNTIME_CPU_DETECT=1 \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_CXX_STANDARD=11 \
+    -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+    -DCMAKE_CXX_EXTENSIONS=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 make
 make install
 
