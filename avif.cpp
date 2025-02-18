@@ -5,6 +5,27 @@
 
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
 
+//----------------------
+// Types and Structures
+//----------------------
+struct avif_tone_map_params {
+    // Increased exposure for brighter overall image
+    // Range typically 3.0-5.0 in professional tools
+    float exposure = 5.0f;
+
+    // Higher white point to preserve more highlight detail
+    // While preventing highlight clipping
+    float white_point = 5.5f;
+
+    // Slightly higher contrast to maintain HDR "pop"
+    // But not so high it crushes shadows
+    float contrast = 1.45f;
+
+    // Slightly adjusted gamma for better shadow detail
+    // While maintaining rich midtones
+    float gamma = 1.0f / 2.25f;
+};
+
 struct avif_decoder_struct {
     avifDecoder* decoder;
     avifRGBImage rgb;
@@ -27,6 +48,199 @@ struct avif_encoder_struct {
     int frame_count;
     bool has_alpha;
 };
+
+//----------------------
+// HDR Support Functions
+//----------------------
+// Check if source is HDR based on bit depth, primaries and transfer characteristics
+static bool avif_is_hdr_source(const avifImage* image) {
+    if (!image) return false;
+    
+    bool high_bit_depth = image->depth > 8;
+    bool hdr_primaries = image->colorPrimaries == AVIF_COLOR_PRIMARIES_BT2020;
+    bool hdr_transfer = (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_PQ) ||
+                       (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_HLG);
+    
+    return high_bit_depth && (hdr_primaries || hdr_transfer);
+}
+
+// Convert PQ (SMPTE ST.2084) to linear
+static float avif_pq_to_linear(float x) {
+    const float m1 = 0.1593017578125;
+    const float m2 = 78.84375;
+    const float c1 = 0.8359375;
+    const float c2 = 18.8515625;
+    const float c3 = 18.6875;
+
+    float xpow = std::pow(x, 1.0f / m2);
+    float num = std::max(xpow - c1, 0.0f);
+    float den = c2 - c3 * xpow;
+    float linear = std::pow(num / den, 1.0f / m1);
+    
+    return linear;
+}
+
+// Convert HLG to linear
+static float avif_hlg_to_linear(float x) {
+    const float a = 0.17883277;
+    const float b = 0.28466892;
+    const float c = 0.55991073;
+    
+    if (x <= 0.5f) {
+        return x * x / 3.0f;
+    } else {
+        return (std::exp((x - c) / a) + b) / 12.0f;
+    }
+}
+
+// Reinhard tone-mapping operator
+static float avif_reinhard_tonemap(float x, const avif_tone_map_params& params) {
+    // Apply exposure (with HDR-specific boost)
+    x *= params.exposure;
+    
+    // Modified Reinhard tone compression with shoulder
+    float compressed = (x * (1.0f + x / (params.white_point * params.white_point))) / (1.0f + x);
+    
+    // Apply contrast
+    if (params.contrast != 1.0f) {
+        // Center contrast adjustment around middle gray
+        const float mid = 0.18f;
+        compressed = mid * std::pow(compressed / mid, params.contrast);
+    }
+    
+    // Apply gamma correction
+    if (params.gamma != 1.0f) {
+        compressed = std::pow(compressed, params.gamma);
+    }
+    
+    return compressed;
+}
+
+// Convert HDR RGB values to SDR using tone-mapping
+static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height, int src_depth, 
+                            avifTransferCharacteristics transfer, const avif_tone_map_params& params) {
+    float scale = 1.0f / ((1 << src_depth) - 1);
+    float inv_scale = 255.0f;
+    
+    // Pre-analyze image for better exposure adjustment
+    float max_value = 0.0f;
+    float avg_value = 0.0f;
+    int num_pixels = width * height * 3;
+    
+    // Calculate max and average values
+    for (int i = 0; i < num_pixels; i++) {
+        float x = src[i] * scale;
+        if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
+            x = avif_pq_to_linear(x);
+        } else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
+            x = avif_hlg_to_linear(x);
+        }
+        max_value = std::max(max_value, x);
+        avg_value += x;
+    }
+    avg_value /= num_pixels;
+    
+    // Dynamically adjust exposure based on both max and average values
+    avif_tone_map_params adjusted_params = params;
+    if (max_value > 0.0f) {
+        float target_max = 0.95f;  // Increased from 0.8f for brighter highlights
+        float target_avg = 0.35f;  // Target average brightness (increased for overall brightness)
+        
+        // Calculate separate adjustments for max and average values
+        float max_exposure_scale = std::min(3.0f, target_max / max_value);  // Increased limit from 2.0f
+        float avg_exposure_scale = target_avg / std::max(avg_value, 1e-6f);
+        avg_exposure_scale = std::min(std::max(avg_exposure_scale, 0.8f), 2.5f);  // Wider range
+        
+        // Blend the two exposure adjustments, favoring the max-based adjustment
+        adjusted_params.exposure *= (max_exposure_scale * 0.6f + avg_exposure_scale * 0.4f);
+    }
+    
+    // Enhanced color preservation for brighter results
+    for (int i = 0; i < width * height; i++) {
+        float r = src[i * 3] * scale;
+        float g = src[i * 3 + 1] * scale;
+        float b = src[i * 3 + 2] * scale;
+        
+        // Convert to linear
+        if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
+            r = avif_pq_to_linear(r);
+            g = avif_pq_to_linear(g);
+            b = avif_pq_to_linear(b);
+        } else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
+            r = avif_hlg_to_linear(r);
+            g = avif_hlg_to_linear(g);
+            b = avif_hlg_to_linear(b);
+        }
+        
+        // Calculate luminance
+        float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+        if (luminance < 1e-6f) {
+            dst[i * 3] = dst[i * 3 + 1] = dst[i * 3 + 2] = 0;
+            continue;
+        }
+        
+        // Preserve color ratios
+        float r_ratio = r / (luminance + 1e-6f);
+        float g_ratio = g / (luminance + 1e-6f);
+        float b_ratio = b / (luminance + 1e-6f);
+        
+        // Tone-map luminance
+        float mapped_luminance = avif_reinhard_tonemap(luminance, adjusted_params);
+        
+        // Apply saturation boost for brighter appearance
+        float sat_boost = 1.1f + 0.2f * mapped_luminance;  // Increase saturation in brighter areas
+        
+        // Reconstruct color with enhanced saturation
+        r = mapped_luminance * (1.0f + (r_ratio - 1.0f) * sat_boost);
+        g = mapped_luminance * (1.0f + (g_ratio - 1.0f) * sat_boost);
+        b = mapped_luminance * (1.0f + (b_ratio - 1.0f) * sat_boost);
+        
+        // Convert back to 8-bit with highlight preservation
+        dst[i * 3] = (uint8_t)std::min(std::max(r * inv_scale + 0.5f, 0.0f), 255.0f);
+        dst[i * 3 + 1] = (uint8_t)std::min(std::max(g * inv_scale + 0.5f, 0.0f), 255.0f);
+        dst[i * 3 + 2] = (uint8_t)std::min(std::max(b * inv_scale + 0.5f, 0.0f), 255.0f);
+    }
+}
+
+// Convert YUV to RGB with HDR tone-mapping if needed
+static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, avifRGBImage* rgb, avif_tone_map_params params = avif_tone_map_params()) {
+    if (!avif_is_hdr_source(image)) {
+        // Not HDR, proceed with normal YUV to RGB conversion
+        return avifImageYUVToRGB(image, rgb);
+    }
+    
+    // For HDR, we need to:
+    // 1. Convert YUV to high bit depth RGB
+    // 2. Apply tone-mapping
+    // 3. Convert to 8-bit RGB
+    
+    // First convert YUV to high bit depth RGB
+    avifRGBImage temp;
+    avifRGBImageSetDefaults(&temp, image);
+    temp.depth = image->depth;
+    temp.format = rgb->format;
+    
+    avifResult result = avifRGBImageAllocatePixels(&temp);
+    if (result != AVIF_RESULT_OK) {
+        fprintf(stderr, "Failed to allocate pixels for temp image\n");
+        return result;
+    }
+    
+    result = avifImageYUVToRGB(image, &temp);
+    if (result != AVIF_RESULT_OK) {
+        fprintf(stderr, "Failed to convert YUV to RGB\n");
+        avifRGBImageFreePixels(&temp);
+        return result;
+    }
+    
+    // Apply tone-mapping
+    avif_tonemap_rgb((uint16_t*)temp.pixels, rgb->pixels, 
+                     image->width, image->height, 
+                     temp.depth, image->transferCharacteristics, params);
+    
+    avifRGBImageFreePixels(&temp);
+    return AVIF_RESULT_OK;
+}
 
 //----------------------
 // Decoder Management
@@ -263,11 +477,10 @@ bool avif_decoder_decode(avif_decoder d, opencv_mat mat) {
         return false;
     }
 
-    // Convert current frame to RGB/RGBA
-    avifResult result = avifImageYUVToRGB(d->decoder->image, &d->rgb);
+    // Convert YUV to RGB with HDR handling if needed
+    avifResult result = avif_convert_yuv_to_rgb_with_tone_mapping(d->decoder->image, &d->rgb);
     if (result != AVIF_RESULT_OK) {
-        fprintf(stderr, "YUV to RGB conversion failed for frame %d with error: %s\n", 
-               d->current_frame, avifResultToString(result));
+        fprintf(stderr, "YUV to RGB conversion failed for frame %d: %s\n", d->current_frame, avifResultToString(result));
         return false;
     }
 
