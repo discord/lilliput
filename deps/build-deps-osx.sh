@@ -394,16 +394,8 @@ make install
 # Remove any dylib if it was created
 rm -f $PREFIX/lib/libyuv.dylib
 
-# Detect macOS version
-MACOS_VERSION=$(sw_vers -productVersion | cut -d. -f1)
-
-# Configure C++ flags based on macOS version
-if [ "$MACOS_VERSION" = "14" ]; then
-    CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1"
-else
-    # macOS 15 needs more specific include paths and nostdinc++
-    CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
-fi
+# macOS 15 needs more specific include paths and nostdinc++
+CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
 
 echo '\n--------------------'
 echo 'Building libaom'
