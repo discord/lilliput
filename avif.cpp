@@ -10,7 +10,7 @@
 //----------------------
 struct avif_tone_map_params {
     // Controls the overall brightness of the image
-    float exposure = 3.0f;
+    float exposure = 5.0f;
 
     // Controls the maximum brightness of highlights
     float white_point = 2.0f;
