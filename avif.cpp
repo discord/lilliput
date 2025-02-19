@@ -9,21 +9,20 @@
 // Types and Structures
 //----------------------
 struct avif_tone_map_params {
-    // Increased exposure for brighter overall image
-    // Range typically 3.0-5.0 in professional tools
-    float exposure = 5.0f;
+    // Controls the overall brightness of the image
+    float exposure = 3.0f;
 
-    // Higher white point to preserve more highlight detail
-    // While preventing highlight clipping
-    float white_point = 5.5f;
+    // Controls the maximum brightness of highlights
+    float white_point = 2.0f;
 
+    // Controls the contrast of the image
     // Slightly higher contrast to maintain HDR "pop"
     // But not so high it crushes shadows
-    float contrast = 1.45f;
+    float contrast = 1.3f;
 
-    // Slightly adjusted gamma for better shadow detail
-    // While maintaining rich midtones
-    float gamma = 1.0f / 2.25f;
+    // Controls the gamma of the image
+    // Configured for common viewing conditions
+    float gamma = 1.0f / 2.2f;
 };
 
 struct avif_decoder_struct {
