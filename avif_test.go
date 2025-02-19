@@ -38,7 +38,7 @@ func testNewAvifDecoder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error while reading AVIF image: %v", err)
 	}
-	decoder, err := newAvifDecoder(testAvifImage)
+	decoder, err := newAvifDecoder(testAvifImage, true)
 	if err != nil {
 		t.Fatalf("Unexpected error while decoding AVIF image data: %v", err)
 	}
@@ -50,7 +50,7 @@ func testAvifDecoderHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error while reading AVIF image: %v", err)
 	}
-	decoder, err := newAvifDecoder(testAvifImage)
+	decoder, err := newAvifDecoder(testAvifImage, true)
 	if err != nil {
 		t.Fatalf("Unexpected error while decoding AVIF image data: %v", err)
 	}
@@ -93,7 +93,7 @@ func testAvifDecoderDuration(t *testing.T) {
 				t.Fatalf("Failed to read AVIF image: %v", err)
 			}
 
-			decoder, err := newAvifDecoder(testAvifImage)
+			decoder, err := newAvifDecoder(testAvifImage, true)
 			if err != nil {
 				t.Fatalf("Failed to create decoder: %v", err)
 			}
@@ -121,7 +121,7 @@ func testAvifDecoderUnknownLoopCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error while reading AVIF image: %v", err)
 	}
-	decoder, err := newAvifDecoder(testAvifImage)
+	decoder, err := newAvifDecoder(testAvifImage, true)
 	if err != nil {
 		t.Fatalf("Unexpected error while decoding AVIF image data: %v", err)
 	}
@@ -157,7 +157,7 @@ func testNewAvifEncoder(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error while reading AVIF image: %v", err)
 			}
-			decoder, err := newAvifDecoder(testAvifImage)
+			decoder, err := newAvifDecoder(testAvifImage, true)
 			if err != nil {
 				t.Fatalf("Unexpected error while decoding AVIF image data: %v", err)
 			}
@@ -191,7 +191,7 @@ func testAvifDecoderDecodeTo(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read AVIF image: %v", err)
 			}
-			decoder, err := newAvifDecoder(testAvifImage)
+			decoder, err := newAvifDecoder(testAvifImage, true)
 			if err != nil {
 				t.Fatalf("Failed to create a new AVIF decoder: %v", err)
 			}
@@ -210,7 +210,7 @@ func testAvifDecoderDecodeTo(t *testing.T) {
 
 	t.Run("Invalid Framebuffer", func(t *testing.T) {
 		testAvifImage, _ := os.ReadFile("testdata/colors_sdr_srgb.avif")
-		decoder, _ := newAvifDecoder(testAvifImage)
+		decoder, _ := newAvifDecoder(testAvifImage, true)
 		defer decoder.Close()
 
 		if err := decoder.DecodeTo(nil); err == nil {
@@ -236,7 +236,7 @@ func testAvifEncoderEncode(t *testing.T) {
 				t.Fatalf("Failed to read AVIF image: %v", err)
 			}
 
-			decoder, err := newAvifDecoder(testAvifImage)
+			decoder, err := newAvifDecoder(testAvifImage, true)
 			if err != nil {
 				t.Fatalf("Failed to create a new AVIF decoder: %v", err)
 			}
@@ -328,7 +328,7 @@ func testAvifToWebPConversion(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return newAvifDecoder(testAvifImage)
+		return newAvifDecoder(testAvifImage, true)
 	}, ".webp", WebpQuality)
 }
 
@@ -386,7 +386,7 @@ func testNewAvifDecoderWithAnimatedSource(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return newAvifDecoder(testAvifImage)
+		return newAvifDecoder(testAvifImage, true)
 	})
 }
 

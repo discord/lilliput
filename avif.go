@@ -30,13 +30,13 @@ type avifEncoder struct {
 // Decoder Implementation
 // ----------------------------------------
 
-func newAvifDecoder(buf []byte) (*avifDecoder, error) {
+func newAvifDecoder(buf []byte, toneMappingEnabled bool) (*avifDecoder, error) {
 	mat := C.opencv_mat_create_from_data(C.int(len(buf)), 1, C.CV_8U, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	if mat == nil {
 		return nil, ErrBufTooSmall
 	}
 
-	decoder := C.avif_decoder_create(mat)
+	decoder := C.avif_decoder_create(mat, C._Bool(toneMappingEnabled))
 	if decoder == nil {
 		return nil, ErrInvalidImage
 	}
