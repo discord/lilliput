@@ -37,6 +37,7 @@ struct avif_decoder_struct {
     uint32_t bgcolor;
     int timescale;
     int total_duration;
+    bool tone_mapping_enabled;
 };
 
 struct avif_encoder_struct {
@@ -202,14 +203,14 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
     }
 }
 
-// Convert YUV to RGB with HDR tone-mapping if needed
-static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, avifRGBImage* rgb, avif_tone_map_params params = avif_tone_map_params()) {
-    if (!avif_is_hdr_source(image)) {
-        // Not HDR, proceed with normal YUV to RGB conversion
+// Convert YUV to RGB with optional HDR tone-mapping
+static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, avifRGBImage* rgb, bool enable_tone_mapping, avif_tone_map_params params = avif_tone_map_params()) {
+    if (!enable_tone_mapping || !avif_is_hdr_source(image)) {
+        // Not HDR or tone-mapping disabled, proceed with normal YUV to RGB conversion
         return avifImageYUVToRGB(image, rgb);
     }
     
-    // For HDR, we need to:
+    // For HDR with tone-mapping enabled, we need to:
     // 1. Convert YUV to high bit depth RGB
     // 2. Apply tone-mapping
     // 3. Convert to 8-bit RGB
@@ -245,7 +246,7 @@ static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, av
 //----------------------
 // Decoder Management
 //----------------------
-avif_decoder avif_decoder_create(const opencv_mat buf) {
+avif_decoder avif_decoder_create(const opencv_mat buf, const bool tone_mapping_enabled) {
     auto cvMat = static_cast<const cv::Mat*>(buf);
     if (!cvMat || cvMat->empty()) {
         return nullptr;
@@ -257,6 +258,7 @@ avif_decoder avif_decoder_create(const opencv_mat buf) {
     d->buffer = cvMat->data;
     d->buffer_size = cvMat->total();
     d->decoder = avifDecoderCreate();
+    d->tone_mapping_enabled = tone_mapping_enabled;
     
     if (!d->decoder) {
         delete d;
@@ -477,8 +479,8 @@ bool avif_decoder_decode(avif_decoder d, opencv_mat mat) {
         return false;
     }
 
-    // Convert YUV to RGB with HDR handling if needed
-    avifResult result = avif_convert_yuv_to_rgb_with_tone_mapping(d->decoder->image, &d->rgb);
+    // Convert YUV to RGB with optional HDR handling
+    avifResult result = avif_convert_yuv_to_rgb_with_tone_mapping(d->decoder->image, &d->rgb, d->tone_mapping_enabled);
     if (result != AVIF_RESULT_OK) {
         fprintf(stderr, "YUV to RGB conversion failed for frame %d: %s\n", d->current_frame, avifResultToString(result));
         return false;

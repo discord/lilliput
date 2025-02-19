@@ -34,7 +34,7 @@ typedef struct avif_encoder_struct* avif_encoder;
 //----------------------
 // Decoder Management
 //----------------------
-avif_decoder avif_decoder_create(const opencv_mat buf);
+avif_decoder avif_decoder_create(const opencv_mat buf, const bool tone_mapping_enabled);
 void avif_decoder_release(avif_decoder d);
 
 //----------------------

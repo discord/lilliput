@@ -107,9 +107,15 @@ func isMP4(maybeMP4 []byte) bool {
 }
 
 // NewDecoder returns a Decoder which can be used to decode
-// image data provided in buf. If the first few bytes of buf do not
-// point to a valid magic string, an error will be returned.
+// image data provided in buf with tone mapping enabled.
 func NewDecoder(buf []byte) (Decoder, error) {
+	return NewDecoderWithOptionalToneMapping(buf, true)
+}
+
+// NewDecoderWithOptionalToneMapping returns a Decoder which can be used to decode
+// image data provided in buf with tone mapping optionally enabled. If the first few bytes
+// of buf do not point to a valid magic string, an error will be returned.
+func NewDecoderWithOptionalToneMapping(buf []byte, toneMappingEnabled bool) (Decoder, error) {
 	// Check buffer length before accessing it
 	if len(buf) == 0 {
 		return nil, ErrInvalidImage
@@ -127,7 +133,7 @@ func NewDecoder(buf []byte) (Decoder, error) {
 
 	isBufAvif := isAvif(buf)
 	if isBufAvif {
-		return newAvifDecoder(buf)
+		return newAvifDecoder(buf, toneMappingEnabled)
 	}
 
 	maybeOpenCVDecoder, err := newOpenCVDecoder(buf)
