@@ -1,5 +1,6 @@
 .vscode
 testdata/out/
+testdata/benchmark_out/
 
 # generated
 *.pc

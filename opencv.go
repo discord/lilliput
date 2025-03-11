@@ -2,6 +2,7 @@ package lilliput
 
 // #include "opencv.hpp"
 // #include "avif.hpp"
+// #include "webp.hpp"
 import "C"
 
 import (
@@ -45,6 +46,17 @@ const (
 	JpegProgressive = int(C.CV_IMWRITE_JPEG_PROGRESSIVE) // Enable progressive JPEG encoding
 	AvifQuality     = int(C.AVIF_QUALITY)                // Quality parameter for AVIF encoding (0-100)
 	AvifSpeed       = int(C.AVIF_SPEED)                  // Speed parameter for AVIF encoding (0-10)
+
+	// WebP specific encoding options
+	WebpMethod         = int(C.WEBP_METHOD)          // Compression method (0=fastest, 6=slowest)
+	WebpFilterStrength = int(C.WEBP_FILTER_STRENGTH) // Filter strength (0=off, 100=strongest)
+	WebpFilterType     = int(C.WEBP_FILTER_TYPE)     // Filter type (0=simple, 1=strong)
+	WebpAutofilter     = int(C.WEBP_AUTOFILTER)      // Auto-adjust filter strength (0=off, 1=on)
+	WebpPartitions     = int(C.WEBP_PARTITIONS)      // Number of partitions (0-3)
+	WebpSegments       = int(C.WEBP_SEGMENTS)        // Number of segments (1-4)
+	WebpPreprocessing  = int(C.WEBP_PREPROCESSING)   // Preprocessing filter (0=off, 1=on)
+	WebpThreadLevel    = int(C.WEBP_THREAD_LEVEL)    // Thread level (0=off, 1=on)
+	WebpPalette        = int(C.WEBP_PALETTE)         // Use palette (0=off, 1=on)
 
 	// Image orientation constants
 	OrientationTopLeft     = ImageOrientation(C.CV_IMAGE_ORIENTATION_TL)
