@@ -555,10 +555,19 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         return 0;
     }
 
+    if (mat->depth() != CV_8U) {
+        // Image depth is not 8-bit unsigned
+        return 0;
+    }
+
     // Handle color conversion if needed
     cv::Mat bgr_mat;
     if (mat->channels() == 1) {
         cv::cvtColor(*mat, bgr_mat, CV_GRAY2BGR);
+        if (bgr_mat.empty()) {
+            // failed to convert grayscale image to BGR
+            return 0;
+        }
         mat = &bgr_mat;
     }
 
@@ -577,10 +586,16 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             return 0;
         }
 
+        size_t size = 0;
         if (mat->channels() == 3) {
-            WebPPictureImportBGR(&e->picture, mat->data, mat->step);
+            size = WebPPictureImportBGR(&e->picture, mat->data, mat->step);
         } else {
-            WebPPictureImportBGRA(&e->picture, mat->data, mat->step);
+            size = WebPPictureImportBGRA(&e->picture, mat->data, mat->step);
+        }
+
+        if (size == 0) {
+            fprintf(stderr, "Failed to import frame %d\n", e->frame_count);
+            return 0;
         }
     }
 
@@ -633,10 +648,16 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         }
 
         // Import the frame
+        size_t size = 0;
         if (mat->channels() == 3) {
-            WebPPictureImportBGR(&frame, mat->data, mat->step);
+            size = WebPPictureImportBGR(&frame, mat->data, mat->step);
         } else {
-            WebPPictureImportBGRA(&frame, mat->data, mat->step);
+            size = WebPPictureImportBGRA(&frame, mat->data, mat->step);
+        }
+
+        if (size == 0) {
+            fprintf(stderr, "Failed to import frame %d for animation\n", e->frame_count);
+            return 0;
         }
 
         // Add frame to animation
