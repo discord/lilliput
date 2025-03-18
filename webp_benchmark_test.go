@@ -107,7 +107,6 @@ func BenchmarkWebPEncoding(b *testing.B) {
 		inputPath string
 	}{
 		{"AnimatedWebP", "testdata/animated-webp-supported.webp"},
-		{"AnimatedGIF", "testdata/big_buck_bunny_720_5s.gif"},
 	}
 
 	for _, tc := range testCases {
