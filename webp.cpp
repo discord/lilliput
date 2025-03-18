@@ -427,7 +427,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
     // Configure WebP encoding options
     WebPConfig config;
-    if (!WebPConfigInit(&config)) {
+    if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, 100.0f)) {
         return 0;
     }
 
@@ -441,7 +441,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             switch (key) {
                 case CV_IMWRITE_WEBP_QUALITY:
                     quality = std::max(1.0f, (float)value);
-                    config.quality = quality;
+                    config.quality = std::min(100.0f, quality);
                     config.lossless = (quality > 100.0f);
                     break;
                 case WEBP_METHOD:
