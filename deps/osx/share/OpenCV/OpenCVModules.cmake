@@ -19,7 +19,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_cmake_targets_defined "")
 set(_cmake_targets_not_defined "")
 set(_cmake_expected_targets "")
-foreach(_cmake_expected_target IN ITEMS opencv_core opencv_imgproc opencv_imgcodecs)
+foreach(_cmake_expected_target IN ITEMS opencv_core opencv_imgproc opencv_photo opencv_imgcodecs)
   list(APPEND _cmake_expected_targets "${_cmake_expected_target}")
   if(TARGET "${_cmake_expected_target}")
     list(APPEND _cmake_targets_defined "${_cmake_expected_target}")
@@ -58,7 +58,7 @@ endif()
 add_library(opencv_core STATIC IMPORTED)
 
 set_target_properties(opencv_core PROPERTIES
-  INTERFACE_LINK_LIBRARIES "${SRCDIR}/deps/osx/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a"
 )
 
 # Create imported target opencv_imgproc
@@ -66,6 +66,13 @@ add_library(opencv_imgproc STATIC IMPORTED)
 
 set_target_properties(opencv_imgproc PROPERTIES
   INTERFACE_LINK_LIBRARIES "opencv_core;opencv_core"
+)
+
+# Create imported target opencv_photo
+add_library(opencv_photo STATIC IMPORTED)
+
+set_target_properties(opencv_photo PROPERTIES
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc"
 )
 
 # Create imported target opencv_imgcodecs
