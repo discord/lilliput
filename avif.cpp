@@ -125,14 +125,30 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
             hdrMat.at<cv::Vec3f>(y, x) = cv::Vec3f(r, g, b);
         }
     }
-    
-    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.6f, 0.0f, 0.0f);
+
+    // Create a Reinhard tonemap with slightly reduced intensity
+    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.72f, 0.12f, 0.35f);
     cv::Mat tonemapped;
     tonemap->process(hdrMat, tonemapped);
-    
+
+    // Saturation boost with slightly reduced strength
+    cv::Mat hsv;
+    cv::cvtColor(tonemapped, hsv, cv::COLOR_BGR2HSV);
+    std::vector<cv::Mat> channels;
+    cv::split(hsv, channels);
+
+    channels[1] *= 1.15;
+    cv::merge(channels, hsv);
+    cv::cvtColor(hsv, tonemapped, cv::COLOR_HSV2BGR);
+
     // Convert to 8-bit with proper gamma correction
     cv::Mat gamma_corrected;
-    cv::pow(tonemapped, 1.0f/2.2f, gamma_corrected);
+    if (transfer == AVIF_TRANSFER_CHARACTERISTICS_LINEAR) {
+        cv::pow(tonemapped, 1.0f/2.2f, gamma_corrected);
+    } else {
+        // PQ and HLG already include transfer function
+        gamma_corrected = tonemapped;
+    }
     gamma_corrected.convertTo(sdrMat, CV_8UC3, 255.0f);
 
     memcpy(dst, sdrMat.data, width * height * 3);
@@ -331,6 +347,11 @@ uint32_t avif_decoder_get_loop_count(const avif_decoder d) {
 }
 
 size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len) {
+    if (avif_is_hdr_source(d->decoder->image)) {
+        // We perform tone-mapping before encoding, so we don't need the ICC profile
+        return 0;
+    }
+
     if (d->decoder->image->icc.size > 0 && d->decoder->image->icc.size <= buf_len) {
         memcpy(buf, d->decoder->image->icc.data, d->decoder->image->icc.size);
         return d->decoder->image->icc.size;
