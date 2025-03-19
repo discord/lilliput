@@ -305,7 +305,7 @@ cmake $BASEDIR/opencv \
     -DBUILD_DOCS=OFF \
     -DBUILD_PERF_TESTS=OFF \
     -DBUILD_TESTS=OFF \
-    -DBUILD_opencv_photo=OFF \
+    -DBUILD_opencv_photo=ON \
     -DBUILD_opencv_video=OFF \
     -DBUILD_opencv_videoio=OFF \
     -DBUILD_opencv_highgui=OFF \
