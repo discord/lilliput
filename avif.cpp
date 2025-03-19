@@ -126,20 +126,10 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
         }
     }
 
-    // Create a Reinhard tonemap with slightly reduced intensity
-    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.72f, 0.12f, 0.35f);
+    // Create a Reinhard tonemap with typical parameters for HDR content
+    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.6f, 0.2f, 0.3f);
     cv::Mat tonemapped;
     tonemap->process(hdrMat, tonemapped);
-
-    // Saturation boost with slightly reduced strength
-    cv::Mat hsv;
-    cv::cvtColor(tonemapped, hsv, cv::COLOR_BGR2HSV);
-    std::vector<cv::Mat> channels;
-    cv::split(hsv, channels);
-
-    channels[1] *= 1.15;
-    cv::merge(channels, hsv);
-    cv::cvtColor(hsv, tonemapped, cv::COLOR_HSV2BGR);
 
     // Convert to 8-bit with proper gamma correction
     cv::Mat gamma_corrected;
