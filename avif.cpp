@@ -3,7 +3,7 @@
 #include <opencv2/photo.hpp>
 #include <avif/avif.h>
 #include <cstring>
-
+#include "icc_profiles/rec709_profile.h"
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
 
 //----------------------
@@ -79,7 +79,7 @@ static float avif_hlg_to_linear(float x) {
 
 // Convert HDR RGB values to SDR using OpenCV's tone-mapping
 static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height, int src_depth, 
-                            avifTransferCharacteristics transfer) {
+                            avifTransferCharacteristics transfer, avifColorPrimaries primaries) {
     float scale = 1.0f / ((1 << src_depth) - 1);
     
     // Create OpenCV matrices for processing
@@ -114,13 +114,33 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
     cv::Mat tonemapped;
     tonemap->process(hdrMat, tonemapped);
 
+    // Convert colorspace if source is BT2020
+    cv::Mat converted;
+    if (primaries == AVIF_COLOR_PRIMARIES_BT2020) {
+        cv::Matx33f bt2020_to_bt709(
+            1.6605f, -0.5876f, -0.0728f,
+            -0.1246f, 1.1329f, -0.0083f,
+            -0.0182f, -0.1006f, 1.1187f
+        );
+        cv::transform(tonemapped, converted, bt2020_to_bt709);
+    } else if (primaries == AVIF_COLOR_PRIMARIES_SMPTE432 || primaries == AVIF_COLOR_PRIMARIES_DCI_P3) {
+        cv::Matx33f p3_to_bt709(
+            1.2249f, -0.2247f, -0.0002f,
+            -0.0420f, 1.0419f, 0.0001f,
+            -0.0197f, 0.0754f, 0.9443f
+        );
+        cv::transform(tonemapped, converted, p3_to_bt709);
+    } else {
+        converted = tonemapped;
+    }
+
     // Convert to 8-bit with proper gamma correction
     cv::Mat gamma_corrected;
     if (transfer == AVIF_TRANSFER_CHARACTERISTICS_LINEAR) {
-        cv::pow(tonemapped, 1.0f/2.2f, gamma_corrected);
+        cv::pow(converted, 1.0f/2.2f, gamma_corrected);
     } else {
         // PQ and HLG already include transfer function
-        gamma_corrected = tonemapped;
+        gamma_corrected = converted;
     }
     gamma_corrected.convertTo(sdrMat, CV_8UC3, 255.0f);
 
@@ -158,10 +178,11 @@ static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, av
         return result;
     }
     
-    // Apply tone-mapping
+    // Apply tone-mapping with colorspace information
     avif_tonemap_rgb((uint16_t*)temp.pixels, rgb->pixels, 
                      image->width, image->height, 
-                     temp.depth, image->transferCharacteristics);
+                     temp.depth, image->transferCharacteristics,
+                     image->colorPrimaries);
     
     avifRGBImageFreePixels(&temp);
     return AVIF_RESULT_OK;
@@ -323,11 +344,17 @@ size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len) {
     if (!d || !d->decoder) {
         return 0;
     }
+
+    // Report rec709 profile for tone-mapped HDR content
     if (d->tone_mapping_enabled && avif_is_hdr_source(d->decoder->image)) {
-        // ICC profile is not needed for tone-mapped HDR content
-        return 0;
+        size_t profile_size = sizeof(rec709_profile);
+        const uint8_t* profile_data = rec709_profile;
+        std::memcpy(buf, profile_data, profile_size);
+        return static_cast<int>(profile_size);
     }
 
+    // Always preserve ICC profile for HDR content, even when tone mapping
+    // This ensures proper colorspace information is maintained
     if (d->decoder->image->icc.size > 0 && d->decoder->image->icc.size <= buf_len) {
         memcpy(buf, d->decoder->image->icc.data, d->decoder->image->icc.size);
         return d->decoder->image->icc.size;
