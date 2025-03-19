@@ -130,6 +130,13 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
             -0.0197f, 0.0754f, 0.9443f
         );
         cv::transform(tonemapped, converted, p3_to_bt709);
+    } else if (primaries == AVIF_COLOR_PRIMARIES_BT601) {
+        cv::Matx33f bt601_to_bt709(
+            1.0440f, -0.0440f, 0.0000f,
+            -0.0000f, 1.0000f, 0.0000f,
+            0.0000f, 0.0000f, 1.0000f
+        );
+        cv::transform(tonemapped, converted, bt601_to_bt709);
     } else {
         converted = tonemapped;
     }
