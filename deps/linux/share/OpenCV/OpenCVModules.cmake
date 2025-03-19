@@ -19,7 +19,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_cmake_targets_defined "")
 set(_cmake_targets_not_defined "")
 set(_cmake_expected_targets "")
-foreach(_cmake_expected_target IN ITEMS opencv_core opencv_imgproc opencv_imgcodecs)
+foreach(_cmake_expected_target IN ITEMS opencv_core opencv_imgproc opencv_photo opencv_imgcodecs)
   list(APPEND _cmake_expected_targets "${_cmake_expected_target}")
   if(TARGET "${_cmake_expected_target}")
     list(APPEND _cmake_targets_defined "${_cmake_expected_target}")
@@ -59,6 +59,9 @@ add_library(opencv_core STATIC IMPORTED)
 
 # Create imported target opencv_imgproc
 add_library(opencv_imgproc STATIC IMPORTED)
+
+# Create imported target opencv_photo
+add_library(opencv_photo STATIC IMPORTED)
 
 # Create imported target opencv_imgcodecs
 add_library(opencv_imgcodecs STATIC IMPORTED)
