@@ -21,7 +21,7 @@ if [ -z "$ARCH" ]; then
     # No architecture specified, use system default
     ARCH=$(uname -m)
     case "$ARCH" in
-        x86_64)
+        amd64)
             ARCH="amd64"
             ;;
         aarch64)
