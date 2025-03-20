@@ -47,7 +47,6 @@ case "$ARCH" in
         CONFIGURE_HOST=
         CMAKE_CROSS_COMPILE_FLAGS=""
         FFMPEG_CROSS_COMPILE_FLAGS=""
-        CPU_BASELINE="SSE2"
         OPENCV_EXTRA_FLAGS="-DENABLE_SSE41=ON -DENABLE_SSE42=ON"
         PNG_EXTRA_FLAGS="--enable-intel-sse"
         ;;
@@ -57,13 +56,12 @@ case "$ARCH" in
         export AR="aarch64-linux-gnu-ar"
         export RANLIB="aarch64-linux-gnu-ranlib"
         export STRIP="aarch64-linux-gnu-strip"
-        ARCH_CFLAGS="-fPIC -O2 -I./include -march=armv8.2-a+dotprod+simd+i8mm"
-        ARCH_CXXFLAGS="-fPIC -O2 -I./include -march=armv8.2-a+dotprod+simd+i8mm"
+        ARCH_CFLAGS="-fPIC -O2 -I./include -march=armv8.4-a+dotprod+simd+i8mm"
+        ARCH_CXXFLAGS="-fPIC -O2 -I./include -march=armv8.4-a+dotprod+simd+i8mm"
         CONFIGURE_HOST="aarch64-linux-gnu"
         CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
         FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
-        CPU_BASELINE="NEON"
-        OPENCV_EXTRA_FLAGS="-DENABLE_NEON=ON -DWITH_CAROTENE=ON"
+        OPENCV_EXTRA_FLAGS="-DENABLE_NEON=ON -DWITH_CAROTENE=ON -DENABLE_CAROTENE=ON"
         PNG_EXTRA_FLAGS=""
         ;;
     *)
@@ -186,7 +184,7 @@ $BASEDIR/libwebp/configure \
     --prefix=$PREFIX \
     --disable-shared \
     --enable-static \
-    --host=aarch64-linux-gnu \
+    --host=$CONFIGURE_HOST \
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
@@ -217,8 +215,9 @@ cd $BASEDIR/opencv
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
 cmake $BASEDIR/opencv \
+    $CMAKE_CROSS_COMPILE_FLAGS \
     $OPENCV_EXTRA_FLAGS \
-    -DCPU_BASELINE="$CPU_BASELINE" \
+    -DCMAKE_BUILD_TYPE=Release \
     -DWITH_JPEG=ON \
     -DWITH_PNG=ON \
     -DWITH_WEBP=ON \
