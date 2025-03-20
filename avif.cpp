@@ -114,7 +114,7 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
     cv::Mat tonemapped;
     tonemap->process(hdrMat, tonemapped);
 
-    // Convert colorspace if source is BT2020
+    // Convert colorspace if needed
     cv::Mat converted;
     if (primaries == AVIF_COLOR_PRIMARIES_BT2020) {
         cv::Matx33f bt2020_to_bt709(
@@ -138,6 +138,7 @@ static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height,
         );
         cv::transform(tonemapped, converted, bt601_to_bt709);
     } else {
+        // For unknown colorspaces, default to assuming BT709
         converted = tonemapped;
     }
 
