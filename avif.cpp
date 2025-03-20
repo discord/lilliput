@@ -1,30 +1,14 @@
 #include "avif.hpp"
 #include <opencv2/imgproc.hpp>
+#include <opencv2/photo.hpp>
 #include <avif/avif.h>
 #include <cstring>
-
+#include "icc_profiles/rec709_profile.h"
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
 
 //----------------------
 // Types and Structures
 //----------------------
-struct avif_tone_map_params {
-    // Controls the overall brightness of the image
-    float exposure = 5.0f;
-
-    // Controls the maximum brightness of highlights
-    float white_point = 2.0f;
-
-    // Controls the contrast of the image
-    // Slightly higher contrast to maintain HDR "pop"
-    // But not so high it crushes shadows
-    float contrast = 1.3f;
-
-    // Controls the gamma of the image
-    // Configured for common viewing conditions
-    float gamma = 1.0f / 2.2f;
-};
-
 struct avif_decoder_struct {
     avifDecoder* decoder;
     avifRGBImage rgb;
@@ -93,117 +77,86 @@ static float avif_hlg_to_linear(float x) {
     }
 }
 
-// Reinhard tone-mapping operator
-static float avif_reinhard_tonemap(float x, const avif_tone_map_params& params) {
-    // Apply exposure (with HDR-specific boost)
-    x *= params.exposure;
-    
-    // Modified Reinhard tone compression with shoulder
-    float compressed = (x * (1.0f + x / (params.white_point * params.white_point))) / (1.0f + x);
-    
-    // Apply contrast
-    if (params.contrast != 1.0f) {
-        // Center contrast adjustment around middle gray
-        const float mid = 0.18f;
-        compressed = mid * std::pow(compressed / mid, params.contrast);
-    }
-    
-    // Apply gamma correction
-    if (params.gamma != 1.0f) {
-        compressed = std::pow(compressed, params.gamma);
-    }
-    
-    return compressed;
-}
-
-// Convert HDR RGB values to SDR using tone-mapping
+// Convert HDR RGB values to SDR using OpenCV's tone-mapping
 static void avif_tonemap_rgb(uint16_t* src, uint8_t* dst, int width, int height, int src_depth, 
-                            avifTransferCharacteristics transfer, const avif_tone_map_params& params) {
+                            avifTransferCharacteristics transfer, avifColorPrimaries primaries) {
     float scale = 1.0f / ((1 << src_depth) - 1);
-    float inv_scale = 255.0f;
     
-    // Pre-analyze image for better exposure adjustment
-    float max_value = 0.0f;
-    float avg_value = 0.0f;
-    int num_pixels = width * height * 3;
+    // Create OpenCV matrices for processing
+    cv::Mat hdrMat(height, width, CV_32FC3);
+    cv::Mat sdrMat(height, width, CV_8UC3);
     
-    // Calculate max and average values
-    for (int i = 0; i < num_pixels; i++) {
-        float x = src[i] * scale;
-        if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
-            x = avif_pq_to_linear(x);
-        } else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
-            x = avif_hlg_to_linear(x);
+    // Convert to linear RGB
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = (y * width + x) * 3;
+            float r = src[idx] * scale;
+            float g = src[idx + 1] * scale;
+            float b = src[idx + 2] * scale;
+            
+            // Convert to linear
+            if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
+                r = avif_pq_to_linear(r);
+                g = avif_pq_to_linear(g);
+                b = avif_pq_to_linear(b);
+            } else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
+                r = avif_hlg_to_linear(r);
+                g = avif_hlg_to_linear(g);
+                b = avif_hlg_to_linear(b);
+            }
+            
+            hdrMat.at<cv::Vec3f>(y, x) = cv::Vec3f(r, g, b);
         }
-        max_value = std::max(max_value, x);
-        avg_value += x;
     }
-    avg_value /= num_pixels;
-    
-    // Dynamically adjust exposure based on both max and average values
-    avif_tone_map_params adjusted_params = params;
-    if (max_value > 0.0f) {
-        float target_max = 0.95f;  // Increased from 0.8f for brighter highlights
-        float target_avg = 0.35f;  // Target average brightness (increased for overall brightness)
-        
-        // Calculate separate adjustments for max and average values
-        float max_exposure_scale = std::min(3.0f, target_max / max_value);  // Increased limit from 2.0f
-        float avg_exposure_scale = target_avg / std::max(avg_value, 1e-6f);
-        avg_exposure_scale = std::min(std::max(avg_exposure_scale, 0.8f), 2.5f);  // Wider range
-        
-        // Blend the two exposure adjustments, favoring the max-based adjustment
-        adjusted_params.exposure *= (max_exposure_scale * 0.6f + avg_exposure_scale * 0.4f);
+
+    // Create a Reinhard tonemap with typical parameters for HDR content
+    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.6f, 0.2f, 0.3f);
+    cv::Mat tonemapped;
+    tonemap->process(hdrMat, tonemapped);
+
+    // Convert colorspace if needed
+    cv::Mat converted;
+    if (primaries == AVIF_COLOR_PRIMARIES_BT2020) {
+        cv::Matx33f bt2020_to_bt709(
+            1.6605f, -0.5876f, -0.0728f,
+            -0.1246f, 1.1329f, -0.0083f,
+            -0.0182f, -0.1006f, 1.1187f
+        );
+        cv::transform(tonemapped, converted, bt2020_to_bt709);
+    } else if (primaries == AVIF_COLOR_PRIMARIES_SMPTE432 || primaries == AVIF_COLOR_PRIMARIES_DCI_P3) {
+        cv::Matx33f p3_to_bt709(
+            1.2249f, -0.2247f, -0.0002f,
+            -0.0420f, 1.0419f, 0.0001f,
+            -0.0197f, 0.0754f, 0.9443f
+        );
+        cv::transform(tonemapped, converted, p3_to_bt709);
+    } else if (primaries == AVIF_COLOR_PRIMARIES_BT601) {
+        cv::Matx33f bt601_to_bt709(
+            1.0440f, -0.0440f, 0.0000f,
+            -0.0000f, 1.0000f, 0.0000f,
+            0.0000f, 0.0000f, 1.0000f
+        );
+        cv::transform(tonemapped, converted, bt601_to_bt709);
+    } else {
+        // For unknown colorspaces, default to assuming BT709
+        converted = tonemapped;
     }
-    
-    // Enhanced color preservation for brighter results
-    for (int i = 0; i < width * height; i++) {
-        float r = src[i * 3] * scale;
-        float g = src[i * 3 + 1] * scale;
-        float b = src[i * 3 + 2] * scale;
-        
-        // Convert to linear
-        if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
-            r = avif_pq_to_linear(r);
-            g = avif_pq_to_linear(g);
-            b = avif_pq_to_linear(b);
-        } else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
-            r = avif_hlg_to_linear(r);
-            g = avif_hlg_to_linear(g);
-            b = avif_hlg_to_linear(b);
-        }
-        
-        // Calculate luminance
-        float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
-        if (luminance < 1e-6f) {
-            dst[i * 3] = dst[i * 3 + 1] = dst[i * 3 + 2] = 0;
-            continue;
-        }
-        
-        // Preserve color ratios
-        float r_ratio = r / (luminance + 1e-6f);
-        float g_ratio = g / (luminance + 1e-6f);
-        float b_ratio = b / (luminance + 1e-6f);
-        
-        // Tone-map luminance
-        float mapped_luminance = avif_reinhard_tonemap(luminance, adjusted_params);
-        
-        // Apply saturation boost for brighter appearance
-        float sat_boost = 1.1f + 0.2f * mapped_luminance;  // Increase saturation in brighter areas
-        
-        // Reconstruct color with enhanced saturation
-        r = mapped_luminance * (1.0f + (r_ratio - 1.0f) * sat_boost);
-        g = mapped_luminance * (1.0f + (g_ratio - 1.0f) * sat_boost);
-        b = mapped_luminance * (1.0f + (b_ratio - 1.0f) * sat_boost);
-        
-        // Convert back to 8-bit with highlight preservation
-        dst[i * 3] = (uint8_t)std::min(std::max(r * inv_scale + 0.5f, 0.0f), 255.0f);
-        dst[i * 3 + 1] = (uint8_t)std::min(std::max(g * inv_scale + 0.5f, 0.0f), 255.0f);
-        dst[i * 3 + 2] = (uint8_t)std::min(std::max(b * inv_scale + 0.5f, 0.0f), 255.0f);
+
+    // Convert to 8-bit with proper gamma correction
+    cv::Mat gamma_corrected;
+    if (transfer == AVIF_TRANSFER_CHARACTERISTICS_LINEAR) {
+        cv::pow(converted, 1.0f/2.2f, gamma_corrected);
+    } else {
+        // PQ and HLG already include transfer function
+        gamma_corrected = converted;
     }
+    gamma_corrected.convertTo(sdrMat, CV_8UC3, 255.0f);
+
+    memcpy(dst, sdrMat.data, width * height * 3);
 }
 
 // Convert YUV to RGB with optional HDR tone-mapping
-static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, avifRGBImage* rgb, bool enable_tone_mapping, avif_tone_map_params params = avif_tone_map_params()) {
+static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, avifRGBImage* rgb, bool enable_tone_mapping) {
     if (!enable_tone_mapping || !avif_is_hdr_source(image)) {
         // Not HDR or tone-mapping disabled, proceed with normal YUV to RGB conversion
         return avifImageYUVToRGB(image, rgb);
@@ -233,10 +186,11 @@ static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image, av
         return result;
     }
     
-    // Apply tone-mapping
+    // Apply tone-mapping with colorspace information
     avif_tonemap_rgb((uint16_t*)temp.pixels, rgb->pixels, 
                      image->width, image->height, 
-                     temp.depth, image->transferCharacteristics, params);
+                     temp.depth, image->transferCharacteristics,
+                     image->colorPrimaries);
     
     avifRGBImageFreePixels(&temp);
     return AVIF_RESULT_OK;
@@ -395,6 +349,20 @@ uint32_t avif_decoder_get_loop_count(const avif_decoder d) {
 }
 
 size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len) {
+    if (!d || !d->decoder) {
+        return 0;
+    }
+
+    // Report rec709 profile for tone-mapped HDR content
+    if (d->tone_mapping_enabled && avif_is_hdr_source(d->decoder->image)) {
+        size_t profile_size = sizeof(rec709_profile);
+        const uint8_t* profile_data = rec709_profile;
+        std::memcpy(buf, profile_data, profile_size);
+        return static_cast<int>(profile_size);
+    }
+
+    // Always preserve ICC profile for HDR content, even when tone mapping
+    // This ensures proper colorspace information is maintained
     if (d->decoder->image->icc.size > 0 && d->decoder->image->icc.size <= buf_len) {
         memcpy(buf, d->decoder->image->icc.data, d->decoder->image->icc.size);
         return d->decoder->image->icc.size;
