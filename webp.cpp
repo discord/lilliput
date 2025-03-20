@@ -527,7 +527,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             WebPAnimEncoderDelete(e->anim);
             e->anim = nullptr;
         } else {
-            // Finalize still image using existing WebPMux code
+            // Finalize still image
             WebPData out_mux = { nullptr, 0 };
             
             // Add ICC profile if it exists
@@ -633,8 +633,9 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
     }
 
     // Handle current frame
+    size_t size = 0;
     if (e->is_animation) {
-        // Add frame to animation
+        // Add frame to animation being accumulated
         WebPPicture frame;
         WebPPictureInit(&frame);
         frame.width = mat->cols;
@@ -648,7 +649,6 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         }
 
         // Import the frame
-        size_t size = 0;
         if (mat->channels() == 3) {
             size = WebPPictureImportBGR(&frame, mat->data, mat->step);
         } else {
@@ -670,8 +670,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         e->timestamp_ms += delay;
         WebPPictureFree(&frame);
     } else {
-        // Handle single frame using existing WebPMux code
-        size_t size = 0;
+        // Handle single frame
         uint8_t* out_picture = nullptr;
 
         if (config.lossless) {
@@ -710,7 +709,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
     }
 
     e->frame_count++;
-    return mat->total() * mat->elemSize();  // Return approximate size of processed data
+    return size;
 }
 
 /**
