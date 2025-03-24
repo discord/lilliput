@@ -33,7 +33,7 @@ echo '\n--------------------'
 echo 'Building libjpeg-turbo'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-3.1.0.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
@@ -45,7 +45,7 @@ echo '\n--------------------'
 echo 'Building zlib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $SRCDIR/zlib-1.3.1.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
@@ -56,12 +56,13 @@ echo '\n--------------------'
 echo 'Building libpng'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libpng
-tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
+tar -xzf $SRCDIR/libpng-1.6.47.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
 CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --disable-unversioned-links --disable-unversioned-libpng-pc --enable-intel-sse
 make
 make install
+
 
 echo '\n--------------------'
 echo 'Building libwebp'
@@ -80,10 +81,10 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
-make
+make libgif.a
 cp libgif.a "$PREFIX/lib"
 cp gif_lib.h "$PREFIX/include"
 
