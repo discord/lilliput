@@ -175,18 +175,8 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
 
     int res = avformat_open_input(&d->container, NULL, NULL, NULL);
     if (res < 0) {
-        avio_flush(d->avio);
-        av_free(d->avio->buffer);
-        av_free(d->avio);
         avformat_free_context(d->container);
         d->container = NULL;
-        avcodec_decoder_release(d);
-        return NULL;
-    }
-
-    // Check if we have any streams
-    if (!d->container->streams || d->container->nb_streams == 0) {
-        d->avio = NULL;
         avcodec_decoder_release(d);
         return NULL;
     }
@@ -247,10 +237,6 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     }
 
     d->codec = avcodec_alloc_context3(codec);
-    if (!d->codec) {
-        avcodec_decoder_release(d);
-        return NULL;
-    }
 
     res = avcodec_parameters_to_context(d->codec, codec_params);
     if (res < 0) {
