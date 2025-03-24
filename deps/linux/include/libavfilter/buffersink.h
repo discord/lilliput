@@ -55,6 +55,8 @@
  * The format can be constrained by setting options, using av_opt_set() and
  * related functions with the AV_OPT_SEARCH_CHILDREN flag.
  *  - pix_fmts (int list),
+ *  - color_spaces (int list),
+ *  - color_ranges (int list),
  *  - sample_fmts (int list),
  *  - sample_rates (int list),
  *  - ch_layouts (string),
@@ -94,42 +96,6 @@ int av_buffersink_get_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flag
  */
 #define AV_BUFFERSINK_FLAG_NO_REQUEST 2
 
-#if FF_API_BUFFERSINK_ALLOC
-/**
- * Deprecated and unused struct to use for initializing a buffersink context.
- */
-typedef struct AVBufferSinkParams {
-    const enum AVPixelFormat *pixel_fmts; ///< list of allowed pixel formats, terminated by AV_PIX_FMT_NONE
-} AVBufferSinkParams;
-
-/**
- * Create an AVBufferSinkParams structure.
- *
- * Must be freed with av_free().
- */
-attribute_deprecated
-AVBufferSinkParams *av_buffersink_params_alloc(void);
-
-/**
- * Deprecated and unused struct to use for initializing an abuffersink context.
- */
-typedef struct AVABufferSinkParams {
-    const enum AVSampleFormat *sample_fmts; ///< list of allowed sample formats, terminated by AV_SAMPLE_FMT_NONE
-    const int64_t *channel_layouts;         ///< list of allowed channel layouts, terminated by -1
-    const int *channel_counts;              ///< list of allowed channel counts, terminated by -1
-    int all_channel_counts;                 ///< if not 0, accept any channel count or layout
-    int *sample_rates;                      ///< list of allowed sample rates, terminated by -1
-} AVABufferSinkParams;
-
-/**
- * Create an AVABufferSinkParams structure.
- *
- * Must be freed with av_free().
- */
-attribute_deprecated
-AVABufferSinkParams *av_abuffersink_params_alloc(void);
-#endif
-
 /**
  * Set the frame size for an audio buffer sink.
  *
@@ -153,12 +119,10 @@ AVRational       av_buffersink_get_frame_rate          (const AVFilterContext *c
 int              av_buffersink_get_w                   (const AVFilterContext *ctx);
 int              av_buffersink_get_h                   (const AVFilterContext *ctx);
 AVRational       av_buffersink_get_sample_aspect_ratio (const AVFilterContext *ctx);
+enum AVColorSpace av_buffersink_get_colorspace         (const AVFilterContext *ctx);
+enum AVColorRange av_buffersink_get_color_range        (const AVFilterContext *ctx);
 
 int              av_buffersink_get_channels            (const AVFilterContext *ctx);
-#if FF_API_OLD_CHANNEL_LAYOUT
-attribute_deprecated
-uint64_t         av_buffersink_get_channel_layout      (const AVFilterContext *ctx);
-#endif
 int              av_buffersink_get_ch_layout           (const AVFilterContext *ctx,
                                                         AVChannelLayout *ch_layout);
 int              av_buffersink_get_sample_rate         (const AVFilterContext *ctx);

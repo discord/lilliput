@@ -69,6 +69,8 @@
 #define AV_CPU_FLAG_NEON         (1 << 5)
 #define AV_CPU_FLAG_ARMV8        (1 << 6)
 #define AV_CPU_FLAG_VFP_VM       (1 << 7) ///< VFPv2 vector mode, deprecated in ARMv7-A and unavailable in various CPUs implementations
+#define AV_CPU_FLAG_DOTPROD      (1 << 8)
+#define AV_CPU_FLAG_I8MM         (1 << 9)
 #define AV_CPU_FLAG_SETEND       (1 <<16)
 
 #define AV_CPU_FLAG_MMI          (1 << 0)
@@ -77,6 +79,17 @@
 //Loongarch SIMD extension.
 #define AV_CPU_FLAG_LSX          (1 << 0)
 #define AV_CPU_FLAG_LASX         (1 << 1)
+
+// RISC-V extensions
+#define AV_CPU_FLAG_RVI          (1 << 0) ///< I (full GPR bank)
+#define AV_CPU_FLAG_RVF          (1 << 1) ///< F (single precision FP)
+#define AV_CPU_FLAG_RVD          (1 << 2) ///< D (double precision FP)
+#define AV_CPU_FLAG_RVV_I32      (1 << 3) ///< Vectors of 8/16/32-bit int's */
+#define AV_CPU_FLAG_RVV_F32      (1 << 4) ///< Vectors of float's */
+#define AV_CPU_FLAG_RVV_I64      (1 << 5) ///< Vectors of 64-bit int's */
+#define AV_CPU_FLAG_RVV_F64      (1 << 6) ///< Vectors of double's
+#define AV_CPU_FLAG_RVB_BASIC    (1 << 7) ///< Basic bit-manipulations
+#define AV_CPU_FLAG_RVB_ADDR     (1 << 8) ///< Address bit-manipulations
 
 /**
  * Return the flags which specify extensions supported by the CPU.

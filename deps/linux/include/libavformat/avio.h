@@ -101,9 +101,7 @@ typedef struct AVIODirEntry {
     int64_t filemode;                     /**< Unix file mode, -1 if unknown. */
 } AVIODirEntry;
 
-typedef struct AVIODirContext {
-    struct URLContext *url_context;
-} AVIODirContext;
+typedef struct AVIODirContext AVIODirContext;
 
 /**
  * Different data types that can be returned via the AVIO
@@ -234,7 +232,7 @@ typedef struct AVIOContext {
     void *opaque;           /**< A private pointer, passed to the read/write/seek/...
                                  functions. */
     int (*read_packet)(void *opaque, uint8_t *buf, int buf_size);
-    int (*write_packet)(void *opaque, uint8_t *buf, int buf_size);
+    int (*write_packet)(void *opaque, const uint8_t *buf, int buf_size);
     int64_t (*seek)(void *opaque, int64_t offset, int whence);
     int64_t pos;            /**< position in the file of the current buffer */
     int eof_reached;        /**< true if was unable to read due to error or eof */
@@ -282,7 +280,7 @@ typedef struct AVIOContext {
     /**
      * A callback that is used instead of write_packet.
      */
-    int (*write_data_type)(void *opaque, uint8_t *buf, int buf_size,
+    int (*write_data_type)(void *opaque, const uint8_t *buf, int buf_size,
                            enum AVIODataMarkerType type, int64_t time);
     /**
      * If set, don't call write_data_type separately for AVIO_DATA_MARKER_BOUNDARY_POINT,
@@ -290,16 +288,6 @@ typedef struct AVIOContext {
      * small chunks of data returned from the callback).
      */
     int ignore_boundary_point;
-
-#if FF_API_AVIOCONTEXT_WRITTEN
-    /**
-     * @deprecated field utilized privately by libavformat. For a public
-     *             statistic of how many bytes were written out, see
-     *             AVIOContext::bytes_written.
-     */
-    attribute_deprecated
-    int64_t written;
-#endif
 
     /**
      * Maximum reached position before a backward seek in the write buffer,
@@ -413,7 +401,7 @@ AVIOContext *avio_alloc_context(
                   int write_flag,
                   void *opaque,
                   int (*read_packet)(void *opaque, uint8_t *buf, int buf_size),
-                  int (*write_packet)(void *opaque, uint8_t *buf, int buf_size),
+                  int (*write_packet)(void *opaque, const uint8_t *buf, int buf_size),
                   int64_t (*seek)(void *opaque, int64_t offset, int whence));
 
 /**
@@ -464,6 +452,7 @@ int avio_put_str16be(AVIOContext *s, const char *str);
  *
  * Zero-length ranges are omitted from the output.
  *
+ * @param s    the AVIOContext
  * @param time the stream time the current bytestream pos corresponds to
  *             (in AV_TIME_BASE units), or AV_NOPTS_VALUE if unknown or not
  *             applicable
@@ -536,7 +525,7 @@ int avio_printf(AVIOContext *s, const char *fmt, ...) av_printf_format(2, 3);
  * Usually you don't need to use this function directly but its macro wrapper,
  * avio_print.
  */
-void avio_print_string_array(AVIOContext *s, const char *strings[]);
+void avio_print_string_array(AVIOContext *s, const char * const strings[]);
 
 /**
  * Write strings (const char *) to the context.

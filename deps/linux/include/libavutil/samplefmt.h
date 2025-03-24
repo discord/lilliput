@@ -213,6 +213,7 @@ int av_samples_fill_arrays(uint8_t **audio_data, int *linesize,
  * @param[out] linesize    aligned size for audio buffer(s), may be NULL
  * @param nb_channels      number of audio channels
  * @param nb_samples       number of samples per channel
+ * @param sample_fmt       the sample format
  * @param align            buffer size alignment (0 = default, 1 = no alignment)
  * @return                 >=0 on success or a negative error code on failure
  * @todo return the size of the allocated buffer in case of success at the next bump
@@ -245,7 +246,7 @@ int av_samples_alloc_array_and_samples(uint8_t ***audio_data, int *linesize, int
  * @param nb_channels number of audio channels
  * @param sample_fmt audio sample format
  */
-int av_samples_copy(uint8_t **dst, uint8_t * const *src, int dst_offset,
+int av_samples_copy(uint8_t * const *dst, uint8_t * const *src, int dst_offset,
                     int src_offset, int nb_samples, int nb_channels,
                     enum AVSampleFormat sample_fmt);
 
@@ -258,7 +259,7 @@ int av_samples_copy(uint8_t **dst, uint8_t * const *src, int dst_offset,
  * @param nb_channels number of audio channels
  * @param sample_fmt  audio sample format
  */
-int av_samples_set_silence(uint8_t **audio_data, int offset, int nb_samples,
+int av_samples_set_silence(uint8_t * const *audio_data, int offset, int nb_samples,
                            int nb_channels, enum AVSampleFormat sample_fmt);
 
 /**

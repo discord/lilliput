@@ -1,7 +1,7 @@
-prefix=/home/runner/work/lilliput/lilliput/deps/linux
-exec_prefix=/home/runner/work/lilliput/lilliput/deps/linux
-libdir=/home/runner/work/lilliput/lilliput/deps/linux/lib
-includedir=/home/runner/work/lilliput/lilliput/deps/linux/include
+prefix=/home/discord/lilliput/deps/linux
+exec_prefix=/home/discord/lilliput/deps/linux
+libdir=/home/discord/lilliput/deps/linux/lib
+includedir=/home/discord/lilliput/deps/linux/include
 
 Name: libturbojpeg
 Description: A SIMD-accelerated JPEG codec that provides the TurboJPEG API
