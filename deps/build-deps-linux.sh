@@ -29,7 +29,6 @@ if [ ! -d "$SRCDIR" ]; then
     git clone --depth 1 --branch 1.0.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
-if false; then
 echo '\n--------------------'
 echo 'Building libjpeg-turbo'
 echo '--------------------\n'
@@ -91,6 +90,7 @@ cp gif_lib.h "$PREFIX/include"
 echo '\n--------------------'
 echo 'Building opencv'
 echo '--------------------\n'
+
 mkdir -p $BASEDIR/opencv
 tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
@@ -101,7 +101,6 @@ cd $BUILDDIR/opencv
 cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=ON -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
-fi
 
 echo '\n--------------------'
 echo 'Building bzip2'
