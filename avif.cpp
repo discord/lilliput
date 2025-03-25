@@ -40,12 +40,18 @@ struct avif_encoder_struct {
 static bool avif_is_hdr_source(const avifImage* image) {
     if (!image) return false;
     
-    bool high_bit_depth = image->depth > 8;
-    bool hdr_primaries = image->colorPrimaries == AVIF_COLOR_PRIMARIES_BT2020;
     bool hdr_transfer = (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_PQ) ||
                        (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_HLG);
+    if (hdr_transfer) {
+        return true;
+    }
     
-    return high_bit_depth && (hdr_primaries || hdr_transfer);
+    bool high_bit_depth = image->depth > 8;
+    if (high_bit_depth) {
+        return true;
+    }
+    
+    return image->colorPrimaries == AVIF_COLOR_PRIMARIES_BT2020;
 }
 
 // Convert PQ (SMPTE ST.2084) to linear
