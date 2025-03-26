@@ -24,6 +24,8 @@
 #include "libavutil/avutil.h"
 #include "libavutil/samplefmt.h"
 
+#include "version_major.h"
+
 /**
  * @addtogroup lavc_core
  * @{
@@ -251,7 +253,6 @@ enum AVCodecID {
     AV_CODEC_ID_AVRP,
     AV_CODEC_ID_012V,
     AV_CODEC_ID_AVUI,
-    AV_CODEC_ID_AYUV,
     AV_CODEC_ID_TARGA_Y216,
     AV_CODEC_ID_V308,
     AV_CODEC_ID_V408,
@@ -312,6 +313,15 @@ enum AVCodecID {
     AV_CODEC_ID_JPEGXL,
     AV_CODEC_ID_QOI,
     AV_CODEC_ID_PHM,
+    AV_CODEC_ID_RADIANCE_HDR,
+    AV_CODEC_ID_WBMP,
+    AV_CODEC_ID_MEDIA100,
+    AV_CODEC_ID_VQC,
+    AV_CODEC_ID_PDV,
+    AV_CODEC_ID_EVC,
+    AV_CODEC_ID_RTV1,
+    AV_CODEC_ID_VMIX,
+    AV_CODEC_ID_LEAD,
 
     /* various PCM "codecs" */
     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
@@ -405,6 +415,7 @@ enum AVCodecID {
     AV_CODEC_ID_ADPCM_IMA_CUNNING,
     AV_CODEC_ID_ADPCM_IMA_MOFLEX,
     AV_CODEC_ID_ADPCM_IMA_ACORN,
+    AV_CODEC_ID_ADPCM_XMD,
 
     /* AMR */
     AV_CODEC_ID_AMR_NB = 0x12000,
@@ -422,6 +433,8 @@ enum AVCodecID {
     AV_CODEC_ID_SDX2_DPCM,
     AV_CODEC_ID_GREMLIN_DPCM,
     AV_CODEC_ID_DERF_DPCM,
+    AV_CODEC_ID_WADY_DPCM,
+    AV_CODEC_ID_CBD2_DPCM,
 
     /* audio codecs */
     AV_CODEC_ID_MP2 = 0x15000,
@@ -521,6 +534,15 @@ enum AVCodecID {
     AV_CODEC_ID_FASTAUDIO,
     AV_CODEC_ID_MSNSIREN,
     AV_CODEC_ID_DFPWM,
+    AV_CODEC_ID_BONK,
+    AV_CODEC_ID_MISC4,
+    AV_CODEC_ID_APAC,
+    AV_CODEC_ID_FTR,
+    AV_CODEC_ID_WAVARC,
+    AV_CODEC_ID_RKA,
+    AV_CODEC_ID_AC4,
+    AV_CODEC_ID_OSQ,
+    AV_CODEC_ID_QOA,
 
     /* subtitle codecs */
     AV_CODEC_ID_FIRST_SUBTITLE = 0x17000,          ///< A dummy ID pointing at the start of subtitle codecs.
@@ -565,6 +587,7 @@ enum AVCodecID {
     AV_CODEC_ID_DVD_NAV,
     AV_CODEC_ID_TIMED_ID3,
     AV_CODEC_ID_BIN_DATA,
+    AV_CODEC_ID_SMPTE_2038,
 
 
     AV_CODEC_ID_PROBE = 0x19000, ///< codec_id is not known (like AV_CODEC_ID_NONE) but lavf should attempt to identify it
@@ -575,6 +598,16 @@ enum AVCodecID {
                                 * stream (only used by libavformat) */
     AV_CODEC_ID_FFMETADATA = 0x21000,   ///< Dummy codec for streams containing only metadata information.
     AV_CODEC_ID_WRAPPED_AVFRAME = 0x21001, ///< Passthrough codec, AVFrames wrapped in AVPacket
+    /**
+     * Dummy null video codec, useful mainly for development and debugging.
+     * Null encoder/decoder discard all input and never return any output.
+     */
+    AV_CODEC_ID_VNULL,
+    /**
+     * Dummy null audio codec, useful mainly for development and debugging.
+     * Null encoder/decoder discard all input and never return any output.
+     */
+    AV_CODEC_ID_ANULL,
 };
 
 /**

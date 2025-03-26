@@ -52,7 +52,7 @@ rm -rf aom
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.0.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.1.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -353,7 +353,7 @@ echo '\n--------------------'
 echo 'Building ffmpeg'
 echo '--------------------\n'
 mkdir -p $BASEDIR/ffmpeg
-tar -xjf $SRCDIR/ffmpeg-5.1.1.tar.bz2 -C $BASEDIR/ffmpeg --strip-components 1
+tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 $BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --arch=arm64 --enable-cross-compile --target-os=darwin

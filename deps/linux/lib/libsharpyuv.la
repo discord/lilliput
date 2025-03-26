@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/home/runner/work/lilliput/lilliput/deps/linux/lib'
+libdir='/home/discord/lilliput/deps/linux/lib'
