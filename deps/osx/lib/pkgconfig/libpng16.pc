@@ -1,4 +1,4 @@
-prefix=/Users/runner/work/lilliput/lilliput/deps/osx
+prefix=/Users/salar.khan/discord/lilliput/deps/osx
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include/libpng16
