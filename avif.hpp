@@ -10,20 +10,11 @@ extern "C" {
 //----------------------
 // Enums & Constants
 //----------------------
-enum AvifBlendMode {
-    AVIF_BLEND_ALPHA = 0,
-    AVIF_BLEND_NONE = 1
-};
+enum AvifBlendMode { AVIF_BLEND_ALPHA = 0, AVIF_BLEND_NONE = 1 };
 
-enum AvifDisposeMode {
-    AVIF_DISPOSE_NONE = 0,
-    AVIF_DISPOSE_BACKGROUND = 1
-};
+enum AvifDisposeMode { AVIF_DISPOSE_NONE = 0, AVIF_DISPOSE_BACKGROUND = 1 };
 
-enum AvifEncoderOptions {
-    AVIF_QUALITY = 1,
-    AVIF_SPEED = 2
-};
+enum AvifEncoderOptions { AVIF_QUALITY = 1, AVIF_SPEED = 2 };
 
 //----------------------
 // Type Definitions
@@ -68,17 +59,27 @@ int avif_decoder_has_more_frames(avif_decoder d);
 //----------------------
 // Encoder Management
 //----------------------
-avif_encoder avif_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, int loop_count);
+avif_encoder avif_encoder_create(void* buf,
+                                 size_t buf_len,
+                                 const void* icc,
+                                 size_t icc_len,
+                                 int loop_count);
 void avif_encoder_release(avif_encoder e);
 
 //----------------------
 // Encoder Operations
 //----------------------
-size_t avif_encoder_write(avif_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay_ms, int blend, int dispose);
+size_t avif_encoder_write(avif_encoder e,
+                          const opencv_mat src,
+                          const int* opt,
+                          size_t opt_len,
+                          int delay_ms,
+                          int blend,
+                          int dispose);
 size_t avif_encoder_flush(avif_encoder e);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif 
+#endif
