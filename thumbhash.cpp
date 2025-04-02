@@ -147,7 +147,7 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
                 size_t orig_i = static_cast<size_t>(i * row_ratio);
                 size_t orig_j = static_cast<size_t>(j * col_ratio);
                 const cv::Vec4b& pixel = frame->at<cv::Vec4b>(orig_i, orig_j);
-                float alpha = static_cast<float>(pixel[3]) / 255.0f;                        // A
+                float alpha = static_cast<float>(pixel[3]) / 255.0f; // A
                 float b =
                   avg_b * (1.0f - alpha) + (alpha / 255.0f) * static_cast<float>(pixel[0]); // B
                 float g =
