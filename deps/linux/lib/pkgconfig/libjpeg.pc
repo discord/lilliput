@@ -1,7 +1,7 @@
-prefix=/home/discord/lilliput/deps/linux
-exec_prefix=/home/discord/lilliput/deps/linux
-libdir=/home/discord/lilliput/deps/linux/lib
-includedir=/home/discord/lilliput/deps/linux/include
+prefix=/home/discord/lilliput2/deps/linux
+exec_prefix=/home/discord/lilliput2/deps/linux
+libdir=/home/discord/lilliput2/deps/linux/lib
+includedir=/home/discord/lilliput2/deps/linux/include
 
 Name: libjpeg
 Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
