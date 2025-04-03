@@ -4,10 +4,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <opencv2/core/fast_math.hpp>
-#include <opencv2/core/core_c.h>
-#include <opencv2/imgproc/types_c.h>
-#include <opencv2/imgcodecs/imgcodecs_c.h>
+#include "opencv2/core/core_c.h"
+#ifdef __cplusplus
+#include <opencv2/imgcodecs.hpp>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +24,35 @@ typedef enum CVImageOrientation {
     CV_IMAGE_ORIENTATION_RB = 7, ///< Mirrored horizontal & rotate 90 CW
     CV_IMAGE_ORIENTATION_LB = 8  ///< Rotate 270 CW
 } CVImageOrientation;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Image encoding constants
+#define CV_IMWRITE_JPEG_QUALITY 1
+#define CV_IMWRITE_PNG_COMPRESSION 16
+#define CV_IMWRITE_WEBP_QUALITY 64
+#define CV_IMWRITE_JPEG_PROGRESSIVE 2
+
+#ifdef __cplusplus
+// Verify values match OpenCV's at compile time
+static_assert(CV_IMWRITE_JPEG_QUALITY == cv::IMWRITE_JPEG_QUALITY, "JPEG_QUALITY mismatch");
+static_assert(CV_IMWRITE_PNG_COMPRESSION == cv::IMWRITE_PNG_COMPRESSION,
+              "PNG_COMPRESSION mismatch");
+static_assert(CV_IMWRITE_WEBP_QUALITY == cv::IMWRITE_WEBP_QUALITY, "WEBP_QUALITY mismatch");
+static_assert(CV_IMWRITE_JPEG_PROGRESSIVE == cv::IMWRITE_JPEG_PROGRESSIVE,
+              "JPEG_PROGRESSIVE mismatch");
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+// Interpolation constants
+extern const int CV_INTER_AREA;   // Area-based interpolation
+extern const int CV_INTER_LINEAR; // Linear interpolation (if you need it)
+extern const int CV_INTER_CUBIC;  // Cubic interpolation (if you need it)
 
 typedef void* opencv_mat;
 typedef void* opencv_decoder;
@@ -43,11 +72,25 @@ int opencv_decoder_get_height(const opencv_decoder d);
 int opencv_decoder_get_pixel_type(const opencv_decoder d);
 int opencv_decoder_get_orientation(const opencv_decoder d);
 bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
-int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
-int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
+int opencv_copy_to_region_with_alpha(opencv_mat src,
+                                     opencv_mat dst,
+                                     int xOffset,
+                                     int yOffset,
+                                     int width,
+                                     int height);
+int opencv_copy_to_region(opencv_mat src,
+                          opencv_mat dst,
+                          int xOffset,
+                          int yOffset,
+                          int width,
+                          int height);
 void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 void opencv_mat_reset(opencv_mat mat);
-int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height);
+int opencv_mat_clear_to_transparent(opencv_mat mat,
+                                    int xOffset,
+                                    int yOffset,
+                                    int width,
+                                    int height);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width,

@@ -2,6 +2,8 @@
 
 set -e
 
+export MAKEFLAGS="-j$(nproc --all)"
+
 BASEDIR=$(cd $(dirname "$0") && pwd)
 PREFIX="$BASEDIR/linux"
 BUILDDIR="$BASEDIR/build"
@@ -92,13 +94,45 @@ echo 'Building opencv'
 echo '--------------------\n'
 
 mkdir -p $BASEDIR/opencv
-tar -xzf $SRCDIR/opencv-3.2.0.tar.gz -C $BASEDIR/opencv --strip-components 1
+tar -xzf $SRCDIR/opencv-4.11.0.tar.gz -C $BASEDIR/opencv --strip-components 1
 cd $BASEDIR/opencv
-patch -p1 < $SRCDIR/0001-export-exif-orientation.patch
-patch -p1 < $BASEDIR/patches/0001-remove-invalid-flow-control.patch
+patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv -DWITH_JPEG=ON -DWITH_PNG=ON -DWITH_WEBP=ON -DWITH_JASPER=OFF -DWITH_TIFF=OFF -DWITH_OPENEXR=OFF -DWITH_OPENCL=OFF -DBUILD_JPEG=OFF -DBUILD_PNG=OFF -DBUILD_ZLIB=OFF -DENABLE_SSE41=ON -DENABLE_SSE42=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_photo=ON -DBUILD_opencv_video=OFF -DBUILD_opencv_videoio=OFF -DBUILD_opencv_highgui=OFF -DBUILD_opencv_ml=off -DBUILD_opencv_flann=off -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DCMAKE_LIBRARY_PATH=$PREFIX/LIB -DCMAKE_INCLUDE_PATH=$PREFIX/INCLUDE -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/opencv \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCPU_BASELINE=SSE4_2,AVX \
+    -DCPU_DISPATCH=AVX,AVX2 \
+    -DWITH_WEBP=ON \
+    -DWITH_JASPER=OFF \
+    -DWITH_TIFF=OFF \
+    -DWITH_OPENEXR=OFF \
+    -DWITH_OPENCL=OFF \
+    -DBUILD_JPEG=OFF \
+    -DBUILD_PNG=OFF \
+    -DBUILD_ZLIB=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_DOCS=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_PERF_TESTS=OFF \
+    -DBUILD_TESTS=OFF \
+    -DBUILD_opencv_gapi=OFF \
+    -DBUILD_opencv_photo=ON \
+    -DBUILD_opencv_video=OFF \
+    -DBUILD_opencv_videoio=OFF \
+    -DBUILD_opencv_highgui=ON \
+    -DBUILD_opencv_ml=OFF \
+    -DBUILD_opencv_dnn=OFF \
+    -DBUILD_opencv_flann=OFF \
+    -DBUILD_opencv_calib3d=OFF \
+    -DBUILD_opencv_features2d=OFF \
+    -DBUILD_opencv_objdetect=OFF \
+    -DBUILD_opencv_java=OFF \
+    -DBUILD_opencv_python=OFF \
+    -DENABLE_PRECOMPILED_HEADERS=OFF \
+    -DCMAKE_LIBRARY_PATH=$PREFIX/lib \
+    -DCMAKE_INCLUDE_PATH=$PREFIX/include \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX
 make
 make install
 
