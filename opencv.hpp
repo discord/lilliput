@@ -43,11 +43,25 @@ int opencv_decoder_get_height(const opencv_decoder d);
 int opencv_decoder_get_pixel_type(const opencv_decoder d);
 int opencv_decoder_get_orientation(const opencv_decoder d);
 bool opencv_decoder_read_data(opencv_decoder d, opencv_mat dst);
-int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
-int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height);
+int opencv_copy_to_region_with_alpha(opencv_mat src,
+                                     opencv_mat dst,
+                                     int xOffset,
+                                     int yOffset,
+                                     int width,
+                                     int height);
+int opencv_copy_to_region(opencv_mat src,
+                          opencv_mat dst,
+                          int xOffset,
+                          int yOffset,
+                          int width,
+                          int height);
 void opencv_mat_set_color(opencv_mat, int red, int green, int blue, int alpha);
 void opencv_mat_reset(opencv_mat mat);
-int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height);
+int opencv_mat_clear_to_transparent(opencv_mat mat,
+                                    int xOffset,
+                                    int yOffset,
+                                    int width,
+                                    int height);
 
 opencv_mat opencv_mat_create(int width, int height, int type);
 opencv_mat opencv_mat_create_from_data(int width,

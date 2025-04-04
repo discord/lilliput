@@ -126,10 +126,10 @@ int giflib_decoder_get_prev_frame_delay(const giflib_decoder d)
 int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
 {
     switch (d->prev_frame_disposal) {
-        case DISPOSE_DO_NOT:
-            return GIF_DISPOSE_NONE;
-        default:
-            return GIF_DISPOSE_BACKGROUND;
+    case DISPOSE_DO_NOT:
+        return GIF_DISPOSE_NONE;
+    default:
+        return GIF_DISPOSE_BACKGROUND;
     }
 }
 
@@ -484,8 +484,13 @@ giflib_decoder_frame_state giflib_decoder_skip_frame(giflib_decoder d)
 static int interlace_offset[] = {0, 4, 2, 1};
 static int interlace_jumps[] = {8, 8, 4, 2};
 
-static void extract_background_color(GifFileType* gif, GraphicsControlBlock* gcb, 
-                                   uint8_t* r, uint8_t* g, uint8_t* b, uint8_t* a) {
+static void extract_background_color(GifFileType* gif,
+                                     GraphicsControlBlock* gcb,
+                                     uint8_t* r,
+                                     uint8_t* g,
+                                     uint8_t* b,
+                                     uint8_t* a)
+{
     bool have_transparency = (gcb->TransparentColor != NO_TRANSPARENT_COLOR);
     if (have_transparency) {
         *r = *g = *b = *a = 0;
@@ -862,22 +867,22 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
             int least_dist = INT_MAX;
             int best_color = 0;
             if (!(e->palette_lookup[crushed].present)) {
+                bool is_extreme_color =
+                  (R > 240 && G > 240 && B > 240) || (R < 15 && G < 15 && B < 15);
 
-                    bool is_extreme_color = (R > 240 && G > 240 && B > 240) || (R < 15 && G < 15 && B < 15);
+                // calculate the best palette entry based on the midpoint of the crushed colors.
+                // what this means is that we drop the crushed bits (& 0xf8)
+                // and then OR the highest-order crushed bit back in, which is approx midpoint.
+                // for extreme colors, use actual values
+                uint32_t R_compare = is_extreme_color ? R : (R & 0xf8) | 4;
+                uint32_t G_compare = is_extreme_color ? G : (G & 0xf8) | 4;
+                uint32_t B_compare = is_extreme_color ? B : (B & 0xf8) | 4;
 
-                    // calculate the best palette entry based on the midpoint of the crushed colors.
-                    // what this means is that we drop the crushed bits (& 0xf8)
-                    // and then OR the highest-order crushed bit back in, which is approx midpoint.
-                    // for extreme colors, use actual values
-                    uint32_t R_compare = is_extreme_color ? R : (R & 0xf8) | 4;
-                    uint32_t G_compare = is_extreme_color ? G : (G & 0xf8) | 4;
-                    uint32_t B_compare = is_extreme_color ? B : (B & 0xf8) | 4;
-
-                    // we're calculating the best, so keep track of which
-                    // palette entry has least distance
-                    int count = color_map->ColorCount;
-                    for (int i = 0; i < count; i++) {
-                      if (i == transparency_index) {
+                // we're calculating the best, so keep track of which
+                // palette entry has least distance
+                int count = color_map->ColorCount;
+                for (int i = 0; i < count; i++) {
+                    if (i == transparency_index) {
                         // this index doesn't point to an actual color
                         continue;
                     }
@@ -1134,9 +1139,11 @@ int giflib_encoder_get_output_length(giflib_encoder e)
     return e->dst_offset;
 }
 
-struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d) {
+struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d)
+{
     // Default to 1 loop (play once) if no NETSCAPE2.0 extension is found
-    GifAnimationInfo info = {1, 0, 255, 255, 255, 0, 0};  // loop_count, frame_count, bg_r, bg_g, bg_b, bg_a, duration_ms
+    GifAnimationInfo info = {
+      1, 0, 255, 255, 255, 0, 0}; // loop_count, frame_count, bg_r, bg_g, bg_b, bg_a, duration_ms
 
     // Create a temporary decoder to read extension blocks
     giflib_decoder loopReader = new struct giflib_decoder_struct();
@@ -1145,7 +1152,7 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
     }
 
     memset(loopReader, 0, sizeof(struct giflib_decoder_struct));
-    loopReader->mat = d->mat;  // Share the source data
+    loopReader->mat = d->mat; // Share the source data
 
     int error = 0;
     GifFileType* gif = DGifOpen(loopReader, decode_func, &error);
@@ -1158,95 +1165,91 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
     bool found_gcb = false;
     GraphicsControlBlock gcb = {};
     GifRecordType recordType;
-    
+
     // Read all blocks until we hit end
     while (DGifGetRecordType(gif, &recordType) == GIF_OK) {
         switch (recordType) {
-            case EXTENSION_RECORD_TYPE: {
-                GifByteType* ExtData;
-                int ExtFunction;
-                
-                if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
-                    // Check for GraphicsControlBlock to get frame delay
-                    if (ExtFunction == GRAPHICS_EXT_FUNC_CODE) {
-                        GraphicsControlBlock frame_gcb;
-                        DGifExtensionToGCB(ExtData[0], &ExtData[1], &frame_gcb);
+        case EXTENSION_RECORD_TYPE: {
+            GifByteType* ExtData;
+            int ExtFunction;
 
-                        // Add frame delay with 20ms minimum for multi-frame GIFs
-                        int frame_delay_ms = (info.frame_count > 0 && frame_gcb.DelayTime < 2) ?
-                            20 : frame_gcb.DelayTime * 10;
-                        info.duration_ms += frame_delay_ms;
+            if (DGifGetExtension(gif, &ExtFunction, &ExtData) == GIF_OK && ExtData != NULL) {
+                // Check for GraphicsControlBlock to get frame delay
+                if (ExtFunction == GRAPHICS_EXT_FUNC_CODE) {
+                    GraphicsControlBlock frame_gcb;
+                    DGifExtensionToGCB(ExtData[0], &ExtData[1], &frame_gcb);
 
-                        // If this is first GCB, handle background color
-                        if (!found_gcb) {
-                            found_gcb = true;
-                            gcb = frame_gcb;
-                            uint8_t bg_red, bg_green, bg_blue, bg_alpha;
-                            extract_background_color(gif, &gcb, &bg_red, &bg_green,
-                                                  &bg_blue, &bg_alpha);
-                            info.bg_red = bg_red;
-                            info.bg_green = bg_green;
-                            info.bg_blue = bg_blue;
-                            info.bg_alpha = bg_alpha;
-                        }
-                    }
-                    // Look for NETSCAPE2.0 extension
-                    else if (!found_loop_count && 
-                        ExtFunction == APPLICATION_EXT_FUNC_CODE && 
-                        ExtData[0] >= 11 &&
-                        memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
-                        if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && 
-                            ExtData != NULL && 
-                            ExtData[0] >= 3 && 
-                            ExtData[1] == 1) {
-                            info.loop_count = ExtData[2] | (ExtData[3] << 8);
-                            found_loop_count = true;
-                        }
-                    }
-                    
-                    // Skip any remaining extension blocks
-                    while (ExtData != NULL) {
-                        if (DGifGetExtensionNext(gif, &ExtData) != GIF_OK) {
-                            goto cleanup;
-                        }
+                    // Add frame delay with 20ms minimum for multi-frame GIFs
+                    int frame_delay_ms = (info.frame_count > 0 && frame_gcb.DelayTime < 2)
+                      ? 20
+                      : frame_gcb.DelayTime * 10;
+                    info.duration_ms += frame_delay_ms;
+
+                    // If this is first GCB, handle background color
+                    if (!found_gcb) {
+                        found_gcb = true;
+                        gcb = frame_gcb;
+                        uint8_t bg_red, bg_green, bg_blue, bg_alpha;
+                        extract_background_color(
+                          gif, &gcb, &bg_red, &bg_green, &bg_blue, &bg_alpha);
+                        info.bg_red = bg_red;
+                        info.bg_green = bg_green;
+                        info.bg_blue = bg_blue;
+                        info.bg_alpha = bg_alpha;
                     }
                 }
-                break;
-            }
-            
-            case IMAGE_DESC_RECORD_TYPE:
-                // Count frame and skip image data
-                info.frame_count++;
-                if (DGifGetImageDesc(gif) != GIF_OK) {
-                    goto cleanup;
+                // Look for NETSCAPE2.0 extension
+                else if (!found_loop_count && ExtFunction == APPLICATION_EXT_FUNC_CODE &&
+                         ExtData[0] >= 11 && memcmp(ExtData + 1, "NETSCAPE2.0", 11) == 0) {
+                    if (DGifGetExtensionNext(gif, &ExtData) == GIF_OK && ExtData != NULL &&
+                        ExtData[0] >= 3 && ExtData[1] == 1) {
+                        info.loop_count = ExtData[2] | (ExtData[3] << 8);
+                        found_loop_count = true;
+                    }
                 }
-                // Skip the image data
-                {
-                    GifByteType* CodeBlock;
-                    if (DGifGetCode(gif, &error, &CodeBlock) == GIF_ERROR) {
+
+                // Skip any remaining extension blocks
+                while (ExtData != NULL) {
+                    if (DGifGetExtensionNext(gif, &ExtData) != GIF_OK) {
                         goto cleanup;
                     }
-                    while (CodeBlock != NULL) {
-                        if (DGifGetCodeNext(gif, &CodeBlock) == GIF_ERROR) {
-                            goto cleanup;
-                        }
+                }
+            }
+            break;
+        }
+
+        case IMAGE_DESC_RECORD_TYPE:
+            // Count frame and skip image data
+            info.frame_count++;
+            if (DGifGetImageDesc(gif) != GIF_OK) {
+                goto cleanup;
+            }
+            // Skip the image data
+            {
+                GifByteType* CodeBlock;
+                if (DGifGetCode(gif, &error, &CodeBlock) == GIF_ERROR) {
+                    goto cleanup;
+                }
+                while (CodeBlock != NULL) {
+                    if (DGifGetCodeNext(gif, &CodeBlock) == GIF_ERROR) {
+                        goto cleanup;
                     }
                 }
-                break;
-                
-            case TERMINATE_RECORD_TYPE:
-                goto cleanup;
-                
-            default:
-                break;
+            }
+            break;
+
+        case TERMINATE_RECORD_TYPE:
+            goto cleanup;
+
+        default:
+            break;
         }
     }
 
     // If we never found a GCB, still need to set background color
     if (!found_gcb) {
         uint8_t bg_red, bg_green, bg_blue, bg_alpha;
-        extract_background_color(gif, &gcb, &bg_red, &bg_green,
-                               &bg_blue, &bg_alpha);
+        extract_background_color(gif, &gcb, &bg_red, &bg_green, &bg_blue, &bg_alpha);
 
         // convert to int to handle uint limitations in rust FFI
         info.bg_red = bg_red;

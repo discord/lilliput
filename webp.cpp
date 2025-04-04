@@ -36,9 +36,9 @@ struct webp_encoder_struct {
     uint32_t loop_count;
 
     // output fields
-    WebPMux* mux;                  // Used for still images
-    WebPAnimEncoder* anim;         // Used for animated images
-    WebPPicture picture;           // Picture for current/first frame
+    WebPMux* mux;          // Used for still images
+    WebPAnimEncoder* anim; // Used for animated images
+    WebPPicture picture;   // Picture for current/first frame
     int frame_count;
     int first_frame_delay;
     int first_frame_blend;
@@ -47,10 +47,10 @@ struct webp_encoder_struct {
     int first_frame_y_offset;
     uint8_t* dst;
     size_t dst_len;
-    int canvas_width;              // Width of the animation canvas
-    int canvas_height;             // Height of the animation canvas
-    bool is_animation;             // Whether we're encoding an animation
-    int timestamp_ms;              // Current timestamp in milliseconds
+    int canvas_width;  // Width of the animation canvas
+    int canvas_height; // Height of the animation canvas
+    bool is_animation; // Whether we're encoding an animation
+    int timestamp_ms;  // Current timestamp in milliseconds
 };
 
 /**
@@ -61,7 +61,7 @@ struct webp_encoder_struct {
 webp_decoder webp_decoder_create(const opencv_mat buf)
 {
     auto cvMat = static_cast<const cv::Mat*>(buf);
-    WebPData src = { cvMat->data, cvMat->total() };
+    WebPData src = {cvMat->data, cvMat->total()};
     WebPMux* mux = WebPMuxCreate(&src, 0);
 
     if (!mux) {
@@ -120,7 +120,8 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
             d->loop_count = anim_params.loop_count;
         }
         d->has_animation = true;
-    } else {
+    }
+    else {
         // For static images, ensure duration is 0
         d->total_duration = 0;
     }
@@ -261,7 +262,7 @@ int webp_decoder_get_total_duration(const webp_decoder d)
  */
 size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 {
-    WebPData icc = { nullptr, 0 };
+    WebPData icc = {nullptr, 0};
     auto res = WebPMuxGetChunk(d->mux, "ICCP", &icc);
     if (icc.size > 0 && res == WEBP_MUX_OK) {
         if (icc.size <= dst_len) {
@@ -279,7 +280,7 @@ size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
  */
 int webp_decoder_has_more_frames(webp_decoder d)
 {
-     return d->current_frame_index < d->total_frame_count;
+    return d->current_frame_index < d->total_frame_count;
 }
 
 /**
@@ -292,7 +293,8 @@ void webp_decoder_advance_frame(webp_decoder d)
 }
 
 /**
- * Decodes the current frame of the WebP image and stores the decoded image in the provided OpenCV matrix.
+ * Decodes the current frame of the WebP image and stores the decoded image in the provided OpenCV
+ * matrix.
  * @param d The webp_decoder_struct pointer.
  * @param mat The OpenCV matrix to store the decoded image.
  * @return True if the frame was successfully decoded, false otherwise.
@@ -305,7 +307,7 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 
     WebPMuxFrameInfo frame;
     WebPMuxError mux_error = WebPMuxGetFrame(d->mux, d->current_frame_index, &frame);
-    
+
     if (mux_error != WEBP_MUX_OK) {
         return false;
     }
@@ -333,16 +335,22 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     // Decode the frame
     uint8_t* res = nullptr;
     switch (webp_decoder_get_pixel_type(d)) {
-        case CV_8UC4:
-            res = WebPDecodeBGRAInto(frame.bitstream.bytes, frame.bitstream.size,
-                                     d->decode_buffer, d->decode_buffer_size, row_size);
-            break;
-        case CV_8UC3:
-            res = WebPDecodeBGRInto(frame.bitstream.bytes, frame.bitstream.size,
-                                d->decode_buffer, d->decode_buffer_size, row_size);
-            break;
-        default:
-            return false;
+    case CV_8UC4:
+        res = WebPDecodeBGRAInto(frame.bitstream.bytes,
+                                 frame.bitstream.size,
+                                 d->decode_buffer,
+                                 d->decode_buffer_size,
+                                 row_size);
+        break;
+    case CV_8UC3:
+        res = WebPDecodeBGRInto(frame.bitstream.bytes,
+                                frame.bitstream.size,
+                                d->decode_buffer,
+                                d->decode_buffer_size,
+                                row_size);
+        break;
+    default:
+        return false;
     }
 
     if (res) {
@@ -360,7 +368,8 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 void webp_decoder_release(webp_decoder d)
 {
     if (d) {
-        if (d->mux) WebPMuxDelete(d->mux);
+        if (d->mux)
+            WebPMuxDelete(d->mux);
         delete[] d->decode_buffer;
         delete d;
     }
@@ -376,7 +385,12 @@ void webp_decoder_release(webp_decoder d)
  * @param gif_encode_paletted Whether to use delta palette for encoding of GIF source images.
  * @return A pointer to the created webp_encoder_struct, or nullptr if creation failed.
  */
-webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor, int loop_count)
+webp_encoder webp_encoder_create(void* buf,
+                                 size_t buf_len,
+                                 const void* icc,
+                                 size_t icc_len,
+                                 uint32_t bgcolor,
+                                 int loop_count)
 {
     webp_encoder e = new struct webp_encoder_struct();
     memset(e, 0, sizeof(struct webp_encoder_struct));
@@ -419,7 +433,15 @@ webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, siz
  * @param y_offset The y-offset for the current frame.
  * @return The size of the encoded WebP data, or 0 if encoding failed.
  */
-size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay, int blend, int dispose, int x_offset, int y_offset)
+size_t webp_encoder_write(webp_encoder e,
+                          const opencv_mat src,
+                          const int* opt,
+                          size_t opt_len,
+                          int delay,
+                          int blend,
+                          int dispose,
+                          int x_offset,
+                          int y_offset)
 {
     if (!e) {
         return 0;
@@ -437,40 +459,40 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             int key = opt[i];
             int value = opt[i + 1];
             float quality;
-            
+
             switch (key) {
-                case CV_IMWRITE_WEBP_QUALITY:
-                    quality = std::max(1.0f, (float)value);
-                    config.quality = std::min(100.0f, quality);
-                    config.lossless = (quality > 100.0f);
-                    break;
-                case WEBP_METHOD:
-                    config.method = value;
-                    break;
-                case WEBP_FILTER_STRENGTH:
-                    config.filter_strength = value;
-                    break;
-                case WEBP_FILTER_TYPE:
-                    config.filter_type = value;
-                    break;
-                case WEBP_AUTOFILTER:
-                    config.autofilter = value;
-                    break;
-                case WEBP_PARTITIONS:
-                    config.partitions = value;
-                    break;
-                case WEBP_SEGMENTS:
-                    config.segments = value;
-                    break;
-                case WEBP_PREPROCESSING:
-                    config.preprocessing = value;
-                    break;
-                case WEBP_THREAD_LEVEL:
-                    config.thread_level = value;
-                    break;
-                case WEBP_PALETTE:
-                    config.use_delta_palette = value;
-                    break;
+            case CV_IMWRITE_WEBP_QUALITY:
+                quality = std::max(1.0f, (float)value);
+                config.quality = std::min(100.0f, quality);
+                config.lossless = (quality > 100.0f);
+                break;
+            case WEBP_METHOD:
+                config.method = value;
+                break;
+            case WEBP_FILTER_STRENGTH:
+                config.filter_strength = value;
+                break;
+            case WEBP_FILTER_TYPE:
+                config.filter_type = value;
+                break;
+            case WEBP_AUTOFILTER:
+                config.autofilter = value;
+                break;
+            case WEBP_PARTITIONS:
+                config.partitions = value;
+                break;
+            case WEBP_SEGMENTS:
+                config.segments = value;
+                break;
+            case WEBP_PREPROCESSING:
+                config.preprocessing = value;
+                break;
+            case WEBP_THREAD_LEVEL:
+                config.thread_level = value;
+                break;
+            case WEBP_PALETTE:
+                config.use_delta_palette = value;
+                break;
             }
         }
     }
@@ -501,41 +523,46 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
                 if (mux != NULL) {
                     // Add ICC profile if it exists
                     if (e->icc && e->icc_len > 0) {
-                        WebPData icc_data = { e->icc, e->icc_len };
+                        WebPData icc_data = {e->icc, e->icc_len};
                         WebPMuxSetChunk(mux, "ICCP", &icc_data, 1);
                     }
-                    
+
                     // Get the final data with ICC profile
                     WebPData final_data;
                     if (WebPMuxAssemble(mux, &final_data) == WEBP_MUX_OK) {
                         if (final_data.size <= e->dst_len) {
                             memcpy(e->dst, final_data.bytes, final_data.size);
                             size = final_data.size;
-                        } else {
-                            fprintf(stderr, "Error: Final encoded size (%zu) exceeds buffer size (%zu)\n",
-                                    final_data.size, e->dst_len);
+                        }
+                        else {
+                            fprintf(stderr,
+                                    "Error: Final encoded size (%zu) exceeds buffer size (%zu)\n",
+                                    final_data.size,
+                                    e->dst_len);
                         }
                         WebPDataClear(&final_data);
                     }
                     WebPMuxDelete(mux);
                 }
                 WebPDataClear(&webp_data);
-            } else {
-                fprintf(stderr, "Failed to assemble animation: %s\n",
-                        WebPAnimEncoderGetError(e->anim));
+            }
+            else {
+                fprintf(
+                  stderr, "Failed to assemble animation: %s\n", WebPAnimEncoderGetError(e->anim));
             }
             WebPAnimEncoderDelete(e->anim);
             e->anim = nullptr;
-        } else {
+        }
+        else {
             // Finalize still image
-            WebPData out_mux = { nullptr, 0 };
-            
+            WebPData out_mux = {nullptr, 0};
+
             // Add ICC profile if it exists
             if (e->icc && e->icc_len > 0) {
-                WebPData icc_data = { e->icc, e->icc_len };
+                WebPData icc_data = {e->icc, e->icc_len};
                 WebPMuxSetChunk(e->mux, "ICCP", &icc_data, 1);
             }
-            
+
             if (WebPMuxAssemble(e->mux, &out_mux) == WEBP_MUX_OK) {
                 if (out_mux.size <= e->dst_len) {
                     memcpy(e->dst, out_mux.bytes, out_mux.size);
@@ -581,7 +608,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         e->picture.width = mat->cols;
         e->picture.height = mat->rows;
         e->picture.use_argb = 1;
-        
+
         if (!WebPPictureAlloc(&e->picture)) {
             return 0;
         }
@@ -589,7 +616,8 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         size_t size = 0;
         if (mat->channels() == 3) {
             size = WebPPictureImportBGR(&e->picture, mat->data, mat->step);
-        } else {
+        }
+        else {
             size = WebPPictureImportBGRA(&e->picture, mat->data, mat->step);
         }
 
@@ -605,10 +633,11 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         e->canvas_width = mat->cols;
         e->canvas_height = mat->rows;
         e->timestamp_ms = 0;
-        
+
         WebPAnimEncoderOptions anim_config;
         if (!WebPAnimEncoderOptionsInit(&anim_config)) {
-            fprintf(stderr, "Failed to initialize animation encoder options: %s\n",
+            fprintf(stderr,
+                    "Failed to initialize animation encoder options: %s\n",
                     WebPAnimEncoderGetError(e->anim));
             return 0;
         }
@@ -624,12 +653,14 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
         // Add first frame from stored picture
         if (WebPAnimEncoderAdd(e->anim, &e->picture, e->timestamp_ms, &config) != 1) {
-            fprintf(stderr, "Failed to add first frame to animation at timestamp %d: %s\n",
-                    e->timestamp_ms, WebPAnimEncoderGetError(e->anim));
+            fprintf(stderr,
+                    "Failed to add first frame to animation at timestamp %d: %s\n",
+                    e->timestamp_ms,
+                    WebPAnimEncoderGetError(e->anim));
             return 0;
         }
-        e->timestamp_ms += e->first_frame_delay;  // Add first frame delay to timestamp
-        WebPPictureFree(&e->picture);  // Free the stored first frame
+        e->timestamp_ms += e->first_frame_delay; // Add first frame delay to timestamp
+        WebPPictureFree(&e->picture);            // Free the stored first frame
     }
 
     // Handle current frame
@@ -643,15 +674,15 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         frame.use_argb = 1;
 
         if (!WebPPictureAlloc(&frame)) {
-            fprintf(stderr, "Failed to allocate picture for frame %d\n",
-                    e->frame_count);
+            fprintf(stderr, "Failed to allocate picture for frame %d\n", e->frame_count);
             return 0;
         }
 
         // Import the frame
         if (mat->channels() == 3) {
             size = WebPPictureImportBGR(&frame, mat->data, mat->step);
-        } else {
+        }
+        else {
             size = WebPPictureImportBGRA(&frame, mat->data, mat->step);
         }
 
@@ -662,28 +693,39 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
 
         // Add frame to animation
         if (WebPAnimEncoderAdd(e->anim, &frame, e->timestamp_ms, &config) != 1) {
-            fprintf(stderr, "Failed to add frame %d to animation at timestamp %d: %s\n",
-                    e->frame_count, e->timestamp_ms, WebPAnimEncoderGetError(e->anim));
+            fprintf(stderr,
+                    "Failed to add frame %d to animation at timestamp %d: %s\n",
+                    e->frame_count,
+                    e->timestamp_ms,
+                    WebPAnimEncoderGetError(e->anim));
             WebPPictureFree(&frame);
             return 0;
         }
         e->timestamp_ms += delay;
         WebPPictureFree(&frame);
-    } else {
+    }
+    else {
         // Handle single frame
         uint8_t* out_picture = nullptr;
 
         if (config.lossless) {
             if (mat->channels() == 3) {
-                size = WebPEncodeLosslessBGR(mat->data, mat->cols, mat->rows, mat->step, &out_picture);
-            } else {
-                size = WebPEncodeLosslessBGRA(mat->data, mat->cols, mat->rows, mat->step, &out_picture);
+                size =
+                  WebPEncodeLosslessBGR(mat->data, mat->cols, mat->rows, mat->step, &out_picture);
             }
-        } else {
+            else {
+                size =
+                  WebPEncodeLosslessBGRA(mat->data, mat->cols, mat->rows, mat->step, &out_picture);
+            }
+        }
+        else {
             if (mat->channels() == 3) {
-                size = WebPEncodeBGR(mat->data, mat->cols, mat->rows, mat->step, config.quality, &out_picture);
-            } else {
-                size = WebPEncodeBGRA(mat->data, mat->cols, mat->rows, mat->step, config.quality, &out_picture);
+                size = WebPEncodeBGR(
+                  mat->data, mat->cols, mat->rows, mat->step, config.quality, &out_picture);
+            }
+            else {
+                size = WebPEncodeBGRA(
+                  mat->data, mat->cols, mat->rows, mat->step, config.quality, &out_picture);
             }
         }
 
@@ -691,7 +733,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
             return 0;
         }
 
-        WebPData picture = { out_picture, size };
+        WebPData picture = {out_picture, size};
         WebPMuxError mux_error = WebPMuxSetImage(e->mux, &picture, 1);
         WebPFree(out_picture);
 
@@ -705,7 +747,7 @@ size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, 
         e->first_frame_dispose = dispose;
         e->first_frame_x_offset = x_offset;
         e->first_frame_y_offset = y_offset;
-        e->timestamp_ms = 0;  // Initialize timestamp for first frame
+        e->timestamp_ms = 0; // Initialize timestamp for first frame
     }
 
     e->frame_count++;
