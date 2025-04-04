@@ -53,8 +53,21 @@ bool webp_decoder_decode(webp_decoder d, opencv_mat mat);
 //----------------------
 // Encoder Management
 //----------------------
-webp_encoder webp_encoder_create(void* buf, size_t buf_len, const void* icc, size_t icc_len, uint32_t bgcolor, int loop_count);
-size_t webp_encoder_write(webp_encoder e, const opencv_mat src, const int* opt, size_t opt_len, int delay, int blend, int dispose, int x_offset, int y_offset);
+webp_encoder webp_encoder_create(void* buf,
+                                 size_t buf_len,
+                                 const void* icc,
+                                 size_t icc_len,
+                                 uint32_t bgcolor,
+                                 int loop_count);
+size_t webp_encoder_write(webp_encoder e,
+                          const opencv_mat src,
+                          const int* opt,
+                          size_t opt_len,
+                          int delay,
+                          int blend,
+                          int dispose,
+                          int x_offset,
+                          int y_offset);
 void webp_encoder_release(webp_encoder e);
 size_t webp_encoder_flush(webp_encoder e);
 void webp_decoder_advance_frame(webp_decoder d);

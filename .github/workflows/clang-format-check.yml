@@ -1,0 +1,24 @@
+name: clang-format Check
+
+on:
+  pull_request:
+    paths:
+      - '*.cpp'
+      - '*.hpp'
+  push:
+    paths:
+      - '*.cpp'
+      - '*.hpp'
+
+jobs:
+  format:
+    runs-on: ubuntu-22.04
+    name: Formatting Check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run clang-format on root cpp/hpp files
+        uses: jidicula/clang-format-action@v4.15.0
+        with:
+          clang-format-version: '20'
+          check-path: '.'
+          include-regex: '^[^/]+\.(cpp|hpp)$'

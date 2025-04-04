@@ -116,7 +116,8 @@ static bool avcodec_decoder_is_audio(const avcodec_decoder d)
     return false;
 }
 
-bool avcodec_decoder_is_streamable(const opencv_mat mat) {
+bool avcodec_decoder_is_streamable(const opencv_mat mat)
+{
     const int64_t probeBytesLimit = 32 * 1024; // Define the probe limit
     const size_t atomHeaderSize = 8;
     int64_t bytesRead = 0;
@@ -124,10 +125,10 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat) {
     size_t bufSize = buf->total();
     size_t peekSize = MIN(bufSize, probeBytesLimit);
 
-    while(bytesRead + atomHeaderSize <= peekSize) {
+    while (bytesRead + atomHeaderSize <= peekSize) {
         // Read atom size and type
         uint32_t atomSize = (buf->data[bytesRead] << 24) | (buf->data[bytesRead + 1] << 16) |
-                            (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
+          (buf->data[bytesRead + 2] << 8) | buf->data[bytesRead + 3];
 
         // Validate atom size
         if (atomSize < atomHeaderSize || atomSize + bytesRead > bufSize) {
@@ -195,7 +196,8 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     // or if the duration, width, or height are unknown.
     // this is an expensive operation that could involve frame decoding, perform judiciously.
     bool isAudioOnly = avcodec_decoder_is_audio(d);
-    if ((!isAudioOnly && (!codec_params || codec_params->width <= 0 || codec_params->height <= 0)) ||
+    if ((!isAudioOnly &&
+         (!codec_params || codec_params->width <= 0 || codec_params->height <= 0)) ||
         d->container->duration <= 0) {
         res = avformat_find_stream_info(d->container, NULL);
         if (res < 0) {
@@ -253,25 +255,27 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     return d;
 }
 
-const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size) {
+const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size)
+{
     switch (color_primaries) {
-        case AVCOL_PRI_BT2020:
-            profile_size = sizeof(rec2020_profile);
-            return rec2020_profile;
-        case AVCOL_PRI_BT470BG:  // BT.601 PAL
-            profile_size = sizeof(rec601_pal_profile);
-            return rec601_pal_profile;
-        case AVCOL_PRI_SMPTE170M: // BT.601 NTSC
-            profile_size = sizeof(rec601_ntsc_profile);
-            return rec601_ntsc_profile;
-        default:
-            // Default to sRGB profile
-            profile_size = sizeof(srgb_profile);
-            return srgb_profile;
+    case AVCOL_PRI_BT2020:
+        profile_size = sizeof(rec2020_profile);
+        return rec2020_profile;
+    case AVCOL_PRI_BT470BG: // BT.601 PAL
+        profile_size = sizeof(rec601_pal_profile);
+        return rec601_pal_profile;
+    case AVCOL_PRI_SMPTE170M: // BT.601 NTSC
+        profile_size = sizeof(rec601_ntsc_profile);
+        return rec601_ntsc_profile;
+    default:
+        // Default to sRGB profile
+        profile_size = sizeof(srgb_profile);
+        return srgb_profile;
     }
 }
 
-int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len) {
+int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len)
+{
     size_t profile_size;
     const uint8_t* profile_data = avcodec_get_icc_profile(d->codec->color_primaries, profile_size);
 
@@ -286,10 +290,11 @@ int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len
 int avcodec_decoder_get_width(const avcodec_decoder d)
 {
     if (d->codec) {
-        AVStream *st = d->container->streams[d->video_stream_index];
+        AVStream* st = d->container->streams[d->video_stream_index];
         if (st->sample_aspect_ratio.num > 0 && st->sample_aspect_ratio.den > 0 &&
             st->sample_aspect_ratio.num > st->sample_aspect_ratio.den) {
-            return (int64_t)d->codec->width * st->sample_aspect_ratio.num / st->sample_aspect_ratio.den;
+            return (int64_t)d->codec->width * st->sample_aspect_ratio.num /
+              st->sample_aspect_ratio.den;
         }
         return d->codec->width;
     }
@@ -299,10 +304,11 @@ int avcodec_decoder_get_width(const avcodec_decoder d)
 int avcodec_decoder_get_height(const avcodec_decoder d)
 {
     if (d->codec) {
-        AVStream *st = d->container->streams[d->video_stream_index];
+        AVStream* st = d->container->streams[d->video_stream_index];
         if (st->sample_aspect_ratio.num > 0 && st->sample_aspect_ratio.den > 0 &&
             st->sample_aspect_ratio.den > st->sample_aspect_ratio.num) {
-            return (int64_t)d->codec->height * st->sample_aspect_ratio.den / st->sample_aspect_ratio.num;
+            return (int64_t)d->codec->height * st->sample_aspect_ratio.den /
+              st->sample_aspect_ratio.num;
         }
         return d->codec->height;
     }
@@ -323,12 +329,13 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     int rotation = 0;
     if (tag) {
         rotation = atoi(tag->value);
-    } else {
-        uint8_t *displaymatrix = NULL;
-        const AVPacketSideData *sd = NULL;
+    }
+    else {
+        uint8_t* displaymatrix = NULL;
+        const AVPacketSideData* sd = NULL;
 
         // access side data from codecpar instead of directly from the stream
-        AVCodecParameters *codecpar = d->container->streams[d->video_stream_index]->codecpar;
+        AVCodecParameters* codecpar = d->container->streams[d->video_stream_index]->codecpar;
         for (int i = 0; i < codecpar->nb_coded_side_data; i++) {
             if (codecpar->coded_side_data[i].type == AV_PKT_DATA_DISPLAYMATRIX) {
                 sd = &codecpar->coded_side_data[i];
@@ -391,7 +398,8 @@ const char* avcodec_decoder_get_description(const avcodec_decoder d)
     return "";
 }
 
-bool avcodec_decoder_has_subtitles(const avcodec_decoder d) {
+bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
+{
     for (unsigned int i = 0; i < d->container->nb_streams; i++) {
         AVStream* stream = d->container->streams[i];
         if (stream->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
@@ -401,13 +409,15 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d) {
     return false;
 }
 
-static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame) {
+static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
+{
     auto cvMat = static_cast<cv::Mat*>(mat);
 
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
         // Calculate the step size based on the cv::Mat's width
-        int stepSize = 4 * cvMat->cols; // Assuming the cv::Mat is in BGRA format, which has 4 channels
+        int stepSize =
+          4 * cvMat->cols; // Assuming the cv::Mat is in BGRA format, which has 4 channels
         if (cvMat->cols % 32 != 0) {
             int width = cvMat->cols + 32 - (cvMat->cols % 32);
             stepSize = 4 * width;
@@ -417,31 +427,38 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         }
 
         // Create SwsContext for converting the frame format and scaling
-        struct SwsContext* sws = sws_getContext(
-            frame->width, frame->height, (AVPixelFormat)(frame->format), // Source dimensions and format
-            cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA, // Destination dimensions and format
-            SWS_BILINEAR, // Specify the scaling algorithm; you can choose another according to your needs
-            NULL, NULL, NULL);
+        struct SwsContext* sws =
+          sws_getContext(frame->width,
+                         frame->height,
+                         (AVPixelFormat)(frame->format), // Source dimensions and format
+                         cvMat->cols,
+                         cvMat->rows,
+                         AV_PIX_FMT_BGRA, // Destination dimensions and format
+                         SWS_BILINEAR,    // Specify the scaling algorithm; you can choose another
+                                          // according to your needs
+                         NULL,
+                         NULL,
+                         NULL);
 
         // Configure colorspace
         int colorspace;
         switch (frame->colorspace) {
-            case AVCOL_SPC_BT2020_NCL:
-            case AVCOL_SPC_BT2020_CL:
-                colorspace = SWS_CS_BT2020;
-                break;
-            case AVCOL_SPC_BT470BG:
-                colorspace = SWS_CS_ITU601;
-                break;
-            case AVCOL_SPC_SMPTE170M:
-                colorspace = SWS_CS_SMPTE170M;
-                break;
-            case AVCOL_SPC_SMPTE240M:
-                colorspace = SWS_CS_SMPTE240M;
-                break;
-            default:
-                colorspace = SWS_CS_ITU709;
-                break;
+        case AVCOL_SPC_BT2020_NCL:
+        case AVCOL_SPC_BT2020_CL:
+            colorspace = SWS_CS_BT2020;
+            break;
+        case AVCOL_SPC_BT470BG:
+            colorspace = SWS_CS_ITU601;
+            break;
+        case AVCOL_SPC_SMPTE170M:
+            colorspace = SWS_CS_SMPTE170M;
+            break;
+        case AVCOL_SPC_SMPTE240M:
+            colorspace = SWS_CS_SMPTE240M;
+            break;
+        default:
+            colorspace = SWS_CS_ITU709;
+            break;
         }
         const int* inv_table = sws_getCoefficients(colorspace);
 
