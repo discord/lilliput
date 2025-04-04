@@ -99,7 +99,7 @@ set_target_properties(opencv_photo PROPERTIES
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput/deps/linux/lib/libjpeg.a;/home/discord/lilliput/deps/linux/lib/libwebp.a;/home/discord/lilliput/deps/linux/lib/libwebpmux.a;/home/discord/lilliput/deps/linux/lib/libwebpdemux.a;/home/discord/lilliput/deps/linux/lib/libpng16.a;/home/discord/lilliput/deps/linux/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/discord/lilliput/deps/linux/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput/deps/linux/lib/libavif.a;/home/discord/lilliput/deps/linux/lib/libjpeg.a;/home/discord/lilliput/deps/linux/lib/libwebp.a;/home/discord/lilliput/deps/linux/lib/libwebpmux.a;/home/discord/lilliput/deps/linux/lib/libwebpdemux.a;/home/discord/lilliput/deps/linux/lib/libpng16.a;/home/discord/lilliput/deps/linux/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/discord/lilliput/deps/linux/lib/libz.a"
 )
 
 # Create imported target opencv_highgui

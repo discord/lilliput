@@ -73,7 +73,7 @@
 /* #undef HAVE_JASPER */
 
 /* AVIF codec */
-/* #undef HAVE_AVIF */
+#define HAVE_AVIF
 
 /* IJG JPEG codec */
 #define HAVE_JPEG
