@@ -1,4 +1,4 @@
-prefix=/home/discord/lilliput2/deps/linux
+prefix=/home/discord/lilliput/deps/linux
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include/libpng16

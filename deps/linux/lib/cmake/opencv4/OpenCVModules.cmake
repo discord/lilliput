@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget libopenjp2 ippiw libprotobuf ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs ocv.3rdparty.gtk3 opencv_highgui)
+foreach(_expectedTarget libopenjp2 ippiw libprotobuf ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs opencv_highgui)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -78,7 +78,7 @@ add_library(ade STATIC IMPORTED)
 add_library(opencv_core STATIC IMPORTED)
 
 set_target_properties(opencv_core PROPERTIES
-  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput2/deps/linux/lib/libz.a;\$<LINK_ONLY:ittnotify>"
+  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput/deps/linux/lib/libz.a;\$<LINK_ONLY:ittnotify>"
 )
 
 # Create imported target opencv_imgproc
@@ -99,26 +99,18 @@ set_target_properties(opencv_photo PROPERTIES
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput2/deps/linux/lib/libjpeg.a;/home/discord/lilliput2/deps/linux/lib/libwebp.a;/home/discord/lilliput2/deps/linux/lib/libwebpmux.a;/home/discord/lilliput2/deps/linux/lib/libwebpdemux.a;/home/discord/lilliput2/deps/linux/lib/libpng16.a;/home/discord/lilliput2/deps/linux/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/discord/lilliput2/deps/linux/lib/libz.a"
-)
-
-# Create imported target ocv.3rdparty.gtk3
-add_library(ocv.3rdparty.gtk3 INTERFACE IMPORTED)
-
-set_target_properties(ocv.3rdparty.gtk3 PROPERTIES
-  INTERFACE_COMPILE_DEFINITIONS "HAVE_GTK3;HAVE_GTK"
-  INTERFACE_LINK_LIBRARIES "/usr/lib/x86_64-linux-gnu/libgtk-3.so;/usr/lib/x86_64-linux-gnu/libgdk-3.so;/usr/lib/x86_64-linux-gnu/libpangocairo-1.0.so;/usr/lib/x86_64-linux-gnu/libpango-1.0.so;/usr/lib/x86_64-linux-gnu/libharfbuzz.so;/usr/lib/x86_64-linux-gnu/libatk-1.0.so;/usr/lib/x86_64-linux-gnu/libcairo-gobject.so;/usr/lib/x86_64-linux-gnu/libcairo.so;/usr/lib/x86_64-linux-gnu/libgdk_pixbuf-2.0.so;/usr/lib/x86_64-linux-gnu/libgio-2.0.so;/usr/lib/x86_64-linux-gnu/libgobject-2.0.so;/usr/lib/x86_64-linux-gnu/libglib-2.0.so"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/discord/lilliput/deps/linux/lib/libjpeg.a;/home/discord/lilliput/deps/linux/lib/libwebp.a;/home/discord/lilliput/deps/linux/lib/libwebpmux.a;/home/discord/lilliput/deps/linux/lib/libwebpdemux.a;/home/discord/lilliput/deps/linux/lib/libpng16.a;/home/discord/lilliput/deps/linux/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/discord/lilliput/deps/linux/lib/libz.a"
 )
 
 # Create imported target opencv_highgui
 add_library(opencv_highgui STATIC IMPORTED)
 
 set_target_properties(opencv_highgui PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_core;opencv_imgproc;opencv_imgcodecs;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;\$<LINK_ONLY:ocv.3rdparty.gtk3>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_core;opencv_imgproc;opencv_imgcodecs;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>"
 )
 
-if(CMAKE_VERSION VERSION_LESS 3.0.0)
-  message(FATAL_ERROR "This file relies on consumers using CMake 3.0.0 or greater.")
+if(CMAKE_VERSION VERSION_LESS 2.8.12)
+  message(FATAL_ERROR "This file relies on consumers using CMake 2.8.12 or greater.")
 endif()
 
 # Load information for each installed configuration.
