@@ -461,7 +461,7 @@ size_t webp_encoder_write(webp_encoder e,
             float quality;
 
             switch (key) {
-            case CV_IMWRITE_WEBP_QUALITY:
+            case cv::IMWRITE_WEBP_QUALITY:
                 quality = std::max(1.0f, (float)value);
                 config.quality = std::min(100.0f, quality);
                 config.lossless = (quality > 100.0f);
@@ -590,7 +590,7 @@ size_t webp_encoder_write(webp_encoder e,
     // Handle color conversion if needed
     cv::Mat bgr_mat;
     if (mat->channels() == 1) {
-        cv::cvtColor(*mat, bgr_mat, CV_GRAY2BGR);
+        cv::cvtColor(*mat, bgr_mat, cv::COLOR_GRAY2BGR);
         if (bgr_mat.empty()) {
             // failed to convert grayscale image to BGR
             return 0;

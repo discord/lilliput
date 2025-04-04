@@ -1,4 +1,5 @@
 #include "opencv.hpp"
+
 #include <stdbool.h>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -6,6 +7,11 @@
 #include <png.h>
 #include <setjmp.h>
 #include <iostream>
+
+// Interpolation constants
+const int CV_INTER_AREA = cv::INTER_AREA;
+const int CV_INTER_LINEAR = cv::INTER_LINEAR;
+const int CV_INTER_CUBIC = cv::INTER_CUBIC;
 
 opencv_mat opencv_mat_create(int width, int height, int type)
 {
@@ -97,8 +103,12 @@ opencv_decoder opencv_decoder_create(const opencv_mat buf)
 
 const char* opencv_decoder_get_description(const opencv_decoder d)
 {
+    if (!d)
+        return nullptr;
+    static thread_local std::string desc; // Keep string alive
     auto d_ptr = static_cast<cv::ImageDecoder*>(d);
-    return d_ptr->getDescription().c_str();
+    desc = d_ptr->getDescription();
+    return desc.c_str();
 }
 
 void opencv_decoder_release(opencv_decoder d)
