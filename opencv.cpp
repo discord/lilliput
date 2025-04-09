@@ -1,4 +1,5 @@
 #include "opencv.hpp"
+
 #include <stdbool.h>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -6,6 +7,11 @@
 #include <png.h>
 #include <setjmp.h>
 #include <iostream>
+
+// Interpolation constants
+const int CV_INTER_AREA = cv::INTER_AREA;
+const int CV_INTER_LINEAR = cv::INTER_LINEAR;
+const int CV_INTER_CUBIC = cv::INTER_CUBIC;
 
 opencv_mat opencv_mat_create(int width, int height, int type)
 {
@@ -97,8 +103,12 @@ opencv_decoder opencv_decoder_create(const opencv_mat buf)
 
 const char* opencv_decoder_get_description(const opencv_decoder d)
 {
+    if (!d)
+        return nullptr;
+    static thread_local std::string desc; // Keep string alive
     auto d_ptr = static_cast<cv::ImageDecoder*>(d);
-    return d_ptr->getDescription().c_str();
+    desc = d_ptr->getDescription();
+    return desc.c_str();
 }
 
 void opencv_decoder_release(opencv_decoder d)
@@ -217,13 +227,15 @@ struct opencv_jpeg_error_mgr {
     jmp_buf setjmp_buffer;
 };
 
-void opencv_jpeg_error_exit(j_common_ptr cinfo) {
-    opencv_jpeg_error_mgr* myerr = (opencv_jpeg_error_mgr*) cinfo->err;
+void opencv_jpeg_error_exit(j_common_ptr cinfo)
+{
+    opencv_jpeg_error_mgr* myerr = (opencv_jpeg_error_mgr*)cinfo->err;
     (*cinfo->err->output_message)(cinfo);
     longjmp(myerr->setjmp_buffer, 1);
 }
 
-int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
+int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len)
+{
     struct jpeg_decompress_struct cinfo;
     struct opencv_jpeg_error_mgr jerr;
 
@@ -249,7 +261,7 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t de
     }
 
     // Check if ICC profile is available
-    JOCTET *icc_profile = nullptr;
+    JOCTET* icc_profile = nullptr;
     unsigned int icc_length = 0;
     if (jpeg_read_icc_profile(&cinfo, &icc_profile, &icc_length)) {
         if (icc_length > 0 && icc_length <= dest_len) {
@@ -268,10 +280,11 @@ int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t de
     return 0;
 }
 
-void opencv_decoder_png_read(png_structp png_ptr, png_bytep data, png_size_t length) {
+void opencv_decoder_png_read(png_structp png_ptr, png_bytep data, png_size_t length)
+{
     auto buffer_info = reinterpret_cast<std::pair<const char**, size_t*>*>(png_get_io_ptr(png_ptr));
-    const char* &buffer = *buffer_info->first;
-    size_t &buffer_size = *buffer_info->second;
+    const char*& buffer = *buffer_info->first;
+    size_t& buffer_size = *buffer_info->second;
 
     if (buffer_size < length) {
         png_error(png_ptr, "Read error: attempting to read beyond buffer size");
@@ -283,7 +296,8 @@ void opencv_decoder_png_read(png_structp png_ptr, png_bytep data, png_size_t len
     buffer_size -= length;
 }
 
-int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len) {
+int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len)
+{
     // Set up libpng to read from memory
     const char* buffer = reinterpret_cast<const char*>(src);
     size_t buffer_size = src_len;
@@ -317,10 +331,11 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
 
 /**
  * @brief Reset all pixels in the matrix to zero.
- * 
+ *
  * @param mat Pointer to the OpenCV matrix to be reset.
  */
-void opencv_mat_reset(opencv_mat mat) {
+void opencv_mat_reset(opencv_mat mat)
+{
     if (mat) {
         cv::Mat* m = static_cast<cv::Mat*>(mat);
         m->setTo(cv::Scalar(0));
@@ -329,24 +344,26 @@ void opencv_mat_reset(opencv_mat mat) {
 
 /**
  * @brief Set the entire matrix to a specific color.
- * 
+ *
  * @param mat Pointer to the OpenCV matrix to be colored.
  * @param red Red component of the color (0-255).
  * @param green Green component of the color (0-255).
  * @param blue Blue component of the color (0-255).
  * @param alpha Alpha component of the color (0-255). If negative, treated as a 3-channel image.
  */
-void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alpha) {
+void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alpha)
+{
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (cvMat) {
-        cv::Scalar color = (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
+        cv::Scalar color =
+          (alpha >= 0) ? cv::Scalar(blue, green, red, alpha) : cv::Scalar(blue, green, red);
         cvMat->setTo(color);
     }
 }
 
 /**
  * @brief Clear a rectangular region of the matrix to transparent.
- * 
+ *
  * @param mat Pointer to the OpenCV matrix to be modified.
  * @param xOffset X-coordinate of the top-left corner of the rectangle.
  * @param yOffset Y-coordinate of the top-left corner of the rectangle.
@@ -354,13 +371,15 @@ void opencv_mat_set_color(opencv_mat mat, int red, int green, int blue, int alph
  * @param height Height of the rectangle.
  * @return int Error code.
  */
-int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height) {
+int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, int width, int height)
+{
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (!cvMat) {
         return OPENCV_ERROR_NULL_MATRIX;
     }
 
-    if (xOffset < 0 || yOffset < 0 || xOffset + width > cvMat->cols || yOffset + height > cvMat->rows) {
+    if (xOffset < 0 || yOffset < 0 || xOffset + width > cvMat->cols ||
+        yOffset + height > cvMat->rows) {
         return OPENCV_ERROR_OUT_OF_BOUNDS;
     }
 
@@ -372,22 +391,26 @@ int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, in
         cv::Rect roi(xOffset, yOffset, width, height);
         if (cvMat->channels() == 4) {
             cvMat->operator()(roi).setTo(cv::Scalar(0, 0, 0, 0));
-        } else if (cvMat->channels() == 3) {
+        }
+        else if (cvMat->channels() == 3) {
             // For 3-channel images, we'll use black as "transparent"
             cvMat->operator()(roi).setTo(cv::Scalar(0, 0, 0));
-        } else {
+        }
+        else {
             return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
         }
         return OPENCV_SUCCESS;
-    } catch (const cv::Exception& e) {
-        std::cerr << "OpenCV exception in opencv_mat_clear_to_transparent: " << e.what() << std::endl;
+    }
+    catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_mat_clear_to_transparent: " << e.what()
+                  << std::endl;
         return OPENCV_ERROR_UNKNOWN;
     }
 }
 
 /**
  * @brief Blend source image with destination image using alpha blending.
- * 
+ *
  * @param src Pointer to the source OpenCV matrix.
  * @param dst Pointer to the destination OpenCV matrix.
  * @param xOffset X-coordinate offset in the destination image.
@@ -396,7 +419,13 @@ int opencv_mat_clear_to_transparent(opencv_mat mat, int xOffset, int yOffset, in
  * @param height Height of the region to copy.
  * @return int Error code.
  */
-int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+int opencv_copy_to_region_with_alpha(opencv_mat src,
+                                     opencv_mat dst,
+                                     int xOffset,
+                                     int yOffset,
+                                     int width,
+                                     int height)
+{
     try {
         auto srcMat = static_cast<cv::Mat*>(src);
         auto dstMat = static_cast<cv::Mat*>(dst);
@@ -405,7 +434,8 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
             return OPENCV_ERROR_NULL_MATRIX;
         }
 
-        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols || yOffset + height > dstMat->rows) {
+        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols ||
+            yOffset + height > dstMat->rows) {
             return OPENCV_ERROR_OUT_OF_BOUNDS;
         }
 
@@ -419,7 +449,8 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
         cv::Mat srcResized;
         if (srcMat->size() != dstROI.size()) {
             cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
-        } else {
+        }
+        else {
             srcResized = *srcMat;
         }
 
@@ -432,17 +463,21 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
         cv::Mat src4, dst4;
         if (srcResized.channels() == 3) {
             cv::cvtColor(srcResized, src4, cv::COLOR_BGR2BGRA);
-        } else if (srcResized.channels() == 4) {
+        }
+        else if (srcResized.channels() == 4) {
             src4 = srcResized;
-        } else {
+        }
+        else {
             return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
         }
 
         if (dstROI.channels() == 3) {
             cv::cvtColor(dstROI, dst4, cv::COLOR_BGR2BGRA);
-        } else if (dstROI.channels() == 4) {
+        }
+        else if (dstROI.channels() == 4) {
             dst4 = dstROI;
-        } else {
+        }
+        else {
             return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
         }
 
@@ -462,7 +497,9 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
             cv::Mat srcChannelF, dstChannelF;
             srcChannels[i].convertTo(srcChannelF, CV_32F, 1.0 / 255.0);
             dstChannels[i].convertTo(dstChannelF, CV_32F, 1.0 / 255.0);
-            cv::Mat blended = (srcChannelF.mul(srcAlphaF) + dstChannelF.mul(dstAlphaF).mul(1.0f - srcAlphaF)) / outAlphaF;
+            cv::Mat blended =
+              (srcChannelF.mul(srcAlphaF) + dstChannelF.mul(dstAlphaF).mul(1.0f - srcAlphaF)) /
+              outAlphaF;
             blended.convertTo(dstChannels[i], CV_8U, 255.0);
         }
         outAlphaF.convertTo(dstChannels[3], CV_8U, 255.0);
@@ -472,18 +509,24 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
         // Convert back to original channel count if necessary
         if (dstROI.channels() == 3) {
             cv::cvtColor(dst4, dstROI, cv::COLOR_BGRA2BGR);
-        } else {
+        }
+        else {
             dst4.copyTo(dstROI);
         }
 
         return OPENCV_SUCCESS;
-    } catch (const cv::Exception& e) {
-        std::cerr << "OpenCV exception in opencv_copy_to_region_with_alpha: " << e.what() << std::endl;
+    }
+    catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_copy_to_region_with_alpha: " << e.what()
+                  << std::endl;
         return OPENCV_ERROR_ALPHA_BLENDING_FAILED;
-    } catch (const std::exception& e) {
-        std::cerr << "Standard exception in opencv_copy_to_region_with_alpha: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception in opencv_copy_to_region_with_alpha: " << e.what()
+                  << std::endl;
         return OPENCV_ERROR_UNKNOWN;
-    } catch (...) {
+    }
+    catch (...) {
         std::cerr << "Unknown exception in opencv_copy_to_region_with_alpha" << std::endl;
         return OPENCV_ERROR_UNKNOWN;
     }
@@ -491,7 +534,7 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
 
 /**
  * @brief Copy source image to a rectangular region of the destination image.
- * 
+ *
  * @param src Pointer to the source OpenCV matrix.
  * @param dst Pointer to the destination OpenCV matrix.
  * @param xOffset X-coordinate of the top-left corner in the destination image.
@@ -500,7 +543,13 @@ int opencv_copy_to_region_with_alpha(opencv_mat src, opencv_mat dst, int xOffset
  * @param height Height of the region to copy.
  * @return int Error code.
  */
-int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffset, int width, int height) {
+int opencv_copy_to_region(opencv_mat src,
+                          opencv_mat dst,
+                          int xOffset,
+                          int yOffset,
+                          int width,
+                          int height)
+{
     try {
         auto srcMat = static_cast<cv::Mat*>(src);
         auto dstMat = static_cast<cv::Mat*>(dst);
@@ -509,7 +558,8 @@ int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffs
             return OPENCV_ERROR_NULL_MATRIX;
         }
 
-        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols || yOffset + height > dstMat->rows) {
+        if (xOffset < 0 || yOffset < 0 || xOffset + width > dstMat->cols ||
+            yOffset + height > dstMat->rows) {
             return OPENCV_ERROR_OUT_OF_BOUNDS;
         }
 
@@ -524,7 +574,8 @@ int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffs
         cv::Mat srcResized;
         if (srcMat->size() != dstROI.size()) {
             cv::resize(*srcMat, srcResized, dstROI.size(), 0, 0, cv::INTER_LINEAR);
-        } else {
+        }
+        else {
             srcResized = *srcMat;
         }
 
@@ -532,13 +583,17 @@ int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffs
         if (srcResized.channels() != dstROI.channels()) {
             if (srcResized.channels() == 3 && dstROI.channels() == 4) {
                 cv::cvtColor(srcResized, srcResized, cv::COLOR_BGR2BGRA);
-            } else if (srcResized.channels() == 4 && dstROI.channels() == 3) {
+            }
+            else if (srcResized.channels() == 4 && dstROI.channels() == 3) {
                 cv::cvtColor(srcResized, srcResized, cv::COLOR_BGRA2BGR);
-            } else if (srcResized.channels() == 1 && dstROI.channels() == 3) {
+            }
+            else if (srcResized.channels() == 1 && dstROI.channels() == 3) {
                 cv::cvtColor(srcResized, srcResized, cv::COLOR_GRAY2BGR);
-            } else if (srcResized.channels() == 1 && dstROI.channels() == 4) {
+            }
+            else if (srcResized.channels() == 1 && dstROI.channels() == 4) {
                 cv::cvtColor(srcResized, srcResized, cv::COLOR_GRAY2BGRA);
-            } else {
+            }
+            else {
                 return OPENCV_ERROR_INVALID_CHANNEL_COUNT;
             }
         }
@@ -547,13 +602,16 @@ int opencv_copy_to_region(opencv_mat src, opencv_mat dst, int xOffset, int yOffs
         srcResized.copyTo(dstROI);
 
         return OPENCV_SUCCESS;
-    } catch (const cv::Exception& e) {
+    }
+    catch (const cv::Exception& e) {
         std::cerr << "OpenCV exception in opencv_copy_to_region: " << e.what() << std::endl;
         return OPENCV_ERROR_COPY_FAILED;
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e) {
         std::cerr << "Standard exception in opencv_copy_to_region: " << e.what() << std::endl;
         return OPENCV_ERROR_UNKNOWN;
-    } catch (...) {
+    }
+    catch (...) {
         std::cerr << "Unknown exception in opencv_copy_to_region" << std::endl;
         return OPENCV_ERROR_UNKNOWN;
     }

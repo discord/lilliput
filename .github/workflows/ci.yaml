@@ -42,3 +42,44 @@ jobs:
       run: |
         cd examples
         go build
+
+  valgrind:
+    name: Memory Leak Check
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install Valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      - name: Run All Valgrind Tests
+        run: |
+          cd examples
+          go build
+          test_cases=(
+            "100 100 ../data/sunrise.jpg out1.png"
+            "200 300 ../data/sunrise.jpg out2.png"
+            "500 500 ../data/sunrise.jpg out3.png"
+            "1024 768 ../data/sunrise.jpg out4.png"
+            "50 50 ../data/sunrise.jpg out5.png"
+            "1000 1000 ../data/sunrise.jpg out6.png"
+            "150 250 ../data/sunrise.jpg out7.png"
+            "800 600 ../data/sunrise.jpg out8.png"
+            "400 300 ../data/sunrise.jpg out9.png"
+            "2048 1536 ../data/sunrise.jpg out10.png"
+          )
+
+          for test_case in "${test_cases[@]}"; do
+            read -r height width input output <<< "$test_case"
+            echo "Testing with height=$height width=$width input=$input output=$output"
+            VALGRIND_OUT=$(valgrind --leak-check=full ./example \
+              -height "$height" \
+              -width "$width" \
+              -input "$input" \
+              -output "$output" 2>&1) && \
+            echo "$VALGRIND_OUT" | grep -E "definitely lost: 0 bytes in 0 blocks|indirectly lost: 0 bytes in 0 blocks" | \
+            wc -l | grep -q "2" || \
+            (echo "Valgrind output:" && echo "$VALGRIND_OUT" && false)
+          done

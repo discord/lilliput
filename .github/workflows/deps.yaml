@@ -16,8 +16,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  linux:
-    name: Linux
+  linux-amd64:
+    name: Linux AMD64
     runs-on: ubuntu-22.04
     steps:
       - name: Check out repo
@@ -26,13 +26,13 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install nasm python3
+          sudo apt-get install -y nasm python3
 
       - name: Build deps
         run: |
           echo "Starting dependency build..."
           export MAKEFLAGS="-j$(nproc)"
-          ./deps/build-deps-linux.sh
+          ./deps/build-deps-linux.sh --arch=amd64
           echo "Dependency build completed"
 
       - run: |
@@ -53,19 +53,78 @@ jobs:
       - name: Generate build info
         run: |
           ./deps/verify_deps.py generate \
-            --deps-dir deps/linux \
-            --platform linux \
+            --deps-dir deps/linux/amd64 \
+            --platform linux-amd64 \
             --commit ${{ github.sha }}
 
       - name: Create deps archive
         run: |
-          tar -czf deps-linux.tar.gz deps/linux/
+          tar -czf deps-linux-amd64.tar.gz deps/linux/amd64/
 
       - name: Upload deps artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deps-linux.tar.gz
-          path: deps-linux.tar.gz
+          name: deps-linux-amd64.tar.gz
+          path: deps-linux-amd64.tar.gz
+
+  linux-aarch64:
+    name: Linux AArch64
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo sed -i -E 's|^deb ([^ ]+) (.*)$|deb [arch=amd64] \1 \2\ndeb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ \2|' /etc/apt/sources.list
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y cmake \
+            patch \
+            autoconf libtool nasm yasm \
+            python3 \
+            crossbuild-essential-arm64 \
+            g++-aarch64-linux-gnu \
+            gcc-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu
+
+      - name: Build deps
+        run: |
+          echo "Starting dependency build..."
+          export MAKEFLAGS="-j$(nproc)"
+          ./deps/build-deps-linux.sh --arch=aarch64
+          echo "Dependency build completed"
+
+      - run: |
+          git status
+          git diff
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          cache: false
+          go-version: "1.23"
+
+      - name: Build and test lilliput with the new deps
+        run: |
+          CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build
+
+      - name: Generate build info
+        run: |
+          ./deps/verify_deps.py generate \
+            --deps-dir deps/linux/aarch64 \
+            --platform linux-aarch64 \
+            --commit ${{ github.sha }}
+
+      - name: Create deps archive
+        run: |
+          tar -czf deps-linux-aarch64.tar.gz deps/linux/aarch64/
+
+      - name: Upload deps artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-linux-aarch64.tar.gz
+          path: deps-linux-aarch64.tar.gz
 
   macos-15:
     name: macOS 15
@@ -123,18 +182,24 @@ jobs:
 
   verify:
     name: Verify Build Artifacts
-    needs: [linux, macos-15]
+    needs: [linux-amd64, linux-aarch64, macos-15]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Download Linux artifact
+      - name: Download Linux AMD64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: deps-linux.tar.gz
+          name: deps-linux-amd64.tar.gz
+          path: .
+
+      - name: Download Linux AArch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-linux-aarch64.tar.gz
           path: .
 
       - name: Download macOS 15 artifact
@@ -145,17 +210,24 @@ jobs:
 
       - name: Extract artifacts
         run: |
-          tar xzf deps-linux.tar.gz
+          tar xzf deps-linux-amd64.tar.gz
+          tar xzf deps-linux-aarch64.tar.gz
           tar xzf deps-macos-15.tar.gz
 
-      - name: Verify Linux artifacts
+      - name: Verify Linux AMD64 artifacts
         run: |
           python3 ./deps/verify_deps.py verify \
-            --deps-dir deps/linux \
-            --build-info deps/linux/build-info.json
+            --deps-dir deps/linux/amd64 \
+            --build-info deps/linux/amd64/build-info.json
+
+      - name: Verify Linux AArch64 artifacts
+        run: |
+          python3 ./deps/verify_deps.py verify \
+            --deps-dir deps/linux/aarch64 \
+            --build-info deps/linux/aarch64/build-info.json
 
       - name: Verify macOS 15 artifacts
-        run: |  
+        run: |
           python3 ./deps/verify_deps.py verify \
             --deps-dir deps/osx \
             --build-info deps/osx/build-info.json

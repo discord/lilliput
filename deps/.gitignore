@@ -1,4 +1,5 @@
 build/
+aom/
 libjpeg-turbo/
 zlib/
 libpng/

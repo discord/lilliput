@@ -5,10 +5,9 @@ testdata/benchmark_out/
 # generated
 *.pc
 *.la
-deps/aom
-deps/osx/bin
-deps/osx/man
-deps/osx/share
-deps/linux/bin
-deps/linux/man
-deps/linux/share
+deps/osx/**/bin
+deps/osx/**/man
+deps/osx/**/share
+deps/linux/**/bin
+deps/linux/**/man
+deps/linux/**/share

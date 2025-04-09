@@ -1,22 +1,20 @@
 #!/bin/sh
-
 set -eu
 
-main() {
-  symlink="$1"
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    if command -v greadlink > /dev/null; then
-      target="$(greadlink -f "$symlink")"
-    else
-      echo "Please install coreutils"
-      exit 1
-    fi
-  else
-    target="$(readlink -f "$symlink")"
-  fi
+symlink="$1"
+case "$(uname)" in
+    osx*)
+        if command -v greadlink > /dev/null; then
+            target="$(greadlink -f "$symlink")"
+        else
+            echo "Please install coreutils"
+            exit 1
+        fi
+        ;;
+    *)
+        target="$(readlink -f "$symlink")"
+        ;;
+esac
 
-  rm "$symlink"
-  cp "$target" "$symlink"
-}
-
-main "$1"
+rm "$symlink"
+cp "$target" "$symlink"
