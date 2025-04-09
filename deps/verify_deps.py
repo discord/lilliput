@@ -111,7 +111,7 @@ def main():
     generate_parser.add_argument(
         "--platform",
         required=True,
-        choices=["linux", "macos"],
+        choices=["linux-amd64", "linux-aarch64", "macos"],
         help="Platform identifier",
     )
     generate_parser.add_argument(

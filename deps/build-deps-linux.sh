@@ -2,10 +2,122 @@
 
 set -e
 
-export MAKEFLAGS="-j$(nproc --all)"
+# Parse arguments
+ARCH=""
+for arg in "$@"; do
+    case "$arg" in
+        --arch=*)
+            ARCH=$(echo "$arg" | sed 's/--arch=//')
+            ;;
+        *)
+            echo "Unknown parameter: $arg"
+            exit 1
+            ;;
+    esac
+done
+
+# Set up compilation environment based on architecture
+if [ -z "$ARCH" ]; then
+    # No architecture specified, use system default
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64|amd64)
+            ARCH="amd64"
+            ;;
+        aarch64|arm64)
+            ARCH="aarch64"
+            ;;
+        *)
+            echo "Unsupported architecture: $ARCH"
+            exit 1
+            ;;
+    esac
+fi
+
+# Set up architecture-specific flags and settings
+case "$ARCH" in
+    "amd64")
+        export CC="${CC:-gcc}"
+        export CXX="${CXX:-g++}"
+        export AR="${AR:-ar}"
+        export RANLIB="${RANLIB:-ranlib}"
+        export STRIP="${STRIP:-strip}"
+
+        # Optimize for modern x86-64 while maintaining compatibility
+        ARCH_CFLAGS="-fPIC -O3 -march=x86-64-v3 -mtune=generic"
+        ARCH_CXXFLAGS="-fPIC -O3 -march=x86-64-v3 -mtune=generic"
+
+        # Base instruction sets that will always be used
+        CPU_BASELINE="SSE4_2,AVX,AVX2,FMA3"
+        # Optional instruction sets that will be dispatched at runtime
+        CPU_DISPATCH="AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512VL"
+
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=$CPU_BASELINE -DCPU_DISPATCH=$CPU_DISPATCH"
+        CONFIGURE_HOST=
+        CMAKE_CROSS_COMPILE_FLAGS=""
+        FFMPEG_CROSS_COMPILE_FLAGS=""
+        PNG_EXTRA_FLAGS="--enable-intel-sse"
+        AOM_CMAKE_FLAGS=""
+        ;;
+    "aarch64")
+        # Detect ARM CPU features
+        if grep -q "ARMv8.4" /proc/cpuinfo; then
+            ARM_ARCH="armv8.4-a"
+            ARM_FEATURES="+dotprod+simd+i8mm+crypto+crc"
+        elif grep -q "ARMv8.2" /proc/cpuinfo; then
+            ARM_ARCH="armv8.2-a"
+            ARM_FEATURES="+dotprod+simd+crypto+crc"
+        else
+            # Default to ARMv8.0 for maximum compatibility
+            ARM_ARCH="armv8-a"
+            ARM_FEATURES="+simd+crypto+crc"
+        fi
+
+        export CC="aarch64-linux-gnu-gcc"
+        export CXX="aarch64-linux-gnu-g++"
+        export AR="aarch64-linux-gnu-ar"
+        export RANLIB="aarch64-linux-gnu-ranlib"
+        export STRIP="aarch64-linux-gnu-strip"
+
+        # Build flags optimized for detected architecture
+        ARCH_CFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
+        ARCH_CXXFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
+
+        # OpenCV ARM-specific optimizations
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=VFPV3,NEON -DCPU_DISPATCH=VFPV4"
+        CONFIGURE_HOST="aarch64-linux-gnu"
+        CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
+        FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
+        PNG_EXTRA_FLAGS=""
+        AOM_CMAKE_FLAGS="$CMAKE_CROSS_COMPILE_FLAGS -DAOM_TARGET_CPU=arm64"
+        ;;
+    *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+# Function for verifying architecture
+verify_arch() {
+    local file="$1"
+    case "$ARCH" in
+        "aarch64")
+            if ! readelf -h "$file" | grep -q "AArch64"; then
+                echo "Error: Built library $file is not aarch64"
+                exit 1
+            fi
+            ;;
+        "amd64")
+            if ! readelf -h "$file" | grep -q "Advanced Micro Devices X86-64"; then
+                echo "Error: Built library $file is not x86_64"
+                exit 1
+            fi
+            ;;
+    esac
+}
 
 BASEDIR=$(cd $(dirname "$0") && pwd)
-PREFIX="$BASEDIR/linux"
+PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
@@ -28,7 +140,7 @@ rm -rf aom
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.2.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.3.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -39,9 +151,17 @@ tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-co
 cd $BASEDIR/libjpeg-turbo
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
-cmake $BASEDIR/libjpeg-turbo -DENABLE_STATIC=1 -DENABLE_SHARED=0 -DWITH_JPEG8=1 -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/libjpeg-turbo $CMAKE_CROSS_COMPILE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_STATIC=1 \
+    -DENABLE_SHARED=0 \
+    -DWITH_JPEG8=1 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
 make
 make install
+verify_arch "$PREFIX/lib/libjpeg.a"
 
 echo '\n--------------------'
 echo 'Building zlib'
@@ -50,9 +170,10 @@ mkdir -p $BASEDIR/zlib
 tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
-$BASEDIR/zlib/configure --prefix=$PREFIX --static
+CROSS_PREFIX=${CC%gcc} $BASEDIR/zlib/configure --prefix=$PREFIX --static
 make
 make install
+verify_arch "$PREFIX/lib/libz.a"
 
 echo '\n--------------------'
 echo 'Building libpng'
@@ -61,9 +182,22 @@ mkdir -p $BASEDIR/libpng
 tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --disable-unversioned-links --disable-unversioned-libpng-pc --enable-intel-sse
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" \
+$BASEDIR/libpng/configure \
+    --prefix=$PREFIX \
+    --disable-shared \
+    --enable-static \
+    --disable-unversioned-links \
+    --disable-unversioned-libpng-pc \
+    $PNG_EXTRA_FLAGS \
+    --host=$CONFIGURE_HOST \
+    CC="$CC" \
+    CXX="$CXX" \
+    AR="$AR" \
+    RANLIB="$RANLIB"
 make
 make install
+verify_arch "$PREFIX/lib/libpng16.a"
 
 echo '\n--------------------'
 echo 'Building libwebp'
@@ -74,20 +208,31 @@ cd $BASEDIR/libwebp
 ./autogen.sh
 mkdir -p $BUILDDIR/libwebp
 cd $BUILDDIR/libwebp
-$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static
+$BASEDIR/libwebp/configure \
+    --prefix=$PREFIX \
+    --disable-shared \
+    --enable-static \
+    --host=$CONFIGURE_HOST \
+    CC="$CC" \
+    CXX="$CXX" \
+    AR="$AR" \
+    RANLIB="$RANLIB"
+
 make
 make install
+verify_arch "$PREFIX/lib/libwebp.a"
 
 echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
-make
+make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="-fPIC -O2" libgif.a -Wno-format-truncation -Wno-format-overflow
 cp libgif.a "$PREFIX/lib"
 cp gif_lib.h "$PREFIX/include"
+verify_arch "$PREFIX/lib/libgif.a"
 
 echo '\n--------------------'
 echo 'Building opencv'
@@ -99,7 +244,7 @@ cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv \
+cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
     -DCMAKE_BUILD_TYPE=Release \
     -DCPU_BASELINE=SSE4_2,AVX \
     -DCPU_DISPATCH=AVX,AVX2 \
@@ -132,9 +277,16 @@ cmake $BASEDIR/opencv \
     -DENABLE_PRECOMPILED_HEADERS=OFF \
     -DCMAKE_LIBRARY_PATH=$PREFIX/lib \
     -DCMAKE_INCLUDE_PATH=$PREFIX/include \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
 make
-make install
+make install -j$(nproc --all)
+verify_arch "$PREFIX/lib/libopencv_core.a"
+verify_arch "$PREFIX/lib/libopencv_imgproc.a"
+verify_arch "$PREFIX/lib/libopencv_imgcodecs.a"
+verify_arch "$PREFIX/lib/libopencv_highgui.a"
+verify_arch "$PREFIX/lib/libopencv_photo.a"
 
 echo '\n--------------------'
 echo 'Building bzip2'
@@ -142,7 +294,8 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/bzip2
 tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
-make PREFIX=$PREFIX install
+make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$ARCH_CFLAGS" CXXFLAGS="$ARCH_CXXFLAGS" PREFIX=$PREFIX install
+verify_arch "$PREFIX/lib/libbz2.a"
 
 echo '\n--------------------'
 echo 'Building ffmpeg'
@@ -151,19 +304,55 @@ mkdir -p $BASEDIR/ffmpeg
 tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
-$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --disable-iconv --disable-cuda --disable-cuvid --disable-nvenc --disable-xlib
+$BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
+    --prefix=$PREFIX \
+    --disable-doc \
+    --disable-programs \
+    --disable-everything \
+    --enable-demuxer=mov \
+    --enable-demuxer=matroska \
+    --enable-demuxer=aac \
+    --enable-demuxer=flac \
+    --enable-demuxer=mp3 \
+    --enable-demuxer=ogg \
+    --enable-demuxer=wav \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=h264 \
+    --enable-decoder=hevc \
+    --enable-decoder=vp9 \
+    --enable-decoder=vp8 \
+    --enable-decoder=flac \
+    --enable-decoder=mp3 \
+    --enable-decoder=aac \
+    --enable-decoder=vorbis \
+    --disable-iconv \
+    --disable-cuda \
+    --disable-cuvid \
+    --disable-nvenc \
+    --disable-xlib
 make
 make install
+verify_arch "$PREFIX/lib/libavcodec.a"
+verify_arch "$PREFIX/lib/libavformat.a"
+verify_arch "$PREFIX/lib/libavutil.a"
 
 echo '\n--------------------'
 echo 'Building libyuv'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
-tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv
+tar -xzf $SRCDIR/libyuv-4ed75166cf1885b9690214b362f8675294505a37-2025-04-07.tar.gz -C $BASEDIR/libyuv
 cd $BASEDIR/libyuv
-make V=1 -f linux.mk
+cmake $BASEDIR/libyuv $CMAKE_CROSS_COMPILE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_LIBRARY_PATH=$PREFIX/lib \
+    -DCMAKE_INCLUDE_PATH=$PREFIX/include \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
+cmake --build . --config Release
 cp libyuv.a "$PREFIX/lib"
 cp -r include/* "$PREFIX/include/"
+verify_arch "$PREFIX/lib/libyuv.a"
 
 echo '\n--------------------'
 echo 'Building libaom'
@@ -172,9 +361,18 @@ mkdir -p $BASEDIR/aom
 tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
 mkdir -p $BUILDDIR/aom
 cd $BUILDDIR/aom
-cmake $BASEDIR/aom -DENABLE_SHARED=0 -DENABLE_STATIC=1 -DENABLE_TESTS=0 -DENABLE_TOOLS=0 -DENABLE_DOCS=0 -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake $BASEDIR/aom $AOM_CMAKE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DENABLE_TESTS=0 \
+    -DENABLE_TOOLS=0 \
+    -DENABLE_DOCS=0 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
 make
 make install
+verify_arch "$PREFIX/lib/libaom.a"
 
 echo '\n--------------------'
 echo 'Building libavif'
@@ -183,25 +381,22 @@ mkdir -p $BASEDIR/libavif
 tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
 mkdir -p $BUILDDIR/libavif
 cd $BUILDDIR/libavif
-cmake $BASEDIR/libavif \
+cmake $BASEDIR/libavif $CMAKE_CROSS_COMPILE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
     -DAVIF_CODEC_AOM=SYSTEM \
     -DAVIF_BUILD_APPS=OFF \
     -DLIBYUV_LIBRARY=$PREFIX/lib/libyuv.a \
     -DLIBYUV_INCLUDE_DIR=$PREFIX/include \
     -DAOM_LIBRARY=$PREFIX/lib/libaom.a \
     -DAOM_INCLUDE_DIR=$PREFIX/include \
-    -DJPEG_INCLUDE_DIR=$PREFIX/include \
-    -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
-    -DPNG_PNG_INCLUDE_DIR=$PREFIX/include \
-    -DPNG_LIBRARY=$PREFIX/lib/libpng.a \
     -DCMAKE_PREFIX_PATH=$PREFIX \
     -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
 make
 make install
-
-rm -rf $BASEDIR/linux/$ARCH/bin
-rm -f $BASEDIR/linux/$ARCH/**/*.cmake
+verify_arch "$PREFIX/lib/libavif.a"
 
 # Since go modules don't currently download symlinked files
 # (see https://github.com/golang/go/issues/39417)
@@ -210,8 +405,8 @@ rm -f $BASEDIR/linux/$ARCH/**/*.cmake
 # is that much more limited than bash.
 find "$PREFIX" -type l -exec "${BASEDIR}/copy-symlink-target.sh" {} \;
 
-rm -rf $BASEDIR/linux/$ARCH/bin
-rm -f $BASEDIR/linux/$ARCH/**/*.cmake
+rm -rf $PREFIX/bin
+rm -f $PREFIX/**/*.cmake
 
 if [ -n "$CI" ]; then
   echo "CI detected, cleaning up build artifacts"
