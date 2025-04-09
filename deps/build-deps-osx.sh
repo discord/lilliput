@@ -52,7 +52,7 @@ rm -rf aom
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.2.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.3.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -101,7 +101,7 @@ echo '\n--------------------'
 echo 'Building libwebp'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-a35ea50d-2023-09-12.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-1.5.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 # Run autogen.sh with error handling
 if [ ! -f "./configure" ]; then
