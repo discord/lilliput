@@ -101,7 +101,7 @@ echo '\n--------------------'
 echo 'Building libwebp'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-a35ea50d-2023-09-12.tar.gz -C $BASEDIR/libwebp --strip-components 1
+tar -xzf $SRCDIR/libwebp-1.5.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
 cd $BASEDIR/libwebp
 # Run autogen.sh with error handling
 if [ ! -f "./configure" ]; then
