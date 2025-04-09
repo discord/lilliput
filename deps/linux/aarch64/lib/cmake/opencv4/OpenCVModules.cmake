@@ -103,7 +103,7 @@ set_target_properties(opencv_photo PROPERTIES
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;/io/linux/aarch64/lib/libavif.a;/io/deps/linux/aarch64/lib/libjpeg.a;/io/linux/aarch64/lib/libwebp.a;/io/linux/aarch64/lib/libwebpmux.a;/io/linux/aarch64/lib/libwebpdemux.a;\$<LINK_ONLY:libpng>;\$<LINK_ONLY:libopenjp2>;/io/linux/aarch64/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;/io/linux/aarch64/lib/libjpeg.a;/io/linux/aarch64/lib/libwebp.a;/io/linux/aarch64/lib/libwebpmux.a;/io/linux/aarch64/lib/libwebpdemux.a;\$<LINK_ONLY:libpng>;\$<LINK_ONLY:libopenjp2>;/io/linux/aarch64/lib/libz.a"
 )
 
 # Create imported target opencv_highgui
