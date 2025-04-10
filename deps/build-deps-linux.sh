@@ -303,7 +303,15 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/lcms
 tar -xzf $SRCDIR/lcms-fbfa67a.tar.gz -C $BASEDIR/lcms --strip-components 1
 cd $BASEDIR/lcms
-./configure --prefix=$PREFIX --disable-shared --enable-static
+./configure \
+    --prefix=$PREFIX \
+    --disable-shared \
+    --enable-static \
+    --host=$CONFIGURE_HOST \
+    CC="$CC" \
+    CXX="$CXX" \
+    AR="$AR" \
+    RANLIB="$RANLIB"
 make
 make install
 verify_arch "$PREFIX/lib/liblcms2.a"
