@@ -140,7 +140,7 @@ rm -rf aom
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.3.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.4.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -296,6 +296,17 @@ tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
 make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$ARCH_CFLAGS" CXXFLAGS="$ARCH_CXXFLAGS" PREFIX=$PREFIX install
 verify_arch "$PREFIX/lib/libbz2.a"
+
+echo '\n--------------------'
+echo 'Building liblcms'
+echo '--------------------\n'
+mkdir -p $BASEDIR/lcms
+tar -xzf $SRCDIR/lcms-fbfa67a.tar.gz -C $BASEDIR/lcms --strip-components 1
+cd $BASEDIR/lcms
+./configure --prefix=$PREFIX --disable-shared --enable-static
+make
+make install
+verify_arch "$PREFIX/lib/liblcms2.a"
 
 echo '\n--------------------'
 echo 'Building ffmpeg'
