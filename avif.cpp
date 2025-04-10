@@ -2,6 +2,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/photo.hpp>
 #include <avif/avif.h>
+#include <lcms2.h>
 #include <cstring>
 #include "icc_profiles/rec709_profile.h"
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
@@ -36,17 +37,51 @@ struct avif_encoder_struct {
 //----------------------
 // HDR Support Functions
 //----------------------
-// Check if source is HDR based on bit depth, primaries and transfer characteristics
+static void avif_cms_error_handler(cmsContext ContextID, cmsUInt32Number ErrorCode, const char *Text)
+{
+    fprintf(stderr, "LCMS error: %s (ErrorCode: %d)\n", Text, ErrorCode);
+}
+
+static void avif_get_color_info(const avifImage* image, avifColorPrimaries* colorPrimaries, avifTransferCharacteristics* transferCharacteristics)
+{
+    *colorPrimaries = image->colorPrimaries;
+    *transferCharacteristics = image->transferCharacteristics;
+
+    if (image->icc.data && image->icc.size > 0) {
+        cmsContext ctx = cmsCreateContext(NULL, NULL);
+        cmsSetLogErrorHandler(avif_cms_error_handler);
+        
+        cmsHPROFILE profile = cmsOpenProfileFromMem(image->icc.data, image->icc.size);
+        if (profile) {
+            cmsVideoSignalType* cicp = (cmsVideoSignalType*)cmsReadTag(profile, cmsSigcicpTag);
+            if (cicp) {
+                if (cicp->ColourPrimaries != AVIF_COLOR_PRIMARIES_UNSPECIFIED) {
+                    *colorPrimaries = cicp->ColourPrimaries;
+                }
+                if (cicp->TransferCharacteristics != AVIF_TRANSFER_CHARACTERISTICS_UNSPECIFIED) {
+                    *transferCharacteristics = cicp->TransferCharacteristics;
+                }
+            }
+            cmsCloseProfile(profile);
+        }
+        cmsDeleteContext(ctx);
+    }
+}
+
 static bool avif_is_hdr_source(const avifImage* image)
 {
     if (!image)
         return false;
 
-    bool high_bit_depth = image->depth > 8;
-    bool hdr_primaries = image->colorPrimaries == AVIF_COLOR_PRIMARIES_BT2020;
-    bool hdr_transfer = (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_PQ) ||
-      (image->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_HLG);
+    avifColorPrimaries colorPrimaries;
+    avifTransferCharacteristics transferCharacteristics;
+    avif_get_color_info(image, &colorPrimaries, &transferCharacteristics);
 
+    bool hdr_primaries = colorPrimaries == AVIF_COLOR_PRIMARIES_BT2020;
+    bool hdr_transfer = (transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_PQ) ||
+                       (transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_HLG);
+
+    bool high_bit_depth = image->depth > 8;
     return high_bit_depth && (hdr_primaries || hdr_transfer);
 }
 
@@ -197,14 +232,18 @@ static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image,
         return result;
     }
 
+    avifColorPrimaries colorPrimaries;
+    avifTransferCharacteristics transferCharacteristics;
+    avif_get_color_info(image, &colorPrimaries, &transferCharacteristics);
+
     // Apply tone-mapping with colorspace information
     avif_tonemap_rgb((uint16_t*)temp.pixels,
                      rgb->pixels,
                      image->width,
                      image->height,
                      temp.depth,
-                     image->transferCharacteristics,
-                     image->colorPrimaries);
+                     transferCharacteristics,
+                     colorPrimaries);
 
     avifRGBImageFreePixels(&temp);
     return AVIF_RESULT_OK;
