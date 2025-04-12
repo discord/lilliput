@@ -14,6 +14,7 @@ struct giflib_decoder_struct {
     int prev_frame_top;
     int prev_frame_width;
     int prev_frame_height;
+    uint8_t* prev_frame_bgra;
     uint8_t bg_green;
     uint8_t bg_red;
     uint8_t bg_blue;
@@ -90,6 +91,14 @@ giflib_decoder giflib_decoder_create(const opencv_mat buf)
     }
     d->gif = gif;
 
+    // buffer for previous frame's content
+    d->prev_frame_bgra = (uint8_t*)malloc(d->gif->SWidth * d->gif->SHeight * 4);
+    if (!d->prev_frame_bgra) {
+        DGifCloseFile(gif, &error);
+        delete d;
+        return NULL;
+    }
+
     return d;
 }
 
@@ -128,8 +137,12 @@ int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
     switch (d->prev_frame_disposal) {
     case DISPOSE_DO_NOT:
         return GIF_DISPOSE_NONE;
-    default:
+    case DISPOSE_BACKGROUND:
         return GIF_DISPOSE_BACKGROUND;
+    case DISPOSE_PREVIOUS:
+        return GIF_DISPOSE_PREVIOUS;
+    default: // DISPOSAL_UNSPECIFIED
+        return GIF_DISPOSE_NONE;
     }
 }
 
@@ -137,6 +150,9 @@ void giflib_decoder_release(giflib_decoder d)
 {
     if (d->pixels) {
         free(d->pixels);
+    }
+    if (d->prev_frame_bgra) {
+        free(d->prev_frame_bgra);
     }
     int error = 0;
     DGifCloseFile(d->gif, &error);
@@ -373,30 +389,49 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* 
             }
         }
         else if (d->prev_frame_disposal == DISPOSE_PREVIOUS) {
-            // TODO or maybe not to do
-            // should we at least log this happened so that we know this exists?
-            // tldr this crazy method requires you to walk back across all previous
-            //    frames until you reach one with DISPOSAL_DO_NOT
-            //    and "undraw them", most likely would be done by building a temp
-            //    buffer when first one is encountered
+            // Restore the previous frame's content
+            int prev_frame_left = d->prev_frame_left;
+            int prev_frame_top = d->prev_frame_top;
+            int prev_frame_width = d->prev_frame_width;
+            int prev_frame_height = d->prev_frame_height;
+
+            if (prev_frame_left < 0) {
+                prev_frame_width += prev_frame_left;
+                prev_frame_left = 0;
+            }
+
+            if (prev_frame_top < 0) {
+                prev_frame_height += prev_frame_top;
+                prev_frame_top = 0;
+            }
+
+            if (prev_frame_left + prev_frame_width > buf_width) {
+                prev_frame_width = buf_width - prev_frame_left;
+            }
+
+            if (prev_frame_top + prev_frame_height > buf_height) {
+                prev_frame_height = buf_height - prev_frame_top;
+            }
+
+            prev_frame_height = (prev_frame_height < 0) ? 0 : prev_frame_height;
+            prev_frame_width = (prev_frame_width < 0) ? 0 : prev_frame_width;
+
+            for (int y = prev_frame_top; y < prev_frame_top + prev_frame_height; y++) {
+                uint8_t* dst = cvMat->data + y * cvMat->step + (prev_frame_left * 4);
+                uint8_t* src = d->prev_frame_bgra + (y * buf_width + prev_frame_left) * 4;
+                memcpy(dst, src, prev_frame_width * 4);
+            }
         }
     }
 
-    // TODO handle interlaced gifs?
+    // Save current frame content before drawing new frame
+    if (d->have_read_first_frame) {
+        memcpy(d->prev_frame_bgra, cvMat->data, buf_width * buf_height * 4);
+    }
 
-    // TODO if top > 0 or left > 0, we could actually just return an ROI
-    // of the pixel buffer and then resize just the ROI frame
-    // we would then have to rescale the origin coordinates of that frame
-    // when encoding back to gif, so that the resized frame is drawn to the
-    // correct location
+    // Draw the new frame
     int pixel_index = 0;
-
-    // skip entire rows at the top if frame_top < 0
-    // start by skipping the raster bits -- we're skipping full rows here
     pixel_index += (skip_top * desc.Width);
-    // now reduce how far we iterate by subtracting how many rows we skipped
-    // if we were supposed to start at y = -2 and go for 5 rows, then instead
-    // start at y = 0 and go for 3 rows
     frame_height -= skip_top;
     // move the top of the frame over by how far we skipped
     frame_top += skip_top;
