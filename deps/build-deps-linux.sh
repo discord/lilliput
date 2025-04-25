@@ -134,168 +134,170 @@ rm -rf libwebp
 rm -rf giflib
 rm -rf opencv
 rm -rf bzip2
+rm -rf lcms
 rm -rf ffmpeg
 rm -rf libyuv
 rm -rf aom
 rm -rf libavif
 
-if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.4.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
-fi
+# if [ ! -d "$SRCDIR" ]; then
+#     git clone --depth 1 --branch 1.4.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+# fi
 
-echo '\n--------------------'
-echo 'Building libjpeg-turbo'
-echo '--------------------\n'
-mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
-cd $BASEDIR/libjpeg-turbo
-mkdir -p $BUILDDIR/libjpeg-turbo
-cd $BUILDDIR/libjpeg-turbo
-cmake $BASEDIR/libjpeg-turbo $CMAKE_CROSS_COMPILE_FLAGS \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_STATIC=1 \
-    -DENABLE_SHARED=0 \
-    -DWITH_JPEG8=1 \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
-    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
-make
-make install
-verify_arch "$PREFIX/lib/libjpeg.a"
+# echo '\n--------------------'
+# echo 'Building libjpeg-turbo'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/libjpeg-turbo
+# tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+# cd $BASEDIR/libjpeg-turbo
+# mkdir -p $BUILDDIR/libjpeg-turbo
+# cd $BUILDDIR/libjpeg-turbo
+# cmake $BASEDIR/libjpeg-turbo $CMAKE_CROSS_COMPILE_FLAGS \
+#     -DCMAKE_BUILD_TYPE=Release \
+#     -DENABLE_STATIC=1 \
+#     -DENABLE_SHARED=0 \
+#     -DWITH_JPEG8=1 \
+#     -DCMAKE_INSTALL_PREFIX=$PREFIX \
+#     -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+#     -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
+# make
+# make install
+# verify_arch "$PREFIX/lib/libjpeg.a"
 
-echo '\n--------------------'
-echo 'Building zlib'
-echo '--------------------\n'
-mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
-mkdir -p $BUILDDIR/zlib
-cd $BUILDDIR/zlib
-CROSS_PREFIX=${CC%gcc} $BASEDIR/zlib/configure --prefix=$PREFIX --static
-make
-make install
-verify_arch "$PREFIX/lib/libz.a"
+# echo '\n--------------------'
+# echo 'Building zlib'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/zlib
+# tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
+# mkdir -p $BUILDDIR/zlib
+# cd $BUILDDIR/zlib
+# CROSS_PREFIX=${CC%gcc} $BASEDIR/zlib/configure --prefix=$PREFIX --static
+# make
+# make install
+# verify_arch "$PREFIX/lib/libz.a"
 
-echo '\n--------------------'
-echo 'Building libpng'
-echo '--------------------\n'
-mkdir -p $BASEDIR/libpng
-tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
-mkdir -p $BUILDDIR/libpng
-cd $BUILDDIR/libpng
-CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" \
-$BASEDIR/libpng/configure \
-    --prefix=$PREFIX \
-    --disable-shared \
-    --enable-static \
-    --disable-unversioned-links \
-    --disable-unversioned-libpng-pc \
-    $PNG_EXTRA_FLAGS \
-    --host=$CONFIGURE_HOST \
-    CC="$CC" \
-    CXX="$CXX" \
-    AR="$AR" \
-    RANLIB="$RANLIB"
-make
-make install
-verify_arch "$PREFIX/lib/libpng16.a"
+# echo '\n--------------------'
+# echo 'Building libpng'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/libpng
+# tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
+# mkdir -p $BUILDDIR/libpng
+# cd $BUILDDIR/libpng
+# CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" \
+# $BASEDIR/libpng/configure \
+#     --prefix=$PREFIX \
+#     --disable-shared \
+#     --enable-static \
+#     --disable-unversioned-links \
+#     --disable-unversioned-libpng-pc \
+#     $PNG_EXTRA_FLAGS \
+#     --host=$CONFIGURE_HOST \
+#     CC="$CC" \
+#     CXX="$CXX" \
+#     AR="$AR" \
+#     RANLIB="$RANLIB"
+# make
+# make install
+# verify_arch "$PREFIX/lib/libpng16.a"
 
-echo '\n--------------------'
-echo 'Building libwebp'
-echo '--------------------\n'
-mkdir -p $BASEDIR/libwebp
-tar -xzf $SRCDIR/libwebp-1.5.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
-cd $BASEDIR/libwebp
-./autogen.sh
-mkdir -p $BUILDDIR/libwebp
-cd $BUILDDIR/libwebp
-$BASEDIR/libwebp/configure \
-    --prefix=$PREFIX \
-    --disable-shared \
-    --enable-static \
-    --host=$CONFIGURE_HOST \
-    CC="$CC" \
-    CXX="$CXX" \
-    AR="$AR" \
-    RANLIB="$RANLIB"
+# echo '\n--------------------'
+# echo 'Building libwebp'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/libwebp
+# tar -xzf $SRCDIR/libwebp-1.5.0.tar.gz -C $BASEDIR/libwebp --strip-components 1
+# cd $BASEDIR/libwebp
+# ./autogen.sh
+# mkdir -p $BUILDDIR/libwebp
+# cd $BUILDDIR/libwebp
+# $BASEDIR/libwebp/configure \
+#     --prefix=$PREFIX \
+#     --disable-shared \
+#     --enable-static \
+#     --host=$CONFIGURE_HOST \
+#     CC="$CC" \
+#     CXX="$CXX" \
+#     AR="$AR" \
+#     RANLIB="$RANLIB"
 
-make
-make install
-verify_arch "$PREFIX/lib/libwebp.a"
+# make
+# make install
+# verify_arch "$PREFIX/lib/libwebp.a"
 
-echo '\n--------------------'
-echo 'Building giflib'
-echo '--------------------\n'
-mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
-mkdir -p $BUILDDIR/giflib
-cd $BASEDIR/giflib
-make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="-fPIC -O2" libgif.a -Wno-format-truncation -Wno-format-overflow
-cp libgif.a "$PREFIX/lib"
-cp gif_lib.h "$PREFIX/include"
-verify_arch "$PREFIX/lib/libgif.a"
+# echo '\n--------------------'
+# echo 'Building giflib'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/giflib
+# tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
+# mkdir -p $BUILDDIR/giflib
+# cd $BASEDIR/giflib
+# make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="-fPIC -O2" libgif.a -Wno-format-truncation -Wno-format-overflow
+# cp libgif.a "$PREFIX/lib"
+# cp gif_lib.h "$PREFIX/include"
+# verify_arch "$PREFIX/lib/libgif.a"
 
-echo '\n--------------------'
-echo 'Building opencv'
-echo '--------------------\n'
+# echo '\n--------------------'
+# echo 'Building opencv'
+# echo '--------------------\n'
 
-mkdir -p $BASEDIR/opencv
-tar -xzf $SRCDIR/opencv-4.11.0.tar.gz -C $BASEDIR/opencv --strip-components 1
-cd $BASEDIR/opencv
-patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
-mkdir -p $BUILDDIR/opencv
-cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCPU_BASELINE=SSE4_2,AVX \
-    -DCPU_DISPATCH=AVX,AVX2 \
-    -DWITH_WEBP=ON \
-    -DWITH_JASPER=OFF \
-    -DWITH_TIFF=OFF \
-    -DWITH_OPENEXR=OFF \
-    -DWITH_OPENCL=OFF \
-    -DBUILD_JPEG=OFF \
-    -DBUILD_PNG=OFF \
-    -DBUILD_ZLIB=OFF \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DBUILD_DOCS=OFF \
-    -DBUILD_EXAMPLES=OFF \
-    -DBUILD_PERF_TESTS=OFF \
-    -DBUILD_TESTS=OFF \
-    -DBUILD_opencv_gapi=OFF \
-    -DBUILD_opencv_photo=ON \
-    -DBUILD_opencv_video=OFF \
-    -DBUILD_opencv_videoio=OFF \
-    -DBUILD_opencv_highgui=ON \
-    -DBUILD_opencv_ml=OFF \
-    -DBUILD_opencv_dnn=OFF \
-    -DBUILD_opencv_flann=OFF \
-    -DBUILD_opencv_calib3d=OFF \
-    -DBUILD_opencv_features2d=OFF \
-    -DBUILD_opencv_objdetect=OFF \
-    -DBUILD_opencv_java=OFF \
-    -DBUILD_opencv_python=OFF \
-    -DENABLE_PRECOMPILED_HEADERS=OFF \
-    -DCMAKE_LIBRARY_PATH=$PREFIX/lib \
-    -DCMAKE_INCLUDE_PATH=$PREFIX/include \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
-    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
-make
-make install -j$(nproc --all)
-verify_arch "$PREFIX/lib/libopencv_core.a"
-verify_arch "$PREFIX/lib/libopencv_imgproc.a"
-verify_arch "$PREFIX/lib/libopencv_imgcodecs.a"
-verify_arch "$PREFIX/lib/libopencv_highgui.a"
-verify_arch "$PREFIX/lib/libopencv_photo.a"
+# mkdir -p $BASEDIR/opencv
+# tar -xzf $SRCDIR/opencv-4.11.0.tar.gz -C $BASEDIR/opencv --strip-components 1
+# cd $BASEDIR/opencv
+# patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
+# mkdir -p $BUILDDIR/opencv
+# cd $BUILDDIR/opencv
+# cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
+#     -DCMAKE_BUILD_TYPE=Release \
+#     -DCPU_BASELINE=SSE4_2,AVX \
+#     -DCPU_DISPATCH=AVX,AVX2 \
+#     -DWITH_AVIF=OFF \
+#     -DWITH_WEBP=ON \
+#     -DWITH_JASPER=OFF \
+#     -DWITH_TIFF=OFF \
+#     -DWITH_OPENEXR=OFF \
+#     -DWITH_OPENCL=OFF \
+#     -DBUILD_JPEG=OFF \
+#     -DBUILD_PNG=OFF \
+#     -DBUILD_ZLIB=OFF \
+#     -DBUILD_SHARED_LIBS=OFF \
+#     -DBUILD_DOCS=OFF \
+#     -DBUILD_EXAMPLES=OFF \
+#     -DBUILD_PERF_TESTS=OFF \
+#     -DBUILD_TESTS=OFF \
+#     -DBUILD_opencv_gapi=OFF \
+#     -DBUILD_opencv_photo=ON \
+#     -DBUILD_opencv_video=OFF \
+#     -DBUILD_opencv_videoio=OFF \
+#     -DBUILD_opencv_highgui=ON \
+#     -DBUILD_opencv_ml=OFF \
+#     -DBUILD_opencv_dnn=OFF \
+#     -DBUILD_opencv_flann=OFF \
+#     -DBUILD_opencv_calib3d=OFF \
+#     -DBUILD_opencv_features2d=OFF \
+#     -DBUILD_opencv_objdetect=OFF \
+#     -DBUILD_opencv_java=OFF \
+#     -DBUILD_opencv_python=OFF \
+#     -DENABLE_PRECOMPILED_HEADERS=OFF \
+#     -DCMAKE_LIBRARY_PATH=$PREFIX/lib \
+#     -DCMAKE_INCLUDE_PATH=$PREFIX/include \
+#     -DCMAKE_INSTALL_PREFIX=$PREFIX \
+#     -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+#     -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
+# make
+# make install -j$(nproc --all)
+# verify_arch "$PREFIX/lib/libopencv_core.a"
+# verify_arch "$PREFIX/lib/libopencv_imgproc.a"
+# verify_arch "$PREFIX/lib/libopencv_imgcodecs.a"
+# verify_arch "$PREFIX/lib/libopencv_highgui.a"
+# verify_arch "$PREFIX/lib/libopencv_photo.a"
 
-echo '\n--------------------'
-echo 'Building bzip2'
-echo '--------------------\n'
-mkdir -p $BASEDIR/bzip2
-tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
-cd $BASEDIR/bzip2
-make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$ARCH_CFLAGS" CXXFLAGS="$ARCH_CXXFLAGS" PREFIX=$PREFIX install
-verify_arch "$PREFIX/lib/libbz2.a"
+# echo '\n--------------------'
+# echo 'Building bzip2'
+# echo '--------------------\n'
+# mkdir -p $BASEDIR/bzip2
+# tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
+# cd $BASEDIR/bzip2
+# make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$ARCH_CFLAGS" CXXFLAGS="$ARCH_CXXFLAGS" PREFIX=$PREFIX install
+# verify_arch "$PREFIX/lib/libbz2.a"
 
 echo '\n--------------------'
 echo 'Building liblcms'
@@ -312,6 +314,7 @@ cd $BASEDIR/lcms
     CXX="$CXX" \
     AR="$AR" \
     RANLIB="$RANLIB"
+    STRIP="$STRIP"
 make
 make install
 verify_arch "$PREFIX/lib/liblcms2.a"

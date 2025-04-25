@@ -3,6 +3,7 @@ aom/
 libjpeg-turbo/
 zlib/
 libpng/
+lcms/
 libwebp/
 giflib/
 opencv/

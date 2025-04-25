@@ -46,6 +46,7 @@ rm -rf libwebp
 rm -rf giflib
 rm -rf opencv
 rm -rf bzip2
+rm -rf lcms
 rm -rf ffmpeg
 rm -rf libyuv
 rm -rf aom
@@ -159,6 +160,7 @@ cmake $BASEDIR/opencv \
     -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
     -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
     -DCMAKE_MODULE_LINKER_FLAGS="-stdlib=libc++" \
+    -DWITH_AVIF=OFF \
     -DWITH_WEBP=ON \
     -DWITH_JASPER=OFF \
     -DWITH_TIFF=OFF \
