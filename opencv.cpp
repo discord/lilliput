@@ -119,8 +119,18 @@ void opencv_decoder_release(opencv_decoder d)
 
 bool opencv_decoder_read_header(opencv_decoder d)
 {
+    if (!d) {
+        return false;
+    }
+
     auto d_ptr = static_cast<cv::ImageDecoder*>(d);
-    return d_ptr->readHeader();
+    try {
+        return d_ptr->readHeader();
+    }
+    catch (const cv::Exception& e) {
+        std::cerr << "OpenCV exception in opencv_decoder_read_header: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 int opencv_decoder_get_width(const opencv_decoder d)

@@ -134,6 +134,7 @@ rm -rf libwebp
 rm -rf giflib
 rm -rf opencv
 rm -rf bzip2
+rm -rf lcms
 rm -rf ffmpeg
 rm -rf libyuv
 rm -rf aom
@@ -248,6 +249,7 @@ cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
     -DCMAKE_BUILD_TYPE=Release \
     -DCPU_BASELINE=SSE4_2,AVX \
     -DCPU_DISPATCH=AVX,AVX2 \
+    -DWITH_AVIF=OFF \
     -DWITH_WEBP=ON \
     -DWITH_JASPER=OFF \
     -DWITH_TIFF=OFF \
@@ -312,6 +314,7 @@ cd $BASEDIR/lcms
     CXX="$CXX" \
     AR="$AR" \
     RANLIB="$RANLIB"
+    STRIP="$STRIP"
 make
 make install
 verify_arch "$PREFIX/lib/liblcms2.a"
