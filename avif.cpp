@@ -468,6 +468,15 @@ int avif_decoder_get_frame_dispose(const avif_decoder d)
     if (!d || !d->decoder || !d->decoder->image) {
         return 0;
     }
+    
+    if (avif_decoder_is_animated(d)) {
+        if (d->has_alpha && d->decoder->image->alphaPremultiplied) {
+            return AVIF_DISPOSE_NONE;
+        }
+        return AVIF_DISPOSE_BACKGROUND;
+    }
+    
+    // For non-animated images, use a simpler heuristic
     return d->decoder->image->imageOwnsYUVPlanes ? AVIF_DISPOSE_BACKGROUND : AVIF_DISPOSE_NONE;
 }
 
@@ -476,6 +485,15 @@ int avif_decoder_get_frame_blend(const avif_decoder d)
     if (!d || !d->decoder || !d->decoder->image) {
         return AVIF_BLEND_NONE;
     }
+
+    if (avif_decoder_is_animated(d)) {
+        if (d->has_alpha && (d->decoder->image->alphaPremultiplied || d->decoder->image->alphaPlane)) { 
+            return AVIF_BLEND_ALPHA;
+        }
+        return AVIF_BLEND_NONE;
+    }
+    
+    // For non-animated images, use alpha status to determine blend method
     return d->has_alpha ? AVIF_BLEND_ALPHA : AVIF_BLEND_NONE;
 }
 
