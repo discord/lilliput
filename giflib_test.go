@@ -9,6 +9,130 @@ import (
 
 func TestGIFOperations(t *testing.T) {
 	t.Run("GIFDuration", testGIFDuration)
+	t.Run("GIFDisposalMethods", testGIFDisposalMethods)
+}
+
+func testGIFDisposalMethods(t *testing.T) {
+	// This test verifies that the disposal method of each frame is correctly identified
+	// Without checking the actual rendering of frames
+	
+	testCases := []struct {
+		name                string
+		filename            string
+		description         string
+		skipTest            bool
+		requireBackground   bool // Require at least one frame with background disposal
+		requirePrevious     bool // Require at least one frame with restore previous disposal
+	}{
+		{
+			name:              "Background disposal GIF",
+			filename:          "testdata/dispose_bgnd.gif",
+			description:       "GIF using background disposal method",
+			skipTest:          false,
+			requireBackground: true,
+			requirePrevious:   false,
+		},
+		{
+			name:              "Restore Previous disposal GIF",
+			filename:          "testdata/restore_previous.gif",
+			description:       "GIF using restore to previous disposal method",
+			skipTest:          false,
+			requireBackground: false,
+			requirePrevious:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.skipTest {
+				t.Skip("Test skipped")
+			}
+			
+			testGIFImage, err := os.ReadFile(tc.filename)
+			if err != nil {
+				t.Fatalf("Failed to read gif image: %v", err)
+			}
+
+			decoder, err := newGifDecoder(testGIFImage)
+			if err != nil {
+				t.Fatalf("Failed to create decoder: %v", err)
+			}
+			defer decoder.Close()
+
+			header, err := decoder.Header()
+			if err != nil {
+				t.Fatalf("Failed to get header: %v", err)
+			}
+
+			framebuffer := NewFramebuffer(header.width, header.height)
+			defer framebuffer.Close()
+
+			// Process each frame and log its disposal method
+			frameIndex := 0
+			var disposalMethods []int
+			
+			for {
+				err = decoder.DecodeTo(framebuffer)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("DecodeTo failed: %v", err)
+				}
+
+				// Record the disposal method for each frame
+				if frameIndex > 0 {
+					actualDisposal := int(framebuffer.dispose)
+					disposalMethods = append(disposalMethods, actualDisposal)
+					
+					// Map the int values to their names for better logging
+					var actualName string
+					switch actualDisposal {
+					case 0:
+						actualName = "NoDispose"
+					case 1:
+						actualName = "DisposeToBackgroundColor"
+					case 2:
+						actualName = "RestorePrevious"
+					default:
+						actualName = "Unknown"
+					}
+					
+					t.Logf("Frame %d has disposal method: %s (%d)", 
+						frameIndex-1, actualName, actualDisposal)
+				}
+				
+				frameIndex++
+			}
+			
+			// Verify required disposal methods if specified
+			if tc.requirePrevious {
+				hasRestorePrevious := false
+				for _, method := range disposalMethods {
+					if method == 2 { // RestorePrevious
+						hasRestorePrevious = true
+						break
+					}
+				}
+				if !hasRestorePrevious {
+					t.Errorf("Expected at least one frame with RestorePrevious disposal method in %s", tc.filename)
+				}
+			}
+			
+			if tc.requireBackground {
+				hasDisposeBackground := false
+				for _, method := range disposalMethods {
+					if method == 1 { // DisposeToBackgroundColor
+						hasDisposeBackground = true
+						break
+					}
+				}
+				if !hasDisposeBackground {
+					t.Errorf("Expected at least one frame with DisposeToBackgroundColor disposal method in %s", tc.filename)
+				}
+			}
+		})
+	}
 }
 
 func testGIFDuration(t *testing.T) {
