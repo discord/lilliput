@@ -38,6 +38,7 @@ int avif_decoder_get_num_frames(const avif_decoder d);
 uint32_t avif_decoder_get_duration(const avif_decoder d);
 uint32_t avif_decoder_get_loop_count(const avif_decoder d);
 size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len);
+size_t avif_decoder_get_color_xmp(const avif_decoder d, void* buf, size_t buf_len);
 uint32_t avif_decoder_get_bg_color(const avif_decoder d);
 int avif_decoder_get_total_duration(const avif_decoder d);
 
@@ -63,6 +64,8 @@ avif_encoder avif_encoder_create(void* buf,
                                  size_t buf_len,
                                  const void* icc,
                                  size_t icc_len,
+                                 const void* color_xmp,
+                                 size_t color_xmp_len,
                                  int loop_count);
 void avif_encoder_release(avif_encoder e);
 

@@ -119,6 +119,13 @@ func (d *gifDecoder) HasSubtitles() bool {
 	return false
 }
 
+
+// GetColorXMP returns XMP metadata containing color information
+func (d *gifDecoder) GetColorXMP() []byte {
+	// For now, return nil. GIF doesn't have color transform metadata
+	return nil
+}
+
 // ICC returns the ICC color profile data, if any.
 func (d *gifDecoder) ICC() []byte {
 	return []byte{}

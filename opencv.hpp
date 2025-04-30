@@ -135,4 +135,13 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
 }
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Function to extract color information as XMP data
+int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t dest_len);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

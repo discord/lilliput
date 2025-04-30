@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	// XMPBufferSize is the standard buffer size used for XMP metadata extraction
+	XMPBufferSize = 8192
+)
+
 var (
 	ErrInvalidImage     = errors.New("unrecognized image format")
 	ErrDecodingFailed   = errors.New("failed to decode image")
@@ -67,6 +72,10 @@ type Decoder interface {
 
 	// LoopCount() returns the number of loops in the image
 	LoopCount() int
+
+	// GetColorXMP returns XMP metadata containing color information suitable for embedding in output formats
+	// This is a generic implementation that can be used across different formats
+	GetColorXMP() []byte
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

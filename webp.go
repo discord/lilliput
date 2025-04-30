@@ -81,6 +81,26 @@ func (d *webpDecoder) HasSubtitles() bool {
 	return false
 }
 
+// GetColorXMP returns XMP metadata containing color information from WebP
+func (d *webpDecoder) GetColorXMP() []byte {
+	if d.decoder == nil {
+		return nil
+	}
+
+	xmpDst := make([]byte, XMPBufferSize)
+	xmpLength := C.webp_decoder_get_color_xmp(
+		d.decoder,
+		unsafe.Pointer(&xmpDst[0]),
+		C.size_t(cap(xmpDst)),
+	)
+
+	if xmpLength <= 0 {
+		return nil
+	}
+
+	return xmpDst[:xmpLength]
+}
+
 // IsStreamable returns whether the image format supports streaming (always false for WebP).
 func (d *webpDecoder) IsStreamable() bool {
 	return false
@@ -169,11 +189,64 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	bgColor := decodedBy.BackgroundColor()
 	loopCount := decodedBy.LoopCount()
 
+	// Get color XMP data if available
+	colorXMP := decodedBy.GetColorXMP()
+	if len(colorXMP) > 0 {
+		println("Found color XMP data, length:", len(colorXMP), "from", decodedBy.Description())
+		println("XMP data:", string(colorXMP))
+	}
+
 	var enc C.webp_encoder
 	if len(icc) > 0 {
-		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), unsafe.Pointer(&icc[0]), C.size_t(len(icc)), C.uint32_t(bgColor), C.int(loopCount))
+		if len(colorXMP) > 0 {
+			// Both ICC and color XMP available
+			enc = C.webp_encoder_create(
+				unsafe.Pointer(&dstBuf[0]),
+				C.size_t(cap(dstBuf)),
+				unsafe.Pointer(&icc[0]),
+				C.size_t(len(icc)),
+				unsafe.Pointer(&colorXMP[0]),
+				C.size_t(len(colorXMP)),
+				C.uint32_t(bgColor),
+				C.int(loopCount),
+			)
+		} else {
+			// Only ICC available
+			enc = C.webp_encoder_create(
+				unsafe.Pointer(&dstBuf[0]),
+				C.size_t(cap(dstBuf)),
+				unsafe.Pointer(&icc[0]),
+				C.size_t(len(icc)),
+				nil,
+				0,
+				C.uint32_t(bgColor),
+				C.int(loopCount),
+			)
+		}
+	} else if len(colorXMP) > 0 {
+		// Only color XMP available
+		enc = C.webp_encoder_create(
+			unsafe.Pointer(&dstBuf[0]),
+			C.size_t(cap(dstBuf)),
+			nil,
+			0,
+			unsafe.Pointer(&colorXMP[0]),
+			C.size_t(len(colorXMP)),
+			C.uint32_t(bgColor),
+			C.int(loopCount),
+		)
 	} else {
-		enc = C.webp_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)), nil, 0, C.uint32_t(bgColor), C.int(loopCount))
+		// Neither ICC nor color XMP available
+		enc = C.webp_encoder_create(
+			unsafe.Pointer(&dstBuf[0]),
+			C.size_t(cap(dstBuf)),
+			nil,
+			0,
+			nil,
+			0,
+			C.uint32_t(bgColor),
+			C.int(loopCount),
+		)
 	}
 	if enc == nil {
 		return nil, ErrBufTooSmall

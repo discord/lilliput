@@ -85,6 +85,13 @@ func (d *avCodecDecoder) HasSubtitles() bool {
 	return d.hasSubtitles
 }
 
+
+// GetColorXMP returns XMP metadata containing color information
+func (d *avCodecDecoder) GetColorXMP() []byte {
+	// For now, return nil. Future implementation could extract color info from video codecs
+	return nil
+}
+
 // IsStreamable returns whether the media content can be streamed.
 func (d *avCodecDecoder) IsStreamable() bool {
 	return d.isStreamable

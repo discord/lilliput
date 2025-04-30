@@ -30,6 +30,8 @@ struct avif_encoder_struct {
     size_t dst_len;
     const uint8_t* icc;
     size_t icc_len;
+    const uint8_t* color_xmp;
+    size_t color_xmp_len;
     int frame_count;
     bool has_alpha;
 };
@@ -443,6 +445,26 @@ uint32_t avif_decoder_get_bg_color(const avif_decoder d)
     return d->bgcolor;
 }
 
+size_t avif_decoder_get_color_xmp(const avif_decoder d, void* buf, size_t buf_len)
+{
+    if (!d || !d->decoder || !d->decoder->image || !buf || buf_len == 0) {
+        return 0;
+    }
+
+    // Check if the image has XMP metadata
+    if (d->decoder->image->xmp.size == 0 || d->decoder->image->xmp.data == nullptr) {
+        return 0;
+    }
+
+    size_t len = d->decoder->image->xmp.size;
+    if (len > buf_len) {
+        return 0;
+    }
+
+    memcpy(buf, d->decoder->image->xmp.data, len);
+    return len;
+}
+
 int avif_decoder_get_total_duration(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -615,6 +637,8 @@ avif_encoder avif_encoder_create(void* buf,
                                  size_t buf_len,
                                  const void* icc,
                                  size_t icc_len,
+                                 const void* color_xmp,
+                                 size_t color_xmp_len,
                                  int loop_count)
 {
     auto e = new avif_encoder_struct();
@@ -632,6 +656,11 @@ avif_encoder avif_encoder_create(void* buf,
     if (icc && icc_len > 0) {
         e->icc = static_cast<const uint8_t*>(icc);
         e->icc_len = icc_len;
+    }
+    
+    if (color_xmp && color_xmp_len > 0) {
+        e->color_xmp = static_cast<const uint8_t*>(color_xmp);
+        e->color_xmp_len = color_xmp_len;
     }
 
     // Configure encoder for animation support
@@ -716,6 +745,15 @@ size_t avif_encoder_write(avif_encoder e,
             fprintf(
               stderr, "AVIF Encoder: failed to set ICC profile: %s\n", avifResultToString(result));
             return 0;
+        }
+    }
+    
+    // Add XMP color data if available (only on first frame)
+    if (e->color_xmp && e->color_xmp_len > 0 && e->frame_count == 0) {
+        avifResult result = avifImageSetMetadataXMP(avifImage, e->color_xmp, e->color_xmp_len);
+        if (result != AVIF_RESULT_OK) {
+            fprintf(stderr, "AVIF Encoder: failed to set XMP metadata: %s\n", avifResultToString(result));
+            // Non-fatal, continue anyway
         }
     }
 

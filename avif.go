@@ -130,6 +130,26 @@ func (d *avifDecoder) HasSubtitles() bool {
 	return false
 }
 
+// GetColorXMP returns XMP metadata containing color information
+func (d *avifDecoder) GetColorXMP() []byte {
+	if d.decoder == nil {
+		return nil
+	}
+
+	xmpDst := make([]byte, XMPBufferSize)
+	xmpLength := C.avif_decoder_get_color_xmp(
+		d.decoder,
+		unsafe.Pointer(&xmpDst[0]),
+		C.size_t(cap(xmpDst)),
+	)
+
+	if xmpLength <= 0 {
+		return nil
+	}
+
+	return xmpDst[:xmpLength]
+}
+
 func (d *avifDecoder) IsStreamable() bool {
 	return false
 }
@@ -153,13 +173,59 @@ func newAvifEncoder(decodedBy Decoder, dstBuf []byte) (*avifEncoder, error) {
 	loopCount := decodedBy.LoopCount()
 	bgColor := decodedBy.BackgroundColor()
 
+	// Get color XMP data if available
+	colorXMP := decodedBy.GetColorXMP()
+	if len(colorXMP) > 0 {
+		println("Found color XMP data for AVIF, length:", len(colorXMP), "from", decodedBy.Description())
+	}
+
 	var enc C.avif_encoder
 	if len(icc) > 0 {
-		enc = C.avif_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)),
-			unsafe.Pointer(&icc[0]), C.size_t(len(icc)), C.int(loopCount))
+		if len(colorXMP) > 0 {
+			// Both ICC and color XMP available
+			enc = C.avif_encoder_create(
+				unsafe.Pointer(&dstBuf[0]),
+				C.size_t(cap(dstBuf)),
+				unsafe.Pointer(&icc[0]),
+				C.size_t(len(icc)),
+				unsafe.Pointer(&colorXMP[0]),
+				C.size_t(len(colorXMP)),
+				C.int(loopCount),
+			)
+		} else {
+			// Only ICC available
+			enc = C.avif_encoder_create(
+				unsafe.Pointer(&dstBuf[0]),
+				C.size_t(cap(dstBuf)),
+				unsafe.Pointer(&icc[0]),
+				C.size_t(len(icc)),
+				nil,
+				0,
+				C.int(loopCount),
+			)
+		}
+	} else if len(colorXMP) > 0 {
+		// Only color XMP available
+		enc = C.avif_encoder_create(
+			unsafe.Pointer(&dstBuf[0]),
+			C.size_t(cap(dstBuf)),
+			nil,
+			0,
+			unsafe.Pointer(&colorXMP[0]),
+			C.size_t(len(colorXMP)),
+			C.int(loopCount),
+		)
 	} else {
-		enc = C.avif_encoder_create(unsafe.Pointer(&dstBuf[0]), C.size_t(cap(dstBuf)),
-			nil, 0, C.int(loopCount))
+		// Neither ICC nor color XMP available
+		enc = C.avif_encoder_create(
+			unsafe.Pointer(&dstBuf[0]),
+			C.size_t(cap(dstBuf)),
+			nil,
+			0,
+			nil,
+			0,
+			C.int(loopCount),
+		)
 	}
 	if enc == nil {
 		return nil, ErrBufTooSmall

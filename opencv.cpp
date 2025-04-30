@@ -626,3 +626,167 @@ int opencv_copy_to_region(opencv_mat src,
         return OPENCV_ERROR_UNKNOWN;
     }
 }
+
+/**
+ * @brief Extract JPEG colorspace and color transform information from a JPEG file
+ * 
+ * @param src Pointer to the JPEG data buffer
+ * @param src_len Length of the JPEG data buffer
+ * @param colorspace Output parameter for colorspace value (1=grayscale, 2=YCbCr, etc.)
+ * @param color_transform Output parameter for color transform value (0=unknown, 1=YCbCr, 2=YCCK)
+ * @return true if extraction succeeded, false otherwise
+ */
+static bool opencv_get_jpeg_color_info(void* src, size_t src_len, int* colorspace, int* color_transform)
+{
+    struct jpeg_decompress_struct cinfo;
+    struct opencv_jpeg_error_mgr jerr;
+
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = opencv_jpeg_error_exit;
+
+    if (setjmp(jerr.setjmp_buffer)) {
+        jpeg_destroy_decompress(&cinfo);
+        return false;
+    }
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_mem_src(&cinfo, static_cast<unsigned char*>(src), src_len);
+
+    // Read JPEG header
+    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
+        jpeg_destroy_decompress(&cinfo);
+        return false;
+    }
+
+    fprintf(stderr, "DEBUG: JPEG color space from header: %d\n", cinfo.jpeg_color_space);
+    
+    *colorspace = cinfo.jpeg_color_space;
+    
+    // For JPEG with Adobe marker, color transform value can be extracted
+    // 0 = Unknown, 1 = YCbCr, 2 = YCCK
+    *color_transform = 0;
+    
+    // We need to set up marker handling before reading the header
+    jpeg_destroy_decompress(&cinfo);
+    jpeg_create_decompress(&cinfo);
+    
+    // Save markers for Adobe APP14 detection
+    jpeg_save_markers(&cinfo, JPEG_APP0+14, 256);
+    
+    // Re-setup the source
+    jpeg_mem_src(&cinfo, static_cast<unsigned char*>(src), src_len);
+    
+    // Read JPEG header again with marker processing
+    jpeg_read_header(&cinfo, TRUE);
+    
+    // Check for Adobe marker which might contain color transform information
+    for (jpeg_saved_marker_ptr marker = cinfo.marker_list; marker != NULL; marker = marker->next) {
+        if (marker->marker == JPEG_APP0+14 && marker->data_length >= 12) {
+            // Adobe APP14 marker
+            if (marker->data[0] == 'A' && marker->data[1] == 'd' && 
+                marker->data[2] == 'o' && marker->data[3] == 'b' && 
+                marker->data[4] == 'e') {
+                // Extract color transform value (usually at byte offset 11)
+                *color_transform = marker->data[11] & 0x0F;
+                fprintf(stderr, "DEBUG: Found Adobe marker with transform: %d\n", *color_transform);
+                
+                // Force YCbCr colorspace for RGB with ColorTransform=1
+                if (*color_transform == 1 && *colorspace == 3) {
+                    *colorspace = 2; // YCbCr
+                    fprintf(stderr, "DEBUG: RGB with transform 1 - treating as YCbCr\n");
+                }
+                break;
+            }
+        }
+    }
+    
+    // Default to YCbCr (2) for typical JPEG images when not explicitly specified
+    if (*colorspace == 0 && cinfo.num_components == 3) {
+        *colorspace = 2; // Assume YCbCr for typical color JPEGs
+        fprintf(stderr, "DEBUG: Assuming YCbCr for 3-component JPEG\n");
+    }
+    
+    // For YCbCr without explicit color transform info, assume transform 1
+    if (*colorspace == 2 && *color_transform == 0) {
+        *color_transform = 1;
+        fprintf(stderr, "DEBUG: Setting default color transform 1 for YCbCr\n");
+    }
+    
+    fprintf(stderr, "DEBUG: Final colorspace=%d, color_transform=%d\n", *colorspace, *color_transform);
+
+    jpeg_destroy_decompress(&cinfo);
+    return true;
+}
+
+/**
+ * @brief Generate XMP data containing color information for images
+ *
+ * @param src Pointer to the image data buffer
+ * @param src_len Length of the image data buffer
+ * @param dest Destination buffer for the generated XMP data
+ * @param dest_len Size of the destination buffer
+ * @return Length of the generated XMP data, 0 if no color info was extracted or generation failed
+ */
+int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t dest_len)
+{
+    // Currently, we only handle JPEG files
+    // This function can be extended to handle other formats in the future
+    int colorspace = 0;
+    int color_transform = 0;
+    
+    // Try to get color info from JPEG
+    if (!opencv_get_jpeg_color_info(src, src_len, &colorspace, &color_transform)) {
+        return 0;
+    }
+    
+    // If no meaningful color info was found, don't generate XMP
+    if (colorspace == 0) {
+        return 0;
+    }
+    
+    // Generate human-readable colorspace name
+    const char* colorspace_str = "Unknown";
+    if (colorspace == 1) {
+        colorspace_str = "Grayscale";
+    } else if (colorspace == 2) {
+        colorspace_str = "YCbCr";
+    } else if (colorspace == 3) {
+        colorspace_str = "RGB";
+    } else if (colorspace == 4) {
+        colorspace_str = "CMYK";
+    } else if (colorspace == 5) {
+        colorspace_str = "YCCK";
+    }
+    
+    // For YCbCr colorspace, add the transform info that browsers need
+    const char* transform_str = "";
+    if (colorspace == 2 && color_transform == 1) {
+        // YCbCr with transform 1 needs specific XMP markers
+        transform_str = "<photoshop:ColorMode>3</photoshop:ColorMode>"  // YCbCr mode
+                       "<xmp:ColorSpace>YCbCr</xmp:ColorSpace>";
+    }
+    
+    // Generate XMP data with standard namespaces and color information
+    int xmp_len = snprintf(static_cast<char*>(dest), dest_len, 
+                         "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">"
+                         "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">"
+                         "<rdf:Description rdf:about=\"\" "
+                         "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" "
+                         "xmlns:photoshop=\"http://ns.adobe.com/photoshop/1.0/\" "
+                         "xmlns:lilliput=\"http://discord.com/lilliput/1.0/\">"
+                         "%s"
+                         "<lilliput:colorSpace>%s</lilliput:colorSpace>"
+                         "<lilliput:colorSpaceValue>%d</lilliput:colorSpaceValue>"
+                         "<lilliput:colorTransform>%d</lilliput:colorTransform>"
+                         "</rdf:Description>"
+                         "</rdf:RDF>"
+                         "</x:xmpmeta>",
+                         transform_str, colorspace_str, colorspace, color_transform);
+    
+    // Ensure we didn't overflow the buffer
+    if (xmp_len >= static_cast<int>(dest_len)) {
+        return 0;
+    }
+    
+    return xmp_len;
+}

@@ -32,6 +32,8 @@ struct webp_encoder_struct {
     // input fields
     const uint8_t* icc;
     size_t icc_len;
+    const uint8_t* color_xmp;
+    size_t color_xmp_len;
     uint32_t bgcolor;
     uint32_t loop_count;
 
@@ -274,6 +276,30 @@ size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 }
 
 /**
+ * Gets the XMP metadata from the WebP image.
+ * @param d The webp_decoder_struct pointer.
+ * @param dst The destination buffer to store the XMP metadata.
+ * @param dst_len The size of the destination buffer.
+ * @return The size of the XMP metadata copied to the destination buffer.
+ */
+size_t webp_decoder_get_color_xmp(const webp_decoder d, void* dst, size_t dst_len)
+{
+    if (!d || !d->mux || !dst || dst_len == 0) {
+        return 0;
+    }
+    
+    WebPData xmp = {nullptr, 0};
+    auto res = WebPMuxGetChunk(d->mux, "XMP ", &xmp);
+    if (xmp.size > 0 && res == WEBP_MUX_OK) {
+        if (xmp.size <= dst_len) {
+            memcpy(dst, xmp.bytes, xmp.size);
+            return xmp.size;
+        }
+    }
+    return 0;
+}
+
+/**
  * Checks if there are more frames to decode in the WebP image.
  * @param d The webp_decoder_struct pointer.
  * @return True if there are more frames to decode, false otherwise.
@@ -389,6 +415,8 @@ webp_encoder webp_encoder_create(void* buf,
                                  size_t buf_len,
                                  const void* icc,
                                  size_t icc_len,
+                                 const void* color_xmp,
+                                 size_t color_xmp_len,
                                  uint32_t bgcolor,
                                  int loop_count)
 {
@@ -416,6 +444,11 @@ webp_encoder webp_encoder_create(void* buf,
     if (icc_len) {
         e->icc = (const uint8_t*)(icc);
         e->icc_len = icc_len;
+    }
+    
+    if (color_xmp_len) {
+        e->color_xmp = (const uint8_t*)(color_xmp);
+        e->color_xmp_len = color_xmp_len;
     }
     return e;
 }
@@ -561,6 +594,12 @@ size_t webp_encoder_write(webp_encoder e,
             if (e->icc && e->icc_len > 0) {
                 WebPData icc_data = {e->icc, e->icc_len};
                 WebPMuxSetChunk(e->mux, "ICCP", &icc_data, 1);
+            }
+            
+            // Add color XMP if available
+            if (e->color_xmp && e->color_xmp_len > 0) {
+                WebPData xmp = { e->color_xmp, e->color_xmp_len };
+                WebPMuxSetChunk(e->mux, "XMP ", &xmp, 1);
             }
 
             if (WebPMuxAssemble(e->mux, &out_mux) == WEBP_MUX_OK) {

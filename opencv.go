@@ -720,6 +720,32 @@ func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
+// GetColorXMP returns XMP metadata containing color information
+func (d *openCVDecoder) GetColorXMP() []byte {
+	if d.buf == nil || len(d.buf) == 0 {
+		return nil
+	}
+
+	// Only JPEG format currently supported
+	if d.Description() != "JPEG" {
+		return nil
+	}
+
+	xmpDst := make([]byte, XMPBufferSize)
+	xmpLength := C.opencv_decoder_get_color_xmp(
+		unsafe.Pointer(&d.buf[0]),
+		C.size_t(len(d.buf)),
+		unsafe.Pointer(&xmpDst[0]),
+		C.size_t(cap(xmpDst)),
+	)
+
+	if xmpLength <= 0 {
+		return nil
+	}
+
+	return xmpDst[:xmpLength]
+}
+
 func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
