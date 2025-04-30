@@ -445,24 +445,31 @@ uint32_t avif_decoder_get_bg_color(const avif_decoder d)
     return d->bgcolor;
 }
 
+/**
+ * Gets the color XMP metadata from the AVIF image.
+ * @param d The avif_decoder_struct pointer.
+ * @param buf The destination buffer to store the XMP metadata.
+ * @param buf_len The size of the destination buffer.
+ * @return The size of the XMP metadata copied to the destination buffer.
+ */
 size_t avif_decoder_get_color_xmp(const avif_decoder d, void* buf, size_t buf_len)
 {
     if (!d || !d->decoder || !d->decoder->image || !buf || buf_len == 0) {
         return 0;
     }
 
-    // Check if the image has XMP metadata
-    if (d->decoder->image->xmp.size == 0 || d->decoder->image->xmp.data == nullptr) {
-        return 0;
-    }
+    // Only return existing XMP metadata, don't generate new data
+    if (d->decoder->image->xmp.size > 0 && d->decoder->image->xmp.data != nullptr) {
+        size_t len = d->decoder->image->xmp.size;
+        if (len > buf_len) {
+            return 0;
+        }
 
-    size_t len = d->decoder->image->xmp.size;
-    if (len > buf_len) {
-        return 0;
+        memcpy(buf, d->decoder->image->xmp.data, len);
+        return len;
     }
-
-    memcpy(buf, d->decoder->image->xmp.data, len);
-    return len;
+    
+    return 0;
 }
 
 int avif_decoder_get_total_duration(const avif_decoder d)

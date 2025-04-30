@@ -719,26 +719,16 @@ static bool opencv_get_jpeg_color_info(void* src, size_t src_len, int* colorspac
 }
 
 /**
- * @brief Generate XMP data containing color information for images
+ * @brief Generate standardized XMP data containing color information
  *
- * @param src Pointer to the image data buffer
- * @param src_len Length of the image data buffer
+ * @param colorspace Color space identifier (1=Gray, 2=YCbCr, 3=RGB, etc.)
+ * @param color_transform Color transform value (0=None, 1=YCbCr, 2=YCCK)
  * @param dest Destination buffer for the generated XMP data
  * @param dest_len Size of the destination buffer
- * @return Length of the generated XMP data, 0 if no color info was extracted or generation failed
+ * @return Length of the generated XMP data, 0 if generation failed
  */
-int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t dest_len)
+int generate_color_xmp(int colorspace, int color_transform, void* dest, size_t dest_len)
 {
-    // Currently, we only handle JPEG files
-    // This function can be extended to handle other formats in the future
-    int colorspace = 0;
-    int color_transform = 0;
-    
-    // Try to get color info from JPEG
-    if (!opencv_get_jpeg_color_info(src, src_len, &colorspace, &color_transform)) {
-        return 0;
-    }
-    
     // If no meaningful color info was found, don't generate XMP
     if (colorspace == 0) {
         return 0;
@@ -758,30 +748,48 @@ int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t d
         colorspace_str = "YCCK";
     }
     
-    // For YCbCr colorspace, add the transform info that browsers need
+    // For YCbCr colorspace with transform 1, add the specific ColorSpace that browsers need
+    // We use xmp:ColorSpace specifically for YCbCr since photoshop:ColorMode doesn't support it
     const char* transform_str = "";
     if (colorspace == 2 && color_transform == 1) {
         // YCbCr with transform 1 needs specific XMP markers
-        transform_str = "<photoshop:ColorMode>3</photoshop:ColorMode>"  // YCbCr mode
-                       "<xmp:ColorSpace>YCbCr</xmp:ColorSpace>";
+        transform_str = "<xmp:ColorSpace>YCbCr</xmp:ColorSpace>";
+    }
+    
+    // Get Adobe's standard photoshop:ColorMode value
+    // According to Adobe's spec: https://developer.adobe.com/xmp/docs/XMPNamespaces/photoshop/
+    // 0 = Bitmap, 1 = Gray scale, 2 = Indexed, 3 = RGB, 4 = CMYK, 7 = Multi-channel, 8 = Duotone, 9 = LAB
+    int ps_colormode = 3; // Default to RGB (3)
+    
+    // If color_transform is already in the valid range for photoshop:ColorMode, use it directly
+    if (color_transform >= 0 && color_transform <= 9 && 
+        color_transform != 5 && color_transform != 6) { // 5,6 are not in Adobe's spec
+        ps_colormode = color_transform;
+    } else {
+        // Otherwise, map from our internal colorspace values to Adobe's
+        switch (colorspace) {
+            case 1: ps_colormode = 1; break;  // Grayscale -> 1 (Grayscale)
+            case 2: ps_colormode = 3; break;  // YCbCr -> 3 (RGB) - YCbCr is not in Adobe's spec
+            case 3: ps_colormode = 3; break;  // RGB -> 3 (RGB)
+            case 4: ps_colormode = 4; break;  // CMYK -> 4 (CMYK)
+            case 5: ps_colormode = 4; break;  // YCCK -> 4 (CMYK) - closest equivalent
+        }
     }
     
     // Generate XMP data with standard namespaces and color information
+    // Use photoshop namespace for the color information
     int xmp_len = snprintf(static_cast<char*>(dest), dest_len, 
                          "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">"
                          "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">"
                          "<rdf:Description rdf:about=\"\" "
                          "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" "
-                         "xmlns:photoshop=\"http://ns.adobe.com/photoshop/1.0/\" "
-                         "xmlns:lilliput=\"http://discord.com/lilliput/1.0/\">"
+                         "xmlns:photoshop=\"http://ns.adobe.com/photoshop/1.0/\">"
                          "%s"
-                         "<lilliput:colorSpace>%s</lilliput:colorSpace>"
-                         "<lilliput:colorSpaceValue>%d</lilliput:colorSpaceValue>"
-                         "<lilliput:colorTransform>%d</lilliput:colorTransform>"
+                         "<photoshop:ColorMode>%d</photoshop:ColorMode>"
                          "</rdf:Description>"
                          "</rdf:RDF>"
                          "</x:xmpmeta>",
-                         transform_str, colorspace_str, colorspace, color_transform);
+                         transform_str, ps_colormode);
     
     // Ensure we didn't overflow the buffer
     if (xmp_len >= static_cast<int>(dest_len)) {
@@ -789,4 +797,133 @@ int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t d
     }
     
     return xmp_len;
+}
+
+/**
+ * @brief Check if the buffer starts with JPEG magic bytes
+ * 
+ * @param src Pointer to the data buffer
+ * @param src_len Length of the data buffer
+ * @return True if buffer appears to be a JPEG
+ */
+static bool is_jpeg(void* src, size_t src_len) {
+    if (src_len < 2) {
+        return false;
+    }
+    const uint8_t* data = static_cast<const uint8_t*>(src);
+    return data[0] == 0xFF && data[1] == 0xD8; // JPEG SOI marker
+}
+
+/**
+ * @brief Extract any existing XMP data from JPEG file
+ * 
+ * @param src Pointer to the JPEG data buffer
+ * @param src_len Length of the JPEG data buffer
+ * @param dest Destination buffer for the extracted XMP data
+ * @param dest_len Size of the destination buffer
+ * @return Length of the XMP data copied to destination buffer, 0 if none found
+ */
+static int jpeg_extract_xmp(void* src, size_t src_len, void* dest, size_t dest_len) {
+    if (!src || src_len < 4 || !dest || dest_len == 0) {
+        return 0;
+    }
+    
+    const uint8_t* data = static_cast<const uint8_t*>(src);
+    size_t offset = 2; // Skip SOI marker
+    
+    // Standard APP1 XMP marker identifier
+    static const uint8_t XMP_IDENTIFIER[] = {
+        'h', 't', 't', 'p', ':', '/', '/', 'n', 's', '.', 'a', 'd', 'o', 'b', 'e', '.',
+        'c', 'o', 'm', '/', 'x', 'a', 'p', '/', '1', '.', '0', '/', '\0'
+    };
+    const size_t XMP_IDENTIFIER_LEN = sizeof(XMP_IDENTIFIER);
+    
+    // Search through the JPEG segments
+    while (offset + 4 <= src_len) {
+        if (data[offset] != 0xFF) {
+            // Not a valid JPEG marker, advance to next byte
+            offset++;
+            continue;
+        }
+        
+        uint8_t marker = data[offset + 1];
+        if (marker == 0xDA) {
+            // SOS marker, no more header segments
+            break;
+        }
+        
+        if (marker == 0xD9) {
+            // EOI marker, end of file
+            break;
+        }
+        
+        if (marker < 0xD0 || marker > 0xD7) {
+            // Regular segment with length
+            uint16_t segment_len = (data[offset + 2] << 8) | data[offset + 3];
+            
+            // Check if it's an APP1 marker (0xE1) with XMP data
+            if (marker == 0xE1 && 
+                offset + 4 + XMP_IDENTIFIER_LEN < src_len &&
+                segment_len > XMP_IDENTIFIER_LEN + 2) {
+                
+                // Check for XMP identifier
+                if (memcmp(data + offset + 4, XMP_IDENTIFIER, XMP_IDENTIFIER_LEN) == 0) {
+                    // Found XMP data
+                    size_t xmp_len = segment_len - 2 - XMP_IDENTIFIER_LEN;
+                    if (xmp_len <= dest_len) {
+                        memcpy(dest, data + offset + 4 + XMP_IDENTIFIER_LEN, xmp_len);
+                        return xmp_len;
+                    }
+                }
+            }
+            
+            // Move to next segment
+            offset += 2 + segment_len;
+        } else {
+            // Marker without length, move to next marker
+            offset += 2;
+        }
+    }
+    
+    // No XMP found
+    return 0;
+}
+
+/**
+ * @brief Extract XMP data from images, only generating it for critical YCbCr cases
+ *
+ * @param src Pointer to the image data buffer
+ * @param src_len Length of the image data buffer
+ * @param dest Destination buffer for the XMP data
+ * @param dest_len Size of the destination buffer
+ * @return Length of the XMP data copied to destination buffer, 0 if none found or generation failed
+ */
+int opencv_decoder_get_color_xmp(void* src, size_t src_len, void* dest, size_t dest_len)
+{
+    if (!src || src_len == 0 || !dest || dest_len == 0) {
+        return 0;
+    }
+    
+    // Only handle JPEG files for now
+    if (!is_jpeg(src, src_len)) {
+        return 0;
+    }
+    
+    // First check for existing XMP metadata in the JPEG file
+    int xmp_len = jpeg_extract_xmp(src, src_len, dest, dest_len);
+    if (xmp_len > 0) {
+        return xmp_len;
+    }
+    
+    // Generate XMP ONLY for YCbCr with transform 1 (Adobe marker present)
+    // as this is the critical case that browsers need for proper display
+    int colorspace = 0;
+    int color_transform = 0;
+    
+    if (opencv_get_jpeg_color_info(src, src_len, &colorspace, &color_transform) &&
+        colorspace == 2 && color_transform == 1) {
+        return generate_color_xmp(colorspace, color_transform, dest, dest_len);
+    }
+    
+    return 0; // No existing XMP and not a critical case
 }
