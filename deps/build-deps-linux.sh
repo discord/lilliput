@@ -180,7 +180,7 @@ echo '\n--------------------'
 echo 'Building libpng'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libpng
-tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
+tar -xf $SRCDIR/libpng-1.6.47.tar -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
 CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" \
