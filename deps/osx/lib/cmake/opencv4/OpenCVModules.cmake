@@ -104,7 +104,7 @@ set_target_properties(opencv_photo PROPERTIES
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libavif.a;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libjpeg.a;\$<LINK_ONLY:libwebp>;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libpng.a;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;\$<LINK_ONLY:libopenjp2>;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;-framework AppKit"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libjpeg.a;\$<LINK_ONLY:libwebp>;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libpng.a;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;\$<LINK_ONLY:libopenjp2>;/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;-framework AppKit"
 )
 
 # Create imported target opencv_highgui
