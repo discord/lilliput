@@ -146,7 +146,7 @@ int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
     case DISPOSE_PREVIOUS:
         return GIF_DISPOSE_PREVIOUS;
     default: // DISPOSAL_UNSPECIFIED
-        return GIF_DISPOSE_NONE;
+        return GIF_DISPOSE_BACKGROUND;
     }
 }
 
