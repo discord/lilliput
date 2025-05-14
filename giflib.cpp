@@ -146,7 +146,7 @@ int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
     case DISPOSE_PREVIOUS:
         return GIF_DISPOSE_PREVIOUS;
     default: // DISPOSAL_UNSPECIFIED
-        return GIF_DISPOSE_NONE;
+        return GIF_DISPOSE_BACKGROUND;
     }
 }
 
@@ -721,9 +721,18 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
 
     e->prev_frame_bgra = (uint8_t*)(malloc(width * height * 4));
 
-    // preserve # of palette entries and aspect ratio of original gif
+    // preserve # of palette entries, aspect ratio, and background color of original gif
     e->gif->SColorResolution = d->gif->SColorResolution;
     e->gif->AspectByte = d->gif->AspectByte;
+    
+    // Ensure background color is properly set
+    if (d->gif->SColorMap && d->gif->SBackGroundColor >= 0 && 
+        d->gif->SBackGroundColor < d->gif->SColorMap->ColorCount) {
+        e->gif->SBackGroundColor = d->gif->SBackGroundColor;
+    } else {
+        // Default to white background if no valid background color
+        e->gif->SBackGroundColor = 0;
+    }
 
     // copy global color palette, if any
     if (d->gif->SColorMap) {
@@ -791,6 +800,25 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
             eb_out->Function = eb_in->Function;
             eb_out->Bytes = giflib_encoder_allocate_gif_bytes(e, eb_out->ByteCount);
             memmove(eb_out->Bytes, eb_in->Bytes, eb_out->ByteCount);
+        }
+    }
+
+    // Fix GCB disposal mode for DISPOSAL_UNSPECIFIED
+    GraphicsControlBlock gcb;
+    if (giflib_get_frame_gcb(e->gif, &gcb)) {
+        if (gcb.DisposalMode == DISPOSAL_UNSPECIFIED) {
+            // For backward compatibility, treat DISPOSAL_UNSPECIFIED as DISPOSE_BACKGROUND
+            gcb.DisposalMode = DISPOSE_BACKGROUND;
+            giflib_set_frame_gcb(e->gif, &gcb);
+        }
+        
+        // If the transparent color is the background color, remove transparency
+        if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
+            ColorMapObject* color_map = e->frame_color_map ? e->frame_color_map : e->gif->SColorMap;
+            if (color_map && gcb.TransparentColor == e->gif->SBackGroundColor) {
+                gcb.TransparentColor = NO_TRANSPARENT_COLOR;
+                giflib_set_frame_gcb(e->gif, &gcb);
+            }
         }
     }
 
