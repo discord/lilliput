@@ -146,7 +146,7 @@ int giflib_decoder_get_prev_frame_disposal(const giflib_decoder d)
     case DISPOSE_PREVIOUS:
         return GIF_DISPOSE_PREVIOUS;
     default: // DISPOSAL_UNSPECIFIED
-        return GIF_DISPOSE_BACKGROUND;
+        return GIF_DISPOSE_NONE;
     }
 }
 
@@ -833,12 +833,6 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
     // Fix GCB disposal mode for DISPOSAL_UNSPECIFIED
     GraphicsControlBlock gcb;
     if (giflib_get_frame_gcb(e->gif, &gcb)) {
-        if (gcb.DisposalMode == DISPOSAL_UNSPECIFIED) {
-            // For backward compatibility, treat DISPOSAL_UNSPECIFIED as DISPOSE_BACKGROUND
-            gcb.DisposalMode = DISPOSE_BACKGROUND;
-            giflib_set_frame_gcb(e->gif, &gcb);
-        }
-        
         // GIF transparency optimization: If the transparent color matches the background color,
         // we can remove the transparency, but only when the background is fully opaque (alpha=255).
         // This prevents incorrect removal of transparency when the background has transparency.
