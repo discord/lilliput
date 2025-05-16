@@ -206,7 +206,6 @@ static bool giflib_get_frame_gcb(GifFileType* gif, GraphicsControlBlock* gcb)
     gcb->DisposalMode = DISPOSAL_UNSPECIFIED;
     gcb->UserInputFlag = false;
     gcb->DelayTime = 0;
-    gcb->TransparentColor = NO_TRANSPARENT_COLOR;
 
     bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
@@ -538,17 +537,38 @@ static void extract_background_color(GifFileType* gif,
                                      uint8_t* a)
 {
     bool have_transparency = (gcb->TransparentColor != NO_TRANSPARENT_COLOR);
+    
     if (have_transparency) {
-        *r = *g = *b = *a = 0;
+        // For transparent GIFs, use background color with alpha=0 to preserve color information
+        if (gif->SColorMap && gif->SColorMap->Colors && 
+            gif->SBackGroundColor >= 0 && 
+            gif->SBackGroundColor < gif->SColorMap->ColorCount) {
+            *r = gif->SColorMap->Colors[gif->SBackGroundColor].Red;
+            *g = gif->SColorMap->Colors[gif->SBackGroundColor].Green;
+            *b = gif->SColorMap->Colors[gif->SBackGroundColor].Blue;
+        } else {
+            // Default to white (with alpha=0) if no valid background color index
+            *r = 255;
+            *g = 255;
+            *b = 255;
+        }
+        *a = 0; // Always transparent if GCB has transparency
     }
-    else if (gif->SColorMap && gif->SColorMap->Colors) {
+    else if (gif->SColorMap && gif->SColorMap->Colors && 
+            gif->SBackGroundColor >= 0 && 
+            gif->SBackGroundColor < gif->SColorMap->ColorCount) {
+        // For non-transparent GIFs with valid background color, use opaque background
         *r = gif->SColorMap->Colors[gif->SBackGroundColor].Red;
         *g = gif->SColorMap->Colors[gif->SBackGroundColor].Green;
         *b = gif->SColorMap->Colors[gif->SBackGroundColor].Blue;
-        *a = 255;
+        *a = 255; // Fully opaque
     }
     else {
-        *r = *g = *b = *a = 255;
+        // Default to white background if no color map or invalid background color index
+        *r = 255;
+        *g = 255;
+        *b = 255;
+        *a = 255;
     }
 }
 
@@ -743,6 +763,13 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
         memmove(e->gif->SColorMap->Colors,
                 d->gif->SColorMap->Colors,
                 e->gif->SColorMap->ColorCount * sizeof(GifColorType));
+                
+        if (d->gif->SBackGroundColor >= 0 && 
+            d->gif->SBackGroundColor < d->gif->SColorMap->ColorCount) {
+            e->gif->SBackGroundColor = d->gif->SBackGroundColor;
+        } else {
+            e->gif->SBackGroundColor = 0;
+        }
     }
 
     int res = EGifPutScreenDesc(e->gif,
@@ -812,10 +839,15 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
             giflib_set_frame_gcb(e->gif, &gcb);
         }
         
-        // If the transparent color is the background color, remove transparency
+        // GIF transparency optimization: If the transparent color matches the background color,
+        // we can remove the transparency, but only when the background is fully opaque (alpha=255).
+        // This prevents incorrect removal of transparency when the background has transparency.
         if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
             ColorMapObject* color_map = e->frame_color_map ? e->frame_color_map : e->gif->SColorMap;
-            if (color_map && gcb.TransparentColor == e->gif->SBackGroundColor) {
+            
+            if (color_map && 
+                gcb.TransparentColor == e->gif->SBackGroundColor && 
+                d->bg_alpha == 255) {
                 gcb.TransparentColor = NO_TRANSPARENT_COLOR;
                 giflib_set_frame_gcb(e->gif, &gcb);
             }
