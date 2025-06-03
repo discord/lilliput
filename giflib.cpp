@@ -839,7 +839,10 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
         if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
             ColorMapObject* color_map = e->frame_color_map ? e->frame_color_map : e->gif->SColorMap;
             
+            // Only perform this optimization when using the global color map to avoid
+            // index mismatches between local and global palettes
             if (color_map && 
+                !e->frame_color_map &&
                 gcb.TransparentColor == e->gif->SBackGroundColor && 
                 d->bg_alpha == 255) {
                 gcb.TransparentColor = NO_TRANSPARENT_COLOR;
