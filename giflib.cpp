@@ -873,24 +873,25 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
     GifFileType* gif_out = e->gif;
     auto frame = static_cast<const cv::Mat*>(opaque_frame);
 
-    // basic bounds checking - would this frame be wider than the global gif width?
-    // if we do partial frames, we'll need to change this to account for top/left
-    if (frame->cols > gif_out->SWidth) {
-        fprintf(stderr, "encountered error, gif frame wider than gif global width\n");
+    // basic bounds checking for partial frames
+    GifImageDesc* im_in = &d->gif->Image;
+    if (im_in->Left + im_in->Width > gif_out->SWidth) {
+        fprintf(stderr, "encountered error, gif frame extends beyond right edge\n");
         return false;
     }
 
-    if (frame->rows > gif_out->SHeight) {
-        fprintf(stderr, "encountered error, gif frame taller than gif global height\n");
+    if (im_in->Top + im_in->Height > gif_out->SHeight) {
+        fprintf(stderr, "encountered error, gif frame extends beyond bottom edge\n");
         return false;
     }
 
     GifImageDesc* im_out = &gif_out->Image;
-    // TODO some day consider making partial frames/make these not 0
-    im_out->Left = 0;
-    im_out->Top = 0;
-    im_out->Width = frame->cols;
-    im_out->Height = frame->rows;
+    // Preserve original frame dimensions to maintain partial frame optimization
+    // The decoder already has the correct frame boundaries from the input GIF
+    im_out->Left = im_in->Left;
+    im_out->Top = im_in->Top;
+    im_out->Width = im_in->Width;
+    im_out->Height = im_in->Height;
 
     int image_size = im_out->Width * im_out->Height;
 
