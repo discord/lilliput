@@ -80,6 +80,16 @@ int decode_func(GifFileType* gif, GifByteType* buf, int len)
     return read_len;
 }
 
+// Custom deleter for GIF files
+struct GifFileDeleter {
+    void operator()(GifFileType* gif) {
+        if (gif) {
+            int error = 0;
+            DGifCloseFile(gif, &error);
+        }
+    }
+};
+
 /**
  * Creates a GIF decoder from an OpenCV matrix.
  *
