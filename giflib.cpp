@@ -80,30 +80,78 @@ int decode_func(GifFileType* gif, GifByteType* buf, int len)
     return read_len;
 }
 
+// Custom deleter for GIF files
+struct GifFileDeleter {
+    void operator()(GifFileType* gif) {
+        if (gif) {
+            int error = 0;
+            DGifCloseFile(gif, &error);
+        }
+    }
+};
+
+/**
+ * Creates a GIF decoder from an OpenCV matrix.
+ *
+ * @param buf Pointer to an OpenCV matrix containing GIF data
+ * @return Pointer to the created decoder, or nullptr if creation fails
+ *
+ * Requirements:
+ * - buf must be a valid pointer to a cv::Mat
+ * - The matrix must contain valid GIF data
+ * - The GIF dimensions must be positive and not cause integer overflow
+ */
 giflib_decoder giflib_decoder_create(const opencv_mat buf)
 {
-    giflib_decoder d = new struct giflib_decoder_struct();
-    memset(d, 0, sizeof(struct giflib_decoder_struct));
-    d->mat = static_cast<const cv::Mat*>(buf);
-
-    int error = 0;
-    GifFileType* gif = DGifOpen(d, decode_func, &error);
-    if (error) {
-        delete d;
-        return NULL;
+    if (!buf) {
+        return nullptr;
     }
-    d->gif = gif;
 
-    // buffer for previous frame's content using vector (no need for explicit error checking)
+    std::unique_ptr<struct giflib_decoder_struct> d;
+    std::unique_ptr<GifFileType, GifFileDeleter> gif;
+    int error = 0;
+
     try {
+        d = std::make_unique<struct giflib_decoder_struct>();
+    } catch (const std::bad_alloc&) {
+        return nullptr;
+    }
+
+    try {
+        d->mat = static_cast<const cv::Mat*>(buf);
+    } catch (const std::bad_cast&) {
+        return nullptr;
+    }
+
+    gif.reset(DGifOpen(d.get(), decode_func, &error));
+    if (error) {
+        return nullptr;
+    }
+    d->gif = gif.get();
+
+    if (d->gif->SWidth <= 0 || d->gif->SHeight <= 0) {
+        // Invalid dimensions
+        return nullptr;
+    }
+
+    // Check if the total size would overflow
+    if (d->gif->SHeight > SIZE_MAX / BYTES_PER_PIXEL ||
+        d->gif->SWidth > SIZE_MAX / (d->gif->SHeight * BYTES_PER_PIXEL)) {
+        return nullptr;
+    }
+
+    try {
+        // buffer for previous frame's content using vector
         d->prev_frame_bgra.resize(d->gif->SWidth * d->gif->SHeight * BYTES_PER_PIXEL);
     } catch (const std::bad_alloc&) {
-        DGifCloseFile(gif, &error);
-        delete d;
-        return NULL;
+        return nullptr;
+    } catch (const std::length_error&) {
+        return nullptr;
     }
 
-    return d;
+    // Release ownership of the GIF file to the decoder
+    gif.release();
+    return d.release();
 }
 
 int giflib_decoder_get_width(const giflib_decoder d)
@@ -399,7 +447,7 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* 
             // 1. Negative offsets: adjust width/height and set offset to 0
             // 2. Frames that extend beyond canvas: clip to canvas boundaries
             // 3. Invalid dimensions: ensure width/height are non-negative
-            
+
             // Handle negative left offset
             if (prev_frame_left < 0) {
                 prev_frame_width += prev_frame_left;
@@ -537,11 +585,11 @@ static void extract_background_color(GifFileType* gif,
                                      uint8_t* a)
 {
     bool have_transparency = (gcb->TransparentColor != NO_TRANSPARENT_COLOR);
-    
+
     if (have_transparency) {
         // For transparent GIFs, use background color with alpha=0 to preserve color information
-        if (gif->SColorMap && gif->SColorMap->Colors && 
-            gif->SBackGroundColor >= 0 && 
+        if (gif->SColorMap && gif->SColorMap->Colors &&
+            gif->SBackGroundColor >= 0 &&
             gif->SBackGroundColor < gif->SColorMap->ColorCount) {
             *r = gif->SColorMap->Colors[gif->SBackGroundColor].Red;
             *g = gif->SColorMap->Colors[gif->SBackGroundColor].Green;
@@ -554,8 +602,8 @@ static void extract_background_color(GifFileType* gif,
         }
         *a = 0; // Always transparent if GCB has transparency
     }
-    else if (gif->SColorMap && gif->SColorMap->Colors && 
-            gif->SBackGroundColor >= 0 && 
+    else if (gif->SColorMap && gif->SColorMap->Colors &&
+            gif->SBackGroundColor >= 0 &&
             gif->SBackGroundColor < gif->SColorMap->ColorCount) {
         // For non-transparent GIFs with valid background color, use opaque background
         *r = gif->SColorMap->Colors[gif->SBackGroundColor].Red;
@@ -744,9 +792,9 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
     // preserve # of palette entries, aspect ratio, and background color of original gif
     e->gif->SColorResolution = d->gif->SColorResolution;
     e->gif->AspectByte = d->gif->AspectByte;
-    
+
     // Ensure background color is properly set
-    if (d->gif->SColorMap && d->gif->SBackGroundColor >= 0 && 
+    if (d->gif->SColorMap && d->gif->SBackGroundColor >= 0 &&
         d->gif->SBackGroundColor < d->gif->SColorMap->ColorCount) {
         e->gif->SBackGroundColor = d->gif->SBackGroundColor;
     } else {
@@ -763,8 +811,8 @@ bool giflib_encoder_init(giflib_encoder e, const giflib_decoder d, int width, in
         memmove(e->gif->SColorMap->Colors,
                 d->gif->SColorMap->Colors,
                 e->gif->SColorMap->ColorCount * sizeof(GifColorType));
-                
-        if (d->gif->SBackGroundColor >= 0 && 
+
+        if (d->gif->SBackGroundColor >= 0 &&
             d->gif->SBackGroundColor < d->gif->SColorMap->ColorCount) {
             e->gif->SBackGroundColor = d->gif->SBackGroundColor;
         } else {
@@ -838,12 +886,12 @@ static bool giflib_encoder_setup_frame(giflib_encoder e, const giflib_decoder d)
         // This prevents incorrect removal of transparency when the background has transparency.
         if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
             ColorMapObject* color_map = e->frame_color_map ? e->frame_color_map : e->gif->SColorMap;
-            
+
             // Only perform this optimization when using the global color map to avoid
             // index mismatches between local and global palettes
-            if (color_map && 
+            if (color_map &&
                 !e->frame_color_map &&
-                gcb.TransparentColor == e->gif->SBackGroundColor && 
+                gcb.TransparentColor == e->gif->SBackGroundColor &&
                 d->bg_alpha == 255) {
                 gcb.TransparentColor = NO_TRANSPARENT_COLOR;
                 giflib_set_frame_gcb(e->gif, &gcb);
