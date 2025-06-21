@@ -32,7 +32,6 @@ extern AVCodec ff_hevc_decoder;
 extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
-extern AVCodec ff_av1_decoder;
 extern AVCodec ff_mp3_decoder;
 extern AVCodec ff_flac_decoder;
 extern AVCodec ff_aac_decoder;
@@ -40,7 +39,7 @@ extern AVCodec ff_vorbis_decoder;
 
 void avcodec_init()
 {
-    av_log_set_level(AV_LOG_ERROR);
+    av_log_set_level(AV_LOG_INFO);
 }
 
 struct avcodec_decoder_struct {
@@ -235,18 +234,26 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
         const AVCodec* dav1d_codec = avcodec_find_decoder_by_name("libdav1d");
         if (dav1d_codec) {
             codec = dav1d_codec;
+            av_log(NULL, AV_LOG_INFO, "Using libdav1d AV1 decoder\n");
         } else {
             // Fallback to built-in AV1 decoder if libdav1d not available
             const AVCodec* builtin_codec = avcodec_find_decoder_by_name("av1");
             if (builtin_codec) {
                 codec = builtin_codec;
+                av_log(NULL, AV_LOG_INFO, "Using built-in av1 decoder\n");
             } else {
                 const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
                 if (libaom_codec) {
                     codec = libaom_codec;
+                    av_log(NULL, AV_LOG_INFO, "Using libaom-av1 decoder\n");
                 } else {
                     // If no named decoder found, try the direct codec lookup
                     codec = avcodec_find_decoder(AV_CODEC_ID_AV1);
+                    if (codec) {
+                        av_log(NULL, AV_LOG_INFO, "Using default AV1 decoder: %s\n", codec->name);
+                    } else {
+                        av_log(NULL, AV_LOG_ERROR, "No AV1 decoder found\n");
+                    }
                 }
             }
         }
