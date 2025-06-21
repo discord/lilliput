@@ -353,6 +353,12 @@ meson setup $BASEDIR/dav1d \
     -Db_lto=true
 ninja
 ninja install
+# Move libdav1d.a from architecture-specific subdirectory to main lib directory
+if [ -f "$PREFIX/lib/x86_64-linux-gnu/libdav1d.a" ]; then
+    mv "$PREFIX/lib/x86_64-linux-gnu/libdav1d.a" "$PREFIX/lib/libdav1d.a"
+elif [ -f "$PREFIX/lib/aarch64-linux-gnu/libdav1d.a" ]; then
+    mv "$PREFIX/lib/aarch64-linux-gnu/libdav1d.a" "$PREFIX/lib/libdav1d.a"
+fi
 verify_arch "$PREFIX/lib/libdav1d.a"
 
 echo '\n--------------------'
