@@ -320,6 +320,26 @@ make install
 verify_arch "$PREFIX/lib/liblcms2.a"
 
 echo '\n--------------------'
+echo 'Building libaom'
+echo '--------------------\n'
+mkdir -p $BASEDIR/aom
+tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
+mkdir -p $BUILDDIR/aom
+cd $BUILDDIR/aom
+cmake $BASEDIR/aom $AOM_CMAKE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DENABLE_TESTS=0 \
+    -DENABLE_TOOLS=0 \
+    -DENABLE_DOCS=0 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
+make
+make install
+verify_arch "$PREFIX/lib/libaom.a"
+
+echo '\n--------------------'
 echo 'Building ffmpeg'
 echo '--------------------\n'
 mkdir -p $BASEDIR/ffmpeg
@@ -377,26 +397,6 @@ cmake --build . --config Release
 cp libyuv.a "$PREFIX/lib"
 cp -r include/* "$PREFIX/include/"
 verify_arch "$PREFIX/lib/libyuv.a"
-
-echo '\n--------------------'
-echo 'Building libaom'
-echo '--------------------\n'
-mkdir -p $BASEDIR/aom
-tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
-mkdir -p $BUILDDIR/aom
-cd $BUILDDIR/aom
-cmake $BASEDIR/aom $AOM_CMAKE_FLAGS \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DENABLE_TESTS=0 \
-    -DENABLE_TOOLS=0 \
-    -DENABLE_DOCS=0 \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
-    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
-make
-make install
-verify_arch "$PREFIX/lib/libaom.a"
 
 echo '\n--------------------'
 echo 'Building libavif'
