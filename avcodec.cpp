@@ -235,9 +235,15 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
         if (dav1d_codec) {
             codec = dav1d_codec;
         } else {
-            const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
-            if (libaom_codec) {
-                codec = libaom_codec;
+            // Fallback to built-in AV1 decoder if libdav1d not available
+            const AVCodec* builtin_codec = avcodec_find_decoder_by_name("av1");
+            if (builtin_codec) {
+                codec = builtin_codec;
+            } else {
+                const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
+                if (libaom_codec) {
+                    codec = libaom_codec;
+                }
             }
         }
     }
@@ -265,12 +271,14 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
         return NULL;
     }
 
-    // Configure AV1 decoder for optimal performance
+    // Configure AV1 decoder for software-only decoding
     if (codec->id == AV_CODEC_ID_AV1) {
-        // libdav1d is software-only, but ensure clean configuration
+        // Explicitly disable hardware acceleration to prevent format errors
         d->codec->hw_device_ctx = NULL;
         d->codec->hwaccel_context = NULL;
         d->codec->hwaccel = NULL;
+        d->codec->get_format = NULL; // Use default software format selection
+        d->codec->thread_count = 0;  // Let FFmpeg choose optimal thread count
     }
 
     res = avcodec_open2(d->codec, codec, NULL);
@@ -360,9 +368,17 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     else {
         uint8_t* displaymatrix = NULL;
 
-        // access side data from stream (modern FFmpeg API)
+        // access side data from stream - handle both old and new FFmpeg APIs
         AVStream* stream = d->container->streams[d->video_stream_index];
-        displaymatrix = av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+        
+        // Try to get display matrix from stream side data
+        for (int i = 0; i < stream->nb_side_data; i++) {
+            if (stream->side_data[i].type == AV_PKT_DATA_DISPLAYMATRIX) {
+                displaymatrix = stream->side_data[i].data;
+                break;
+            }
+        }
+        
         if (displaymatrix) {
             rotation = (360 - (int)(av_display_rotation_get((const int32_t*)displaymatrix))) % 360;
         }
