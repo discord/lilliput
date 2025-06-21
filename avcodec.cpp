@@ -32,6 +32,7 @@ extern AVCodec ff_hevc_decoder;
 extern AVCodec ff_mpeg4_decoder;
 extern AVCodec ff_vp9_decoder;
 extern AVCodec ff_vp8_decoder;
+extern AVCodec ff_av1_decoder;
 extern AVCodec ff_mp3_decoder;
 extern AVCodec ff_flac_decoder;
 extern AVCodec ff_aac_decoder;
@@ -243,6 +244,9 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
                 const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
                 if (libaom_codec) {
                     codec = libaom_codec;
+                } else {
+                    // If no named decoder found, try the direct codec lookup
+                    codec = avcodec_find_decoder(AV_CODEC_ID_AV1);
                 }
             }
         }
@@ -366,9 +370,22 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
         rotation = atoi(tag->value);
     }
     else {
-        // For now, skip display matrix rotation detection to avoid deprecated API
-        // Most rotation information is available via metadata tags above
-        rotation = 0;
+        uint8_t* displaymatrix = NULL;
+        const AVPacketSideData* sd = NULL;
+
+        // access side data from codecpar instead of directly from the stream
+        AVCodecParameters* codecpar = d->container->streams[d->video_stream_index]->codecpar;
+        for (int i = 0; i < codecpar->nb_coded_side_data; i++) {
+            if (codecpar->coded_side_data[i].type == AV_PKT_DATA_DISPLAYMATRIX) {
+                sd = &codecpar->coded_side_data[i];
+                break;
+            }
+        }
+
+        displaymatrix = sd ? sd->data : NULL;
+        if (displaymatrix) {
+            rotation = (360 - (int)(av_display_rotation_get((const int32_t*)displaymatrix))) % 360;
+        }
     }
     switch (rotation) {
     case 90:
@@ -442,6 +459,11 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         return -1;
     }
 
+    // Extra safety check for AV1 decoder context
+    if (!d->codec->codec || !d->codec->codec->decode) {
+        return AVERROR(EINVAL);
+    }
+    
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
         // Calculate the step size based on the cv::Mat's width
