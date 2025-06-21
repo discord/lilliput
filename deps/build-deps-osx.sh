@@ -28,9 +28,23 @@ SRCDIR="$BASEDIR/lilliput-dep-source"
 # Add architecture detection
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
-    export CFLAGS="-arch arm64"
-    export CXXFLAGS="-arch arm64"
-    export LDFLAGS="-arch arm64"
+    export CFLAGS="-arch $ARCH"
+    export CXXFLAGS="-arch $ARCH"
+    export LDFLAGS="-arch $ARCH"
+    FFMPEG_ARCH_FLAGS="--arch=arm64"
+    CMAKE_ARCH="arm64"
+    ARCH_SPECIFIC_CFLAGS="$ARCH_SPECIFIC_CFLAGS"
+elif [ "$ARCH" = "x86_64" ]; then
+    export CFLAGS="-arch x86_64"
+    export CXXFLAGS="-arch x86_64"
+    export LDFLAGS="-arch x86_64"
+    FFMPEG_ARCH_FLAGS="--arch=x86_64"
+    CMAKE_ARCH="x86_64"
+    ARCH_SPECIFIC_CFLAGS="-march=x86-64-v2 -mtune=generic"
+else
+    FFMPEG_ARCH_FLAGS=""
+    CMAKE_ARCH="$(uname -m)"
+    ARCH_SPECIFIC_CFLAGS=""
 fi
 
 mkdir -p "$PREFIX/include"
@@ -70,7 +84,7 @@ cmake $BASEDIR/libjpeg-turbo \
     -DENABLE_SHARED=0 \
     -DWITH_JPEG8=1 \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES=$CMAKE_ARCH \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
     -DCMAKE_C_FLAGS="-mmacosx-version-min=14.0" \
     -DCMAKE_CXX_FLAGS="-mmacosx-version-min=14.0"
@@ -154,10 +168,10 @@ mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
 cmake $BASEDIR/opencv \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES=$CMAKE_ARCH \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
-    -DCMAKE_C_FLAGS="-arch arm64 -I$PREFIX/include -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
-    -DCMAKE_CXX_FLAGS="-arch arm64 -I$PREFIX/include -stdlib=libc++ -std=c++11 -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_C_FLAGS="-arch $ARCH -I$PREFIX/include -O3 $ARCH_SPECIFIC_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="-arch $ARCH -I$PREFIX/include -stdlib=libc++ -std=c++11 -O3 $ARCH_SPECIFIC_CFLAGS" \
     -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
     -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
     -DCMAKE_MODULE_LINKER_FLAGS="-stdlib=libc++" \
@@ -233,7 +247,7 @@ make
 make install
 
 # macOS 15 needs more specific include paths and nostdinc++
-CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
+CXX_FLAGS="-O3 $ARCH_SPECIFIC_CFLAGS -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
 
 echo '\n--------------------'
 echo 'Building libdav1d'
@@ -265,9 +279,9 @@ tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
 mkdir -p $BUILDDIR/aom
 cd $BUILDDIR/aom
 cmake $BASEDIR/aom \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES=$CMAKE_ARCH \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
-    -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_C_FLAGS="-O3 $ARCH_SPECIFIC_CFLAGS" \
     -DCMAKE_CXX_FLAGS="$CXX_FLAGS" \
     -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
     -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
@@ -297,7 +311,32 @@ tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
-$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=av1 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --enable-libaom --enable-libdav1d --disable-iconv --arch=arm64 --enable-cross-compile --target-os=darwin
+$BASEDIR/ffmpeg/configure \
+    --prefix=$PREFIX \
+    --disable-doc \
+    --disable-programs \
+    --disable-everything \
+    --enable-demuxer=mov \
+    --enable-demuxer=matroska \
+    --enable-demuxer=aac \
+    --enable-demuxer=flac \
+    --enable-demuxer=mp3 \
+    --enable-demuxer=ogg \
+    --enable-demuxer=wav \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=h264 \
+    --enable-decoder=hevc \
+    --enable-decoder=vp9 \
+    --enable-decoder=vp8 \
+    --enable-decoder=av1 \
+    --enable-decoder=flac \
+    --enable-decoder=mp3 \
+    --enable-decoder=aac \
+    --enable-decoder=vorbis \
+    --enable-libaom \
+    --enable-libdav1d \
+    --disable-iconv \
+    $FFMPEG_ARCH_FLAGS
 make
 make install
 
@@ -312,10 +351,10 @@ mkdir -p $BUILDDIR/libyuv
 cd $BUILDDIR/libyuv
 
 cmake $BASEDIR/libyuv \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES=$CMAKE_ARCH \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
-    -DCMAKE_C_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
-    -DCMAKE_CXX_FLAGS="-arch arm64 -fPIC -O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -std=c++11" \
+    -DCMAKE_C_FLAGS="-arch $ARCH -fPIC -O3 $ARCH_SPECIFIC_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="-arch $ARCH -fPIC -O3 $ARCH_SPECIFIC_CFLAGS -std=c++11" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -343,10 +382,10 @@ tar -xzf $SRCDIR/libavif-1.1.1.tar.gz -C $BASEDIR/libavif --strip-components 1
 mkdir -p $BUILDDIR/libavif
 cd $BUILDDIR/libavif
 cmake $BASEDIR/libavif \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES=$CMAKE_ARCH \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
-    -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
-    -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
+    -DCMAKE_C_FLAGS="-O3 $ARCH_SPECIFIC_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="-O3 $ARCH_SPECIFIC_CFLAGS" \
     -DAVIF_CODEC_AOM=SYSTEM \
     -DAVIF_CODEC_DAV1D=SYSTEM \
     -DAVIF_BUILD_APPS=OFF \
