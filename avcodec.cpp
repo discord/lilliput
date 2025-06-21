@@ -39,7 +39,7 @@ extern AVCodec ff_vorbis_decoder;
 
 void avcodec_init()
 {
-    av_log_set_level(AV_LOG_ERROR);
+    av_log_set_level(AV_LOG_INFO);
 }
 
 struct avcodec_decoder_struct {
@@ -154,7 +154,7 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat)
     return false;
 }
 
-avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled)
+avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled, const bool av1_enabled)
 {
     avcodec_decoder d = new struct avcodec_decoder_struct();
     memset(d, 0, sizeof(struct avcodec_decoder_struct));
@@ -228,6 +228,37 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     }
 
     const AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
+    
+    // For AV1, prefer libdav1d decoder for better performance and stability
+    if (codec_params->codec_id == AV_CODEC_ID_AV1) {
+        const AVCodec* dav1d_codec = avcodec_find_decoder_by_name("libdav1d");
+        if (dav1d_codec) {
+            codec = dav1d_codec;
+            av_log(NULL, AV_LOG_INFO, "Using libdav1d AV1 decoder\n");
+        } else {
+            // Fallback to built-in AV1 decoder if libdav1d not available
+            const AVCodec* builtin_codec = avcodec_find_decoder_by_name("av1");
+            if (builtin_codec) {
+                codec = builtin_codec;
+                av_log(NULL, AV_LOG_INFO, "Using built-in av1 decoder\n");
+            } else {
+                const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
+                if (libaom_codec) {
+                    codec = libaom_codec;
+                    av_log(NULL, AV_LOG_INFO, "Using libaom-av1 decoder\n");
+                } else {
+                    // If no named decoder found, try the direct codec lookup
+                    codec = avcodec_find_decoder(AV_CODEC_ID_AV1);
+                    if (codec) {
+                        av_log(NULL, AV_LOG_INFO, "Using default AV1 decoder: %s\n", codec->name);
+                    } else {
+                        av_log(NULL, AV_LOG_ERROR, "No AV1 decoder found\n");
+                    }
+                }
+            }
+        }
+    }
+    
     if (!codec) {
         avcodec_decoder_release(d);
         return NULL;
@@ -238,12 +269,27 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
         return NULL;
     }
 
+    if (codec->id == AV_CODEC_ID_AV1 && !av1_enabled) {
+        avcodec_decoder_release(d);
+        return NULL;
+    }
+
     d->codec = avcodec_alloc_context3(codec);
 
     res = avcodec_parameters_to_context(d->codec, codec_params);
     if (res < 0) {
         avcodec_decoder_release(d);
         return NULL;
+    }
+
+    // Configure AV1 decoder for software-only decoding
+    if (codec->id == AV_CODEC_ID_AV1) {
+        // Explicitly disable hardware acceleration to prevent format errors
+        d->codec->hw_device_ctx = NULL;
+        d->codec->hwaccel_context = NULL;
+        d->codec->hwaccel = NULL;
+        d->codec->get_format = NULL; // Use default software format selection
+        d->codec->thread_count = 0;  // Let FFmpeg choose optimal thread count
     }
 
     res = avcodec_open2(d->codec, codec, NULL);
@@ -411,8 +457,20 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
 
 static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
 {
+    if (!d || !d->codec || !mat || !frame) {
+        return -1;
+    }
+    
     auto cvMat = static_cast<cv::Mat*>(mat);
+    if (!cvMat) {
+        return -1;
+    }
 
+    // Extra safety check for AV1 decoder context
+    if (!d->codec->codec) {
+        return AVERROR(EINVAL);
+    }
+    
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
         // Calculate the step size based on the cv::Mat's width
@@ -512,6 +570,9 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
         return false;
     }
     if (!d->codec) {
+        return false;
+    }
+    if (!mat) {
         return false;
     }
     AVPacket packet;
