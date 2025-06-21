@@ -359,18 +359,10 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     }
     else {
         uint8_t* displaymatrix = NULL;
-        const AVPacketSideData* sd = NULL;
 
-        // access side data from codecpar instead of directly from the stream
-        AVCodecParameters* codecpar = d->container->streams[d->video_stream_index]->codecpar;
-        for (int i = 0; i < codecpar->nb_coded_side_data; i++) {
-            if (codecpar->coded_side_data[i].type == AV_PKT_DATA_DISPLAYMATRIX) {
-                sd = &codecpar->coded_side_data[i];
-                break;
-            }
-        }
-
-        displaymatrix = sd ? sd->data : NULL;
+        // access side data from stream (modern FFmpeg API)
+        AVStream* stream = d->container->streams[d->video_stream_index];
+        displaymatrix = av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, NULL);
         if (displaymatrix) {
             rotation = (360 - (int)(av_display_rotation_get((const int32_t*)displaymatrix))) % 360;
         }
