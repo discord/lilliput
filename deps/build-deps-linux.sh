@@ -116,6 +116,15 @@ verify_arch() {
     esac
 }
 
+echo '\n--------------------'
+echo 'Installing build tools'
+echo '--------------------\n'
+
+if ! command -v meson >/dev/null 2>&1; then
+    echo "Installing meson and ninja..."
+    sudo apt-get update && sudo apt-get install -y meson ninja-build python3-setuptools
+fi
+
 BASEDIR=$(cd $(dirname "$0") && pwd)
 PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
@@ -138,10 +147,11 @@ rm -rf lcms
 rm -rf ffmpeg
 rm -rf libyuv
 rm -rf aom
+rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.4.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch skidder/add-libdav1d https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -320,12 +330,66 @@ make install
 verify_arch "$PREFIX/lib/liblcms2.a"
 
 echo '\n--------------------'
+echo 'Building libdav1d'
+echo '--------------------\n'
+mkdir -p $BASEDIR/dav1d
+tar -xzf $SRCDIR/dav1d-1.5.1.tar.gz -C $BASEDIR/dav1d --strip-components 1
+mkdir -p $BUILDDIR/dav1d
+cd $BUILDDIR/dav1d
+meson setup $BASEDIR/dav1d \
+    --prefix=$PREFIX \
+    --default-library=static \
+    --buildtype=release \
+    -Denable_tools=false \
+    -Denable_tests=false \
+    --cross-file=$BASEDIR/meson-cross-$ARCH.txt 2>/dev/null || \
+meson setup $BASEDIR/dav1d \
+    --prefix=$PREFIX \
+    --default-library=static \
+    --buildtype=release \
+    -Denable_tools=false \
+    -Denable_tests=false \
+    -Db_lto=true
+ninja
+ninja install
+# Move libdav1d.a and dav1d.pc from architecture-specific subdirectory to main directories (AMD64 only)
+mkdir -p "$PREFIX/lib/pkgconfig"
+if [ -f "$PREFIX/lib/x86_64-linux-gnu/libdav1d.a" ]; then
+    mv "$PREFIX/lib/x86_64-linux-gnu/libdav1d.a" "$PREFIX/lib/libdav1d.a"
+fi
+if [ -f "$PREFIX/lib/x86_64-linux-gnu/pkgconfig/dav1d.pc" ]; then
+    mv "$PREFIX/lib/x86_64-linux-gnu/pkgconfig/dav1d.pc" "$PREFIX/lib/pkgconfig/dav1d.pc"
+fi
+verify_arch "$PREFIX/lib/libdav1d.a"
+
+echo '\n--------------------'
+echo 'Building libaom'
+echo '--------------------\n'
+mkdir -p $BASEDIR/aom
+tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
+mkdir -p $BUILDDIR/aom
+cd $BUILDDIR/aom
+cmake $BASEDIR/aom $AOM_CMAKE_FLAGS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DENABLE_TESTS=0 \
+    -DENABLE_TOOLS=0 \
+    -DENABLE_DOCS=0 \
+    -DCMAKE_INSTALL_PREFIX=$PREFIX \
+    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
+make
+make install
+verify_arch "$PREFIX/lib/libaom.a"
+
+echo '\n--------------------'
 echo 'Building ffmpeg'
 echo '--------------------\n'
 mkdir -p $BASEDIR/ffmpeg
 tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
+export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
 $BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
     --prefix=$PREFIX \
     --disable-doc \
@@ -343,10 +407,15 @@ $BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
     --enable-decoder=hevc \
     --enable-decoder=vp9 \
     --enable-decoder=vp8 \
+    --enable-decoder=av1 \
     --enable-decoder=flac \
     --enable-decoder=mp3 \
     --enable-decoder=aac \
     --enable-decoder=vorbis \
+    --enable-decoder=libaom \
+    --enable-decoder=libdav1d \
+    --enable-libaom \
+    --enable-libdav1d \
     --disable-iconv \
     --disable-cuda \
     --disable-cuvid \
@@ -377,26 +446,6 @@ cp -r include/* "$PREFIX/include/"
 verify_arch "$PREFIX/lib/libyuv.a"
 
 echo '\n--------------------'
-echo 'Building libaom'
-echo '--------------------\n'
-mkdir -p $BASEDIR/aom
-tar -xzf $SRCDIR/libaom-3.11.0.tar.gz -C $BASEDIR/aom
-mkdir -p $BUILDDIR/aom
-cd $BUILDDIR/aom
-cmake $BASEDIR/aom $AOM_CMAKE_FLAGS \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DENABLE_TESTS=0 \
-    -DENABLE_TOOLS=0 \
-    -DENABLE_DOCS=0 \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_C_FLAGS="$ARCH_CFLAGS" \
-    -DCMAKE_CXX_FLAGS="$ARCH_CXXFLAGS"
-make
-make install
-verify_arch "$PREFIX/lib/libaom.a"
-
-echo '\n--------------------'
 echo 'Building libavif'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libavif
@@ -406,11 +455,14 @@ cd $BUILDDIR/libavif
 cmake $BASEDIR/libavif $CMAKE_CROSS_COMPILE_FLAGS \
     -DCMAKE_BUILD_TYPE=Release \
     -DAVIF_CODEC_AOM=SYSTEM \
+    -DAVIF_CODEC_DAV1D=SYSTEM \
     -DAVIF_BUILD_APPS=OFF \
     -DLIBYUV_LIBRARY=$PREFIX/lib/libyuv.a \
     -DLIBYUV_INCLUDE_DIR=$PREFIX/include \
     -DAOM_LIBRARY=$PREFIX/lib/libaom.a \
     -DAOM_INCLUDE_DIR=$PREFIX/include \
+    -DDAV1D_LIBRARY=$PREFIX/lib/libdav1d.a \
+    -DDAV1D_INCLUDE_DIR=$PREFIX/include \
     -DCMAKE_PREFIX_PATH=$PREFIX \
     -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
