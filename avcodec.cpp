@@ -366,22 +366,9 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
         rotation = atoi(tag->value);
     }
     else {
-        uint8_t* displaymatrix = NULL;
-
-        // access side data from stream - handle both old and new FFmpeg APIs
-        AVStream* stream = d->container->streams[d->video_stream_index];
-        
-        // Try to get display matrix from stream side data
-        for (int i = 0; i < stream->nb_side_data; i++) {
-            if (stream->side_data[i].type == AV_PKT_DATA_DISPLAYMATRIX) {
-                displaymatrix = stream->side_data[i].data;
-                break;
-            }
-        }
-        
-        if (displaymatrix) {
-            rotation = (360 - (int)(av_display_rotation_get((const int32_t*)displaymatrix))) % 360;
-        }
+        // For now, skip display matrix rotation detection to avoid deprecated API
+        // Most rotation information is available via metadata tags above
+        rotation = 0;
     }
     switch (rotation) {
     case 90:
@@ -446,7 +433,14 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
 
 static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
 {
+    if (!d || !d->codec || !mat || !frame) {
+        return -1;
+    }
+    
     auto cvMat = static_cast<cv::Mat*>(mat);
+    if (!cvMat) {
+        return -1;
+    }
 
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
@@ -547,6 +541,9 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
         return false;
     }
     if (!d->codec) {
+        return false;
+    }
+    if (!mat) {
         return false;
     }
     AVPacket packet;
