@@ -116,6 +116,15 @@ verify_arch() {
     esac
 }
 
+echo '\n--------------------'
+echo 'Installing build tools'
+echo '--------------------\n'
+
+if ! command -v meson >/dev/null 2>&1; then
+    echo "Installing meson and ninja..."
+    sudo apt-get update && sudo apt-get install -y meson ninja-build python3-setuptools
+fi
+
 BASEDIR=$(cd $(dirname "$0") && pwd)
 PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
@@ -327,11 +336,6 @@ mkdir -p $BASEDIR/dav1d
 tar -xzf $SRCDIR/dav1d-1.5.1.tar.gz -C $BASEDIR/dav1d --strip-components 1
 mkdir -p $BUILDDIR/dav1d
 cd $BUILDDIR/dav1d
-# Install meson and ninja if not available
-if ! command -v meson >/dev/null 2>&1; then
-    echo "Installing meson and ninja..."
-    apt-get update && apt-get install -y meson ninja-build python3-setuptools
-fi
 meson setup $BASEDIR/dav1d \
     --prefix=$PREFIX \
     --default-library=static \
