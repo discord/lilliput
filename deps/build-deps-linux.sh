@@ -346,6 +346,7 @@ mkdir -p $BASEDIR/ffmpeg
 tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
+export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
 $BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
     --prefix=$PREFIX \
     --disable-doc \
