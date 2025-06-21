@@ -413,6 +413,8 @@ $BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
     --enable-decoder=mp3 \
     --enable-decoder=aac \
     --enable-decoder=vorbis \
+    --enable-decoder=libaom \
+    --enable-decoder=libdav1d \
     --enable-libaom \
     --enable-libdav1d \
     --disable-iconv \

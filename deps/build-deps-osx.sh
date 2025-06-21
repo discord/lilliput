@@ -333,6 +333,8 @@ $BASEDIR/ffmpeg/configure \
     --enable-decoder=mp3 \
     --enable-decoder=aac \
     --enable-decoder=vorbis \
+    --enable-decoder=libaom \
+    --enable-decoder=libdav1d \
     --enable-libaom \
     --enable-libdav1d \
     --disable-iconv \
