@@ -50,10 +50,11 @@ rm -rf lcms
 rm -rf ffmpeg
 rm -rf libyuv
 rm -rf aom
+rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.4.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch skidder/add-libdav1d https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -235,6 +236,28 @@ make install
 CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1 -stdlib=libc++ -std=c++11 -nostdinc++ -isystem /Library/Developer/CommandLineTools/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
 
 echo '\n--------------------'
+echo 'Building libdav1d'
+echo '--------------------\n'
+mkdir -p $BASEDIR/dav1d
+tar -xzf $SRCDIR/dav1d-1.5.1.tar.gz -C $BASEDIR/dav1d --strip-components 1
+mkdir -p $BUILDDIR/dav1d
+cd $BUILDDIR/dav1d
+# Install meson if not available
+if ! command -v meson >/dev/null 2>&1; then
+    echo "Installing meson..."
+    brew install meson
+fi
+meson setup $BASEDIR/dav1d \
+    --prefix=$PREFIX \
+    --default-library=static \
+    --buildtype=release \
+    -Denable_tools=false \
+    -Denable_tests=false \
+    -Db_lto=true
+ninja
+ninja install
+
+echo '\n--------------------'
 echo 'Building libaom'
 echo '--------------------\n'
 mkdir -p $BASEDIR/aom
@@ -274,7 +297,7 @@ tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
-$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=av1 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --enable-libaom --disable-iconv --arch=arm64 --enable-cross-compile --target-os=darwin
+$BASEDIR/ffmpeg/configure --prefix=$PREFIX --disable-doc --disable-programs --disable-everything --enable-demuxer=mov --enable-demuxer=matroska --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-decoder=mpeg4 --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=vp9 --enable-decoder=vp8 --enable-decoder=av1 --enable-decoder=flac --enable-decoder=mp3 --enable-decoder=aac --enable-decoder=vorbis --enable-libaom --enable-libdav1d --disable-iconv --arch=arm64 --enable-cross-compile --target-os=darwin
 make
 make install
 
@@ -325,12 +348,15 @@ cmake $BASEDIR/libavif \
     -DCMAKE_C_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a+crc+crypto -mtune=apple-m1" \
     -DAVIF_CODEC_AOM=SYSTEM \
+    -DAVIF_CODEC_DAV1D=SYSTEM \
     -DAVIF_BUILD_APPS=OFF \
     -DAVIF_ENABLE_NEON=ON \
     -DLIBYUV_LIBRARY=$PREFIX/lib/libyuv.a \
     -DLIBYUV_INCLUDE_DIR=$PREFIX/include \
     -DAOM_LIBRARY=$PREFIX/lib/libaom.a \
     -DAOM_INCLUDE_DIR=$PREFIX/include \
+    -DDAV1D_LIBRARY=$PREFIX/lib/libdav1d.a \
+    -DDAV1D_INCLUDE_DIR=$PREFIX/include \
     -DJPEG_INCLUDE_DIR=$PREFIX/include \
     -DJPEG_LIBRARY=$PREFIX/lib/libjpeg.a \
     -DPNG_PNG_INCLUDE_DIR=$PREFIX/include \

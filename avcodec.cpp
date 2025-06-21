@@ -228,6 +228,20 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     }
 
     const AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
+    
+    // For AV1, prefer libdav1d decoder for better performance and stability
+    if (codec_params->codec_id == AV_CODEC_ID_AV1) {
+        const AVCodec* dav1d_codec = avcodec_find_decoder_by_name("libdav1d");
+        if (dav1d_codec) {
+            codec = dav1d_codec;
+        } else {
+            const AVCodec* libaom_codec = avcodec_find_decoder_by_name("libaom-av1");
+            if (libaom_codec) {
+                codec = libaom_codec;
+            }
+        }
+    }
+    
     if (!codec) {
         avcodec_decoder_release(d);
         return NULL;
@@ -249,6 +263,14 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     if (res < 0) {
         avcodec_decoder_release(d);
         return NULL;
+    }
+
+    // Configure AV1 decoder for optimal performance
+    if (codec->id == AV_CODEC_ID_AV1) {
+        // libdav1d is software-only, but ensure clean configuration
+        d->codec->hw_device_ctx = NULL;
+        d->codec->hwaccel_context = NULL;
+        d->codec->hwaccel = NULL;
     }
 
     res = avcodec_open2(d->codec, codec, NULL);
