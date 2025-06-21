@@ -460,7 +460,7 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
     }
 
     // Extra safety check for AV1 decoder context
-    if (!d->codec->codec || !d->codec->codec->decode) {
+    if (!d->codec->codec) {
         return AVERROR(EINVAL);
     }
     
