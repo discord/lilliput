@@ -343,10 +343,12 @@ $BASEDIR/ffmpeg/configure $FFMPEG_CROSS_COMPILE_FLAGS \
     --enable-decoder=hevc \
     --enable-decoder=vp9 \
     --enable-decoder=vp8 \
+    --enable-decoder=av1 \
     --enable-decoder=flac \
     --enable-decoder=mp3 \
     --enable-decoder=aac \
     --enable-decoder=vorbis \
+    --enable-libaom \
     --disable-iconv \
     --disable-cuda \
     --disable-cuvid \

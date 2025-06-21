@@ -11,7 +11,7 @@ typedef struct avcodec_decoder_struct* avcodec_decoder;
 
 void avcodec_init();
 
-avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled);
+avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled, const bool av1_enabled);
 void avcodec_decoder_release(avcodec_decoder d);
 int avcodec_decoder_get_width(const avcodec_decoder d);
 int avcodec_decoder_get_height(const avcodec_decoder d);

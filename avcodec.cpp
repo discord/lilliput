@@ -154,7 +154,7 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat)
     return false;
 }
 
-avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled)
+avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled, const bool av1_enabled)
 {
     avcodec_decoder d = new struct avcodec_decoder_struct();
     memset(d, 0, sizeof(struct avcodec_decoder_struct));
@@ -234,6 +234,11 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     }
 
     if (codec->id == AV_CODEC_ID_HEVC && !hevc_enabled) {
+        avcodec_decoder_release(d);
+        return NULL;
+    }
+
+    if (codec->id == AV_CODEC_ID_AV1 && !av1_enabled) {
         avcodec_decoder_release(d);
         return NULL;
     }
