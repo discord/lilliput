@@ -16,6 +16,10 @@ const atomHeaderSize = 8
 // Enable by building/running with "-ldflags=-X=github.com/discord/lilliput.hevcEnabled=true"
 var hevcEnabled string
 
+// Set AV1 decoder enablement behind a build flag, defaults to off
+// Enable by building/running with "-ldflags=-X=github.com/discord/lilliput.av1Enabled=true"
+var av1Enabled string
+
 // avCodecDecoder handles decoding of various video/image formats using FFmpeg's avcodec.
 type avCodecDecoder struct {
 	decoder      C.avcodec_decoder
@@ -35,7 +39,7 @@ func newAVCodecDecoder(buf []byte) (*avCodecDecoder, error) {
 		return nil, ErrBufTooSmall
 	}
 
-	decoder := C.avcodec_decoder_create(mat, hevcEnabled == "true")
+	decoder := C.avcodec_decoder_create(mat, hevcEnabled == "true", av1Enabled == "true")
 	if decoder == nil {
 		C.opencv_mat_release(mat)
 		return nil, ErrInvalidImage
