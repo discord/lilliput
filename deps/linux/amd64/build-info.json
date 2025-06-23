@@ -1,5 +1,5 @@
 {
-    "commit_sha": "bbc47152aa9d08a1707bf3063974e3a6b6aa8465",
+    "commit_sha": "1281d197ab79a0381a8594bca9f6478820910aec",
     "platform": "linux-amd64",
     "files": {
         "lib/libbz2.a": "1a70d2198c7f01ae64afee80175a046e56f715a7a780554d73de51bad7766da4",
@@ -11,10 +11,10 @@
         "lib/libgif.a": "377a009917c7e2a3f7488b3da9fdf07907dcb4ed56500e861a9ff0f60ce257fa",
         "lib/libaom.a": "cd0caa5b56a58b99a1a6a2000cbc98576778ac270dd6b57fbbddb9f0621bd1c3",
         "lib/libwebp.a": "b9d627f4c5fb42da953e90c516bb8f94fa99644d2fd2ec6b2a22ac5c3a0c6b24",
-        "lib/libturbojpeg.a": "340d938d00daa25e2663b046f1efec8b110380a6fc38902d3b786ac4a454a2fa",
+        "lib/libturbojpeg.a": "9b0d6f11ec6b07b5d30837f5cff3e643a6d0b177331df20f7a194c0716f28cff",
         "lib/libavif.a": "c13c1e6d0790e5d6fd93ca8c8dec32d505b0663bee458ecc91748e9f0255b513",
         "lib/libz.a": "1ad7d37baa185ec02f83a8f82e2b6b9aea45615fc015d604391e93d7d5e8c96a",
-        "lib/libjpeg.a": "d4c42ed5716a38c8ed515603788b2b05d9754ed1191e14b666b3a09b039c3d58",
+        "lib/libjpeg.a": "3b78e7e3144236e059932e2ea1b9d79f259cbeea34d626369cd1a8efc35932ec",
         "lib/libavdevice.a": "35a9d87026a4f572e3ae4dcf5bec82b39cc470e56a7dfb69499dca51c46f67c1",
         "lib/libopencv_photo.a": "c53aded44af536ad5d5d391776a5ee2bce2f8bd2796ba8bc7804ca22ed831abf",
         "lib/libavformat.a": "16f2f96ffa71cfd6b41c77a19c776c85b079435958eb265a5885781fa3319b65",
@@ -24,7 +24,7 @@
         "lib/libopencv_imgcodecs.a": "c4b2f45a65bdf5bdfda348289de2f67a67ec46a35b054e83b7d1bac65abef73f",
         "lib/libdav1d.a": "81bba5995413aba09802fb957ff937659dcdc90d35dcd44a7f08bf373919af41",
         "lib/libavutil.a": "d4567c119f90b48ee35d9035c964075124834cd814fd27edf2438b0e61b483f8",
-        "lib/libopencv_core.a": "de67cf294abe8078be7c21693c7f6d3b618baacaf3a454ba7ca7605d26e65f33",
+        "lib/libopencv_core.a": "b6443b55e195de1b1947e8b30e5f2f85552f25e31379d28830db92764368119f",
         "lib/libwebpmux.a": "43e9de02b4cabd22779f85b092f6af8437669bc753dccc846b3df3d850b41a68",
         "lib/libopencv_imgproc.a": "21b02db1283a0bc14555afe1c1d1f271e1a66bd714fcbed3c0b0459b0e2856fa",
         "lib/libpng16.a": "b1e48559e032f68a52042f14067b774c5da0b30f606925e7a0bf09dfab49e92e",
