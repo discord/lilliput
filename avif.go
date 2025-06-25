@@ -122,6 +122,14 @@ func (d *avifDecoder) LoopCount() int {
 	return int(C.avif_decoder_get_loop_count(d.decoder))
 }
 
+func (d *avifDecoder) VideoCodec() string {
+	return "AV1"
+}
+
+func (d *avifDecoder) AudioCodec() string {
+	return "Unknown"
+}
+
 func (d *avifDecoder) IsAnimated() bool {
 	return int(C.avif_decoder_get_num_frames(d.decoder)) > 1
 }

@@ -68,6 +68,8 @@ func main() {
 	fmt.Printf("file type: %s\n", decoder.Description())
 	fmt.Printf("%dpx x %dpx\n", header.Width(), header.Height())
 	fmt.Printf("content length: %d\n", header.ContentLength())
+	fmt.Printf("video codec: %s\n", decoder.VideoCodec())
+	fmt.Printf("audio codec: %s\n", decoder.AudioCodec())
 
 	if decoder.Duration() != 0 {
 		fmt.Printf("duration: %.2f s\n", float64(decoder.Duration())/float64(time.Second))

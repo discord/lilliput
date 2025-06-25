@@ -403,6 +403,59 @@ const char* avcodec_decoder_get_description(const avcodec_decoder d)
     return "";
 }
 
+const char* avcodec_decoder_get_video_codec(const avcodec_decoder d)
+{
+    if (!d || !d->codec) {
+        return "Unknown";
+    }
+    
+    switch (d->codec->codec_id) {
+    case AV_CODEC_ID_H264:
+        return "H264";
+    case AV_CODEC_ID_HEVC:
+        return "HEVC";
+    case AV_CODEC_ID_AV1:
+        return "AV1";
+    case AV_CODEC_ID_VP8:
+        return "VP8";
+    case AV_CODEC_ID_VP9:
+        return "VP9";
+    case AV_CODEC_ID_MPEG4:
+        return "MPEG4";
+    default:
+        return "Unknown";
+    }
+}
+
+const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d)
+{
+    if (!d || !d->container) {
+        return "Unknown";
+    }
+    
+    for (unsigned int i = 0; i < d->container->nb_streams; i++) {
+        AVStream* stream = d->container->streams[i];
+        if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            switch (stream->codecpar->codec_id) {
+            case AV_CODEC_ID_AAC:
+                return "AAC";
+            case AV_CODEC_ID_MP3:
+                return "MP3";
+            case AV_CODEC_ID_FLAC:
+                return "FLAC";
+            case AV_CODEC_ID_VORBIS:
+                return "Vorbis";
+            case AV_CODEC_ID_OPUS:
+                return "Opus";
+            default:
+                return "Unknown";
+            }
+        }
+    }
+    
+    return "Unknown";
+}
+
 bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
 {
     for (unsigned int i = 0; i < d->container->nb_streams; i++) {

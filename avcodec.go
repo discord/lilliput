@@ -114,6 +114,16 @@ func (d *avCodecDecoder) ICC() []byte {
 	return iccDst[:iccLength]
 }
 
+// VideoCodec returns the video codec name (H264, HEVC, AV1, VP8, VP9, MPEG4, or Unknown).
+func (d *avCodecDecoder) VideoCodec() string {
+	return C.GoString(C.avcodec_decoder_get_video_codec(d.decoder))
+}
+
+// AudioCodec returns the audio codec name (AAC, MP3, FLAC, Vorbis, Opus, or Unknown).
+func (d *avCodecDecoder) AudioCodec() string {
+	return C.GoString(C.avcodec_decoder_get_audio_codec(d.decoder))
+}
+
 // Duration returns the total duration of the media content.
 func (d *avCodecDecoder) Duration() time.Duration {
 	return time.Duration(float64(C.avcodec_decoder_get_duration(d.decoder)) * float64(time.Second))
