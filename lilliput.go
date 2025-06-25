@@ -67,6 +67,12 @@ type Decoder interface {
 
 	// LoopCount() returns the number of loops in the image
 	LoopCount() int
+
+	// VideoCodec returns the video codec name (H264, HEVC, AV1, VP8, VP9, MPEG4, or Unknown)
+	VideoCodec() string
+
+	// AudioCodec returns the audio codec name (AAC, MP3, FLAC, Vorbis, Opus, or Unknown)
+	AudioCodec() string
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

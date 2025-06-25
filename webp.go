@@ -113,6 +113,16 @@ func (d *webpDecoder) LoopCount() int {
 	return int(C.webp_decoder_get_loop_count(d.decoder))
 }
 
+// VideoCodec returns "VP8" since WebP uses VP8 compression internally.
+func (d *webpDecoder) VideoCodec() string {
+	return "VP8"
+}
+
+// AudioCodec returns "Unknown" since WebP does not support audio.
+func (d *webpDecoder) AudioCodec() string {
+	return "Unknown"
+}
+
 // DecodeTo decodes the current frame into the provided Framebuffer.
 // Returns io.EOF when all frames have been decoded.
 // Returns ErrDecodingFailed if the frame cannot be decoded.

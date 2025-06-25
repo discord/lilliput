@@ -661,6 +661,14 @@ func (d *openCVDecoder) LoopCount() int {
 	return 0 // loop indefinitely
 }
 
+func (d *openCVDecoder) VideoCodec() string {
+	return "Unknown"
+}
+
+func (d *openCVDecoder) AudioCodec() string {
+	return "Unknown"
+}
+
 func (d *openCVDecoder) HasSubtitles() bool {
 	return false
 }

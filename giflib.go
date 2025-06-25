@@ -159,6 +159,16 @@ func (d *gifDecoder) LoopCount() int {
 	return d.loopCount
 }
 
+// VideoCodec returns "Unknown" since GIF is not a video codec container.
+func (d *gifDecoder) VideoCodec() string {
+	return "Unknown"
+}
+
+// AudioCodec returns "Unknown" since GIF does not support audio.
+func (d *gifDecoder) AudioCodec() string {
+	return "Unknown"
+}
+
 // FrameCount returns the total number of frames in the GIF.
 func (d *gifDecoder) FrameCount() int {
 	d.readAnimationInfo()
