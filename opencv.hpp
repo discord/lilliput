@@ -25,10 +25,6 @@ typedef enum CVImageOrientation {
     CV_IMAGE_ORIENTATION_LB = 8  ///< Rotate 270 CW
 } CVImageOrientation;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Image encoding constants
 #define CV_IMWRITE_JPEG_QUALITY 1
 #define CV_IMWRITE_PNG_COMPRESSION 16
@@ -43,10 +39,6 @@ static_assert(CV_IMWRITE_PNG_COMPRESSION == cv::IMWRITE_PNG_COMPRESSION,
 static_assert(CV_IMWRITE_WEBP_QUALITY == cv::IMWRITE_WEBP_QUALITY, "WEBP_QUALITY mismatch");
 static_assert(CV_IMWRITE_JPEG_PROGRESSIVE == cv::IMWRITE_JPEG_PROGRESSIVE,
               "JPEG_PROGRESSIVE mismatch");
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 // Interpolation constants
