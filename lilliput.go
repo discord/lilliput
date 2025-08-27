@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	// ICCProfileBufferSize is the buffer size for ICC color profile data
+	ICCProfileBufferSize = 32768
+)
+
 var (
 	ErrInvalidImage     = errors.New("unrecognized image format")
 	ErrDecodingFailed   = errors.New("failed to decode image")

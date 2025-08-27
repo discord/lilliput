@@ -98,7 +98,7 @@ func (d *webpDecoder) advanceFrameIndex() {
 
 // ICC returns the ICC color profile data embedded in the WebP image.
 func (d *webpDecoder) ICC() []byte {
-	iccDst := make([]byte, 8192)
+	iccDst := make([]byte, ICCProfileBufferSize)
 	iccLength := C.webp_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
 	return iccDst[:iccLength]
 }

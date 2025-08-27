@@ -106,7 +106,7 @@ func (d *avCodecDecoder) LoopCount() int {
 
 // ICC returns the ICC color profile data if present, or an empty slice if not.
 func (d *avCodecDecoder) ICC() []byte {
-	iccDst := make([]byte, 8192)
+	iccDst := make([]byte, ICCProfileBufferSize)
 	iccLength := C.avcodec_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
 	if iccLength <= 0 {
 		return []byte{}
