@@ -101,7 +101,7 @@ func (d *avifDecoder) hasReachedEndOfFrames() bool {
 }
 
 func (d *avifDecoder) ICC() []byte {
-	iccDst := make([]byte, 8192)
+	iccDst := make([]byte, ICCProfileBufferSize)
 	iccLength := C.avif_decoder_get_icc(d.decoder, unsafe.Pointer(&iccDst[0]), C.size_t(cap(iccDst)))
 	return iccDst[:iccLength]
 }
