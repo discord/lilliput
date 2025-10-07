@@ -95,7 +95,7 @@ echo '\n--------------------'
 echo 'Building zlib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-1.2.11.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
@@ -106,7 +106,7 @@ echo '\n--------------------'
 echo 'Building libpng'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libpng
-tar -xzf $SRCDIR/libpng-1.6.38.tar.gz -C $BASEDIR/libpng --strip-components 1
+tar -xf $SRCDIR/libpng-1.6.47.tar -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
 $BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --host=arm-apple-darwin
@@ -140,7 +140,7 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.1.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
 
@@ -223,7 +223,6 @@ cmake $BASEDIR/opencv \
 sed -i '' "s|;$BASEDIR/opencv/modules/imgcodecs/include/opencv2/imgcodecs/ios.h||" $BASEDIR/build/opencv/CMakeCache.txt
 rm -f $BASEDIR/opencv/modules/imgcodecs/src/ios_conversions.mm
 sed -i '' "\|$BUILDDIR/opencv/modules/imgcodecs/src/ios_conversions\.mm;|d" $BUILDDIR/opencv/modules/imgcodecs/Makefile
-
 
 make opencv_core opencv_imgproc opencv_imgcodecs opencv_photo
 make install
@@ -345,7 +344,7 @@ echo '\n--------------------'
 echo 'Building libyuv'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
-tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv
+tar -xzf $SRCDIR/libyuv-4ed75166cf1885b9690214b362f8675294505a37-2025-04-07.tar.gz -C $BASEDIR/libyuv
 cd $BASEDIR/libyuv
 patch -p0 < $BASEDIR/patches/0002-fix-libyuv-cmake-for-osx.patch
 mkdir -p $BUILDDIR/libyuv
