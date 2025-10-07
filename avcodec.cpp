@@ -282,7 +282,8 @@ const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size
 int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len)
 {
     size_t profile_size;
-    if (d->codec == nullptr) {
+
+    if (!d || !d->codec) {
         return -1;
     }
     
