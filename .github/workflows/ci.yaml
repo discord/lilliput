@@ -20,6 +20,7 @@ jobs:
         runs-on:
           - macos-15
           - ubuntu-22.04
+          - ubuntu-22.04-arm
       fail-fast: false
     runs-on: ${{ matrix.runs-on }}
     steps:
