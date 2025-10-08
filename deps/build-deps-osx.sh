@@ -95,7 +95,7 @@ echo '\n--------------------'
 echo 'Building zlib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $SRCDIR/zlib-1.3.1.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
