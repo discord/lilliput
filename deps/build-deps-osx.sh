@@ -344,7 +344,7 @@ echo '\n--------------------'
 echo 'Building libyuv'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
-tar -xzf $SRCDIR/libyuv-eb6e7bb63738e29efd82ea3cf2a115238a89fa51-2024-12-12.tar.gz -C $BASEDIR/libyuv
+tar -xzf $SRCDIR/libyuv-4ed75166cf1885b9690214b362f8675294505a37-2025-04-07.tar.gz -C $BASEDIR/libyuv
 cd $BASEDIR/libyuv
 patch -p0 < $BASEDIR/patches/0003-fix-libyuv-2025-04-07-cmake-for-osx.patch
 mkdir -p $BUILDDIR/libyuv
