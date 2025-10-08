@@ -75,7 +75,7 @@ echo '\n--------------------'
 echo 'Building libjpeg-turbo'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-3.1.0.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
