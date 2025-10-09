@@ -7,7 +7,7 @@ if(CMAKE_VERSION VERSION_LESS "2.8.12")
    message(FATAL_ERROR "CMake >= 2.8.12 required")
 endif()
 cmake_policy(PUSH)
-cmake_policy(VERSION 2.8.12...3.29)
+cmake_policy(VERSION 2.8.12...3.31)
 #----------------------------------------------------------------
 # Generated CMake target import file.
 #----------------------------------------------------------------
@@ -83,7 +83,7 @@ add_library(ade STATIC IMPORTED)
 add_library(opencv_core STATIC IMPORTED)
 
 set_target_properties(opencv_core PROPERTIES
-  INTERFACE_LINK_LIBRARIES "/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;/Applications/Xcode_16.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Accelerate.framework;\$<LINK_ONLY:-lm>;\$<LINK_ONLY:-ldl>;\$<LINK_ONLY:ittnotify>"
+  INTERFACE_LINK_LIBRARIES "/Users/runner/work/lilliput/lilliput/deps/osx/lib/libz.a;/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Accelerate.framework;\$<LINK_ONLY:-lm>;\$<LINK_ONLY:-ldl>;\$<LINK_ONLY:ittnotify>"
 )
 
 # Create imported target opencv_imgproc
