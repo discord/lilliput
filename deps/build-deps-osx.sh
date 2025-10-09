@@ -68,14 +68,14 @@ rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.5.0 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.5.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
 echo 'Building libjpeg-turbo'
 echo '--------------------\n'
 mkdir -p $BASEDIR/libjpeg-turbo
-tar -xzf $SRCDIR/libjpeg-turbo-2.1.4.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
+tar -xzf $SRCDIR/libjpeg-turbo-3.1.0.tar.gz -C $BASEDIR/libjpeg-turbo --strip-components 1
 cd $BASEDIR/libjpeg-turbo
 mkdir -p $BUILDDIR/libjpeg-turbo
 cd $BUILDDIR/libjpeg-turbo
@@ -95,7 +95,7 @@ echo '\n--------------------'
 echo 'Building zlib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-accel.tar.gz -C $BASEDIR/zlib --strip-components 1
+tar -xzf $SRCDIR/zlib-1.3.1.tar.gz -C $BASEDIR/zlib --strip-components 1
 mkdir -p $BUILDDIR/zlib
 cd $BUILDDIR/zlib
 $BASEDIR/zlib/configure --prefix=$PREFIX --static
@@ -346,7 +346,6 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/libyuv
 tar -xzf $SRCDIR/libyuv-4ed75166cf1885b9690214b362f8675294505a37-2025-04-07.tar.gz -C $BASEDIR/libyuv
 cd $BASEDIR/libyuv
-patch -p0 < $BASEDIR/patches/0002-fix-libyuv-cmake-for-osx.patch
 mkdir -p $BUILDDIR/libyuv
 cd $BUILDDIR/libyuv
 

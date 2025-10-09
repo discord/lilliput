@@ -1,0 +1,61 @@
+--- CMakeLists.orig.txt	2025-04-07 11:30:32
++++ CMakeLists.txt	2025-10-08 00:01:58
+@@ -7,6 +7,7 @@
+ project ( YUV C CXX )	# "C" is required even for C++ projects
+ cmake_minimum_required( VERSION 3.5 )
+ option( UNIT_TEST "Built unit tests" OFF )
++OPTION( BUILD_SHARED_LIBS "Build shared libraries" OFF )
+ 
+ set ( ly_base_dir	${PROJECT_SOURCE_DIR} )
+ set ( ly_src_dir	${ly_base_dir}/source )
+@@ -14,7 +15,6 @@
+ set ( ly_tst_dir	${ly_base_dir}/unit_test )
+ set ( ly_lib_name	yuv )
+ set ( ly_lib_static	${ly_lib_name} )
+-set ( ly_lib_shared	${ly_lib_name}_shared )
+ 
+ # We cannot use GLOB here since we want to be able to separate out files that
+ # need particular flags to enable architecture extensions like AArch64's SVE.
+@@ -173,8 +173,17 @@
+   endif()
+ endif()
+ 
++find_package ( JPEG )
++if (JPEG_FOUND)
++  include_directories( ${JPEG_INCLUDE_DIR} )
++  add_definitions( -DHAVE_JPEG )
++endif()
++
+ # this creates the static library (.a)
+ add_library( ${ly_lib_static} STATIC ${ly_lib_parts})
++if (JPEG_FOUND)
++  target_link_libraries( ${ly_lib_static} ${JPEG_LIBRARY} )
++endif()
+ 
+ # this creates the shared library (.so)
+ add_library( ${ly_lib_shared} SHARED ${ly_lib_parts})
+@@ -196,13 +205,6 @@
+ add_executable      ( yuvconstants ${ly_base_dir}/util/yuvconstants.c )
+ target_link_libraries  ( yuvconstants ${ly_lib_static} )
+ 
+-find_package ( JPEG )
+-if (JPEG_FOUND)
+-  include_directories( ${JPEG_INCLUDE_DIR} )
+-  target_link_libraries( ${ly_lib_shared} ${JPEG_LIBRARY} )
+-  add_definitions( -DHAVE_JPEG )
+-endif()
+-
+ if(UNIT_TEST)
+   find_library(GTEST_LIBRARY gtest)
+   if(GTEST_LIBRARY STREQUAL "GTEST_LIBRARY-NOTFOUND")
+@@ -248,7 +250,9 @@
+ # install the conversion tool, .so, .a, and all the header files
+ install ( TARGETS yuvconvert DESTINATION bin )
+ install ( TARGETS ${ly_lib_static}						DESTINATION lib )
+-install ( TARGETS ${ly_lib_shared} LIBRARY DESTINATION lib RUNTIME DESTINATION bin ARCHIVE DESTINATION lib )
++if (BUILD_SHARED_LIBS)
++  INSTALL ( TARGETS ${ly_lib_shared} LIBRARY       DESTINATION lib RUNTIME DESTINATION bin )
++endif()
+ install ( DIRECTORY ${PROJECT_SOURCE_DIR}/include/		DESTINATION include )
+ 
+ # create the .deb and .rpm packages using cpack
