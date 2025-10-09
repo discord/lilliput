@@ -382,7 +382,7 @@ void webp_decoder_release(webp_decoder d)
  * @param icc The ICC profile data.
  * @param icc_len The size of the ICC profile data.
  * @param bgcolor The background color for the WebP image.
- * @param gif_encode_paletted Whether to use delta palette for encoding of GIF source images.
+ * @param loop_count The number of times the animation should loop.
  * @return A pointer to the created webp_encoder_struct, or nullptr if creation failed.
  */
 webp_encoder webp_encoder_create(void* buf,
