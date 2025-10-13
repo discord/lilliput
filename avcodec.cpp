@@ -37,10 +37,10 @@ extern AVCodec ff_flac_decoder;
 extern AVCodec ff_aac_decoder;
 extern AVCodec ff_vorbis_decoder;
 
-void avcodec_init()
-{
-    av_log_set_level(AV_LOG_ERROR);
-}
+
+//--------------------------------
+// Types and Structures
+//--------------------------------
 
 struct avcodec_decoder_struct {
     const cv::Mat* mat;
@@ -51,6 +51,26 @@ struct avcodec_decoder_struct {
     int video_stream_index;
 };
 
+//--------------------------------
+// Functions
+//--------------------------------
+
+/**
+ * Initializes the avcodec library.
+ */
+void avcodec_init()
+{
+    av_log_set_level(AV_LOG_ERROR);
+}
+
+
+/**
+ * Reads data from the input buffer.
+ * @param d_void The avcodec_decoder_struct pointer.
+ * @param buf The buffer to read data into.
+ * @param buf_size The size of the buffer.
+ * @return The number of bytes read, or AVERROR_EOF if the end of the file is reached.
+ */
 static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_size)
 {
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
@@ -64,6 +84,13 @@ static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_siz
     return read_len;
 }
 
+/**
+ * Seeks to a specific position in the input buffer.
+ * @param d_void The avcodec_decoder_struct pointer.
+ * @param offset The offset to seek to.
+ * @param whence The origin of the seek.
+ * @return 0 if the seek was successful, or -1 if the seek failed.
+ */
 static int64_t avcodec_decoder_seek_callback(void* d_void, int64_t offset, int whence)
 {
     avcodec_decoder d = static_cast<avcodec_decoder>(d_void);
@@ -93,6 +120,11 @@ static int64_t avcodec_decoder_seek_callback(void* d_void, int64_t offset, int w
     return 0;
 }
 
+/**
+ * Checks if the input buffer is an audio stream.
+ * @param d The avcodec_decoder_struct pointer.
+ * @return True if the input buffer is an audio stream, false otherwise.
+ */
 static bool avcodec_decoder_is_audio(const avcodec_decoder d)
 {
     if (!d->container) {
@@ -116,6 +148,11 @@ static bool avcodec_decoder_is_audio(const avcodec_decoder d)
     return false;
 }
 
+/**
+ * Checks if the input buffer is a streamable video.
+ * @param mat The input OpenCV matrix.
+ * @return True if the input buffer is a streamable video, false otherwise.
+ */
 bool avcodec_decoder_is_streamable(const opencv_mat mat)
 {
     const int64_t probeBytesLimit = 32 * 1024; // Define the probe limit
@@ -154,6 +191,13 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat)
     return false;
 }
 
+/**
+ * Creates an avcodec decoder for the given OpenCV matrix.
+ * @param buf The input OpenCV matrix containing video/audio data.
+ * @param hevc_enabled Whether HEVC decoding is enabled.
+ * @param av1_enabled Whether AV1 decoding is enabled.
+ * @return A pointer to the created avcodec_decoder_struct, or nullptr if creation failed.
+ */
 avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled, const bool av1_enabled)
 {
     avcodec_decoder d = new struct avcodec_decoder_struct();
@@ -260,6 +304,12 @@ avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_ena
     return d;
 }
 
+/**
+ * Gets the ICC profile for the given color primaries.
+ * @param color_primaries The color primaries.
+ * @param profile_size The size of the ICC profile.
+ * @return A pointer to the ICC profile.
+ */
 const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size)
 {
     switch (color_primaries) {
@@ -279,6 +329,13 @@ const uint8_t* avcodec_get_icc_profile(int color_primaries, size_t& profile_size
     }
 }
 
+/**
+ * Gets the ICC profile for the given avcodec_decoder.
+ * @param d The avcodec_decoder.
+ * @param dest The destination buffer.
+ * @param dest_len The size of the destination buffer.
+ * @return The number of bytes written to the destination buffer, or -1 if the destination buffer is too small.
+ */
 int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len)
 {
     size_t profile_size;
@@ -297,6 +354,11 @@ int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len
     return static_cast<int>(profile_size);
 }
 
+/**
+ * Gets the width of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The width of the video stream.
+ */
 int avcodec_decoder_get_width(const avcodec_decoder d)
 {
     if (d->codec) {
@@ -311,6 +373,11 @@ int avcodec_decoder_get_width(const avcodec_decoder d)
     return 0;
 }
 
+/**
+ * Gets the height of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The height of the video stream.
+ */
 int avcodec_decoder_get_height(const avcodec_decoder d)
 {
     if (d->codec) {
@@ -325,6 +392,11 @@ int avcodec_decoder_get_height(const avcodec_decoder d)
     return 0;
 }
 
+/**
+ * Gets the orientation of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The orientation of the video stream.
+ */
 int avcodec_decoder_get_orientation(const avcodec_decoder d)
 {
     if (!d->container) {
@@ -372,6 +444,11 @@ int avcodec_decoder_get_orientation(const avcodec_decoder d)
     return orientation;
 }
 
+/**
+ * Gets the duration of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The duration of the video stream.
+ */
 float avcodec_decoder_get_duration(const avcodec_decoder d)
 {
     if (d->container) {
@@ -380,6 +457,11 @@ float avcodec_decoder_get_duration(const avcodec_decoder d)
     return 0;
 }
 
+/**
+ * Gets the description of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The description of the video stream.
+ */
 const char* avcodec_decoder_get_description(const avcodec_decoder d)
 {
     if (d->container) {
@@ -408,6 +490,11 @@ const char* avcodec_decoder_get_description(const avcodec_decoder d)
     return "";
 }
 
+/**
+ * Gets the video codec of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The video codec of the video stream.
+ */
 const char* avcodec_decoder_get_video_codec(const avcodec_decoder d)
 {
     if (!d || !d->codec) {
@@ -432,6 +519,11 @@ const char* avcodec_decoder_get_video_codec(const avcodec_decoder d)
     }
 }
 
+/**
+ * Gets the audio codec of the video stream.
+ * @param d The avcodec_decoder.
+ * @return The audio codec of the video stream.
+ */
 const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d)
 {
     if (!d || !d->container) {
@@ -461,6 +553,11 @@ const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d)
     return "Unknown";
 }
 
+/**
+ * Checks if the video stream has subtitles.
+ * @param d The avcodec_decoder.
+ * @return True if the video stream has subtitles, false otherwise.
+ */
 bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
 {
     for (unsigned int i = 0; i < d->container->nb_streams; i++) {
@@ -472,6 +569,13 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
     return false;
 }
 
+/**
+ * Copies a frame from the video stream to an OpenCV matrix.
+ * @param d The avcodec_decoder.
+ * @param mat The OpenCV matrix to copy the frame to.
+ * @param frame The frame to copy.
+ * @return The result of the copy operation.
+ */
 static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
 {
     if (!d || !d->codec || !d->codec->codec || !mat || !frame) {
@@ -555,6 +659,13 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
     return res;
 }
 
+/**
+ * Decodes a packet from the video stream.
+ * @param d The avcodec_decoder.
+ * @param mat The OpenCV matrix to copy the frame to.
+ * @param packet The packet to decode.
+ * @return The result of the decode operation.
+ */
 static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat, AVPacket* packet)
 {
     int res = avcodec_send_packet(d->codec, packet);
@@ -573,6 +684,12 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
     return res;
 }
 
+/**
+ * Decodes a video stream into an OpenCV matrix.
+ * @param d The avcodec_decoder.
+ * @param mat The OpenCV matrix to copy the frame to.
+ * @return True if the decode operation was successful, false otherwise.
+ */
 bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
 {
     if (!d || !d->container || !d->codec || !mat) {
@@ -601,6 +718,10 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
     return success;
 }
 
+/**
+ * Releases the resources allocated for the avcodec_decoder_struct.
+ * @param d The avcodec_decoder.
+ */
 void avcodec_decoder_release(avcodec_decoder d)
 {
     if (d->codec) {

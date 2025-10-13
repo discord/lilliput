@@ -5,14 +5,34 @@
 #include <algorithm>
 #include <tuple>
 
+//--------------------------------
+// Constants
+//--------------------------------
+
+// Maximum dimension for downscaling large images to improve hash performance
 static constexpr size_t MAX_DIMENSION = 100;
+// Pi constant for cosine calculations in DCT encoding
 static constexpr float PI = 3.14159265f;
+
+//--------------------------------
+// Types and Structures
+//--------------------------------
 
 struct thumbhash_encoder_struct {
     uint8_t* dst;
     size_t dst_len;
 };
 
+//--------------------------------
+// Functions
+//--------------------------------
+
+/**
+ * Creates a thumbhash encoder.
+ * @param buf The output buffer to store the encoded thumbhash.
+ * @param buf_len The size of the output buffer.
+ * @return A pointer to the created thumbhash_encoder_struct, or nullptr if creation failed.
+ */
 thumbhash_encoder thumbhash_encoder_create(void* buf, size_t buf_len)
 {
     thumbhash_encoder e = new struct thumbhash_encoder_struct();
@@ -26,6 +46,15 @@ thumbhash_encoder thumbhash_encoder_create(void* buf, size_t buf_len)
     return e;
 }
 
+/**
+ * Encodes a channel of the image into a thumbhash.
+ * @param channel The channel to encode.
+ * @param nx The number of pixels in the x direction.
+ * @param ny The number of pixels in the y direction.
+ * @param w The width of the image.
+ * @param h The height of the image.
+ * @return A tuple containing the DC component, the AC components, and the scale factor.
+ */
 static std::tuple<float, std::vector<float>, float> encode_channel(
   const std::vector<float>& channel,
   size_t nx,
@@ -72,18 +101,26 @@ static std::tuple<float, std::vector<float>, float> encode_channel(
     return std::make_tuple(dc, ac, scale);
 }
 
-// This C++ thumbhash encode function is based on the rust reference
-// implementation found here:
-//
-// https://github.com/evanw/thumbhash/blob/main/rust/src/lib.rs
-//
-// We modified the logic in the following ways:
-//
-// - Make it work with OpenCV mat as input frame
-// - Handle images with or without an alpha channel
-// - Handle grayscale images
-// - Perform simple downscaling of large images. We don't need very many pixels
-//   to get a good hash.
+/**
+ * Encodes an image into a thumbhash.
+ * 
+ * This C++ thumbhash encode function is based on the rust reference
+ * implementation found here:
+ *
+ * https://github.com/evanw/thumbhash/blob/main/rust/src/lib.rs
+ *
+ * We modified the logic in the following ways:
+ *
+ * - Make it work with OpenCV mat as input frame
+ * - Handle images with or without an alpha channel
+ * - Handle grayscale images
+ * - Perform simple downscaling of large images. We don't need very many pixels
+ *   to get a good hash.
+ * 
+ * @param e The thumbhash encoder.
+ * @param opaque_frame The input image.
+ * @return The number of bytes written to the output buffer, or -1 if the output buffer is too small.
+ */
 int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
 {
     auto frame = static_cast<const cv::Mat*>(opaque_frame);
@@ -276,6 +313,10 @@ int thumbhash_encoder_encode(thumbhash_encoder e, const opencv_mat opaque_frame)
     return hash.size();
 }
 
+/**
+ * Releases the resources allocated for the thumbhash_encoder_struct.
+ * @param e The thumbhash encoder.
+ */
 void thumbhash_encoder_release(thumbhash_encoder e)
 {
     delete e;
