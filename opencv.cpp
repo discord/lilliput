@@ -29,6 +29,17 @@ opencv_mat opencv_mat_create_from_data(int width, int height, int type, void* da
     return mat;
 }
 
+opencv_mat opencv_mat_create_from_data_with_stride(int width, int height, int type, void* data, size_t data_len, size_t step)
+{
+    size_t min_size = step * height;
+    if (min_size > data_len) {
+        return NULL;
+    }
+    auto mat = new cv::Mat(height, width, type, data, step);
+    mat->datalimit = (uint8_t*)data + data_len;
+    return mat;
+}
+
 opencv_mat opencv_mat_create_empty_from_data(int length, void* data)
 {
     // this is slightly sketchy - what we're going to do is build a 1x0 matrix

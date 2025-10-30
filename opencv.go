@@ -178,6 +178,12 @@ func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
 }
 
+// NumFrames returns the number of frames in the image.
+// Returns 1 for static images, >1 for animations.
+func (h *ImageHeader) NumFrames() int {
+	return h.numFrames
+}
+
 // HasAlpha returns true if the image has an alpha channel.
 func (h *ImageHeader) HasAlpha() bool {
 	return h.pixelType.Channels() == 4
@@ -192,9 +198,17 @@ func (h *ImageHeader) ContentLength() int {
 }
 
 // NewFramebuffer creates a backing store for a pixel frame buffer with the specified dimensions.
+// The buffer is allocated with 32-byte aligned strides for optimal SIMD performance.
 func NewFramebuffer(width, height int) *Framebuffer {
+	// Calculate aligned stride (32-byte aligned for SIMD performance)
+	// 8 pixels * 4 bytes = 32 bytes
+	stride := width * 4
+	if width%8 != 0 {
+		alignedWidth := width + 8 - (width % 8)
+		stride = alignedWidth * 4
+	}
 	return &Framebuffer{
-		buf: make([]byte, width*height*4),
+		buf: make([]byte, stride*height),
 		mat: nil,
 	}
 }
@@ -243,7 +257,17 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	if pixelType.Depth() > 8 {
 		pixelType = PixelType(C.opencv_type_convert_depth(C.int(pixelType), C.CV_8U))
 	}
-	newMat := C.opencv_mat_create_from_data(C.int(width), C.int(height), C.int(pixelType), unsafe.Pointer(&f.buf[0]), C.size_t(len(f.buf)))
+
+	// Calculate aligned stride (32-byte aligned for SIMD performance)
+	// For BGRA (4 channels): 8 pixels * 4 bytes = 32 bytes
+	stride := width * pixelType.Channels()
+	alignmentPixels := 32 / pixelType.Channels() // 8 for 4-channel, 16 for 2-channel, etc.
+	if alignmentPixels > 0 && width%alignmentPixels != 0 {
+		alignedWidth := width + alignmentPixels - (width % alignmentPixels)
+		stride = alignedWidth * pixelType.Channels()
+	}
+
+	newMat := C.opencv_mat_create_from_data_with_stride(C.int(width), C.int(height), C.int(pixelType), unsafe.Pointer(&f.buf[0]), C.size_t(len(f.buf)), C.size_t(stride))
 	if newMat == nil {
 		return ErrBufTooSmall
 	}

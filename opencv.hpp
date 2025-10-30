@@ -98,6 +98,12 @@ opencv_mat opencv_mat_create_from_data(int width,
                                        int type,
                                        void* data,
                                        size_t data_len);
+opencv_mat opencv_mat_create_from_data_with_stride(int width,
+                                                    int height,
+                                                    int type,
+                                                    void* data,
+                                                    size_t data_len,
+                                                    size_t step);
 opencv_mat opencv_mat_create_empty_from_data(int length, void* data);
 bool opencv_mat_set_row_stride(opencv_mat mat, size_t stride);
 void opencv_mat_release(opencv_mat mat);
