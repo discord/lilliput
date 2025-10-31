@@ -322,9 +322,6 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     auto cvMat = static_cast<cv::Mat*>(mat);
     cvMat->create(features.height, features.width, webp_decoder_get_pixel_type(d));
 
-    // Recalculate row size based on the new dimensions
-    int row_size = cvMat->cols * cvMat->elemSize();
-
     // Store frame properties for future use
     d->prev_frame_delay_time = frame.duration;
     d->prev_frame_x_offset = frame.x_offset;
@@ -332,29 +329,26 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     d->prev_frame_dispose = frame.dispose_method;
     d->prev_frame_blend = frame.blend_method;
 
-    // Decode the frame
+    // Decode the frame directly into the Mat using its actual stride
+    // This ensures proper handling of any row alignment/padding
     uint8_t* res = nullptr;
     switch (webp_decoder_get_pixel_type(d)) {
     case CV_8UC4:
         res = WebPDecodeBGRAInto(frame.bitstream.bytes,
                                  frame.bitstream.size,
-                                 d->decode_buffer,
-                                 d->decode_buffer_size,
-                                 row_size);
+                                 cvMat->data,
+                                 cvMat->rows * cvMat->step,
+                                 cvMat->step);
         break;
     case CV_8UC3:
         res = WebPDecodeBGRInto(frame.bitstream.bytes,
                                 frame.bitstream.size,
-                                d->decode_buffer,
-                                d->decode_buffer_size,
-                                row_size);
+                                cvMat->data,
+                                cvMat->rows * cvMat->step,
+                                cvMat->step);
         break;
     default:
         return false;
-    }
-
-    if (res) {
-        memcpy(cvMat->data, d->decode_buffer, cvMat->total() * cvMat->elemSize());
     }
 
     WebPDataClear(&frame.bitstream);

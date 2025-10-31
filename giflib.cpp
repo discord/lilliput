@@ -484,7 +484,12 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* 
 
     // Save current frame content before drawing new frame
     if (d->have_read_first_frame) {
-        memcpy(d->prev_frame_bgra.data(), cvMat->data, buf_width * buf_height * BYTES_PER_PIXEL);
+        // Copy row by row to handle stride correctly
+        for (int y = 0; y < buf_height; y++) {
+            memcpy(d->prev_frame_bgra.data() + y * buf_width * BYTES_PER_PIXEL,
+                   cvMat->data + y * cvMat->step,
+                   buf_width * BYTES_PER_PIXEL);
+        }
     }
 
     // Draw the new frame
@@ -1083,7 +1088,12 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
     }
 
     // XXX change this if we do partial frames (only copy over some)
-    memcpy(e->prev_frame_bgra, frame->data, 4 * e->gif->SWidth * e->gif->SHeight);
+    // Copy row by row to handle stride correctly
+    for (int y = 0; y < e->gif->SHeight; y++) {
+        memcpy(e->prev_frame_bgra + y * e->gif->SWidth * 4,
+               frame->data + y * frame->step,
+               e->gif->SWidth * 4);
+    }
 
     e->prev_frame_color_map = color_map;
     e->prev_frame_disposal = gcb.DisposalMode;
