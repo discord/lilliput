@@ -29,6 +29,17 @@ opencv_mat opencv_mat_create_from_data(int width, int height, int type, void* da
     return mat;
 }
 
+opencv_mat opencv_mat_create_from_data_with_stride(int width, int height, int type, void* data, size_t data_len, size_t step)
+{
+    size_t min_size = step * height;
+    if (min_size > data_len) {
+        return NULL;
+    }
+    auto mat = new cv::Mat(height, width, type, data, step);
+    mat->datalimit = (uint8_t*)data + data_len;
+    return mat;
+}
+
 opencv_mat opencv_mat_create_empty_from_data(int length, void* data)
 {
     // this is slightly sketchy - what we're going to do is build a 1x0 matrix
@@ -212,6 +223,39 @@ void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_mat
 {
     auto cvMat = static_cast<cv::Mat*>(mat);
     cv::OrientationTransform(int(orientation), *cvMat);
+}
+
+void opencv_mat_copy_with_stride(const opencv_mat src, opencv_mat dst)
+{
+    auto srcMat = static_cast<const cv::Mat*>(src);
+    auto dstMat = static_cast<cv::Mat*>(dst);
+
+    // Verify dimensions match
+    if (srcMat->rows != dstMat->rows || srcMat->cols != dstMat->cols) {
+        return;
+    }
+
+    // Copy row by row to handle different strides
+    size_t rowBytes = srcMat->cols * srcMat->elemSize();
+    for (int y = 0; y < srcMat->rows; y++) {
+        memcpy(dstMat->data + y * dstMat->step,
+               srcMat->data + y * srcMat->step,
+               rowBytes);
+    }
+}
+
+void opencv_mat_copy_to_packed_buffer(const opencv_mat src, void* dst_buffer, int width, int height, int channels)
+{
+    auto srcMat = static_cast<const cv::Mat*>(src);
+    auto dst = static_cast<uint8_t*>(dst_buffer);
+
+    // Copy row by row from cv::Mat (with stride) to packed buffer (no stride)
+    size_t rowBytes = width * channels;
+    for (int y = 0; y < height; y++) {
+        memcpy(dst + y * rowBytes,
+               srcMat->data + y * srcMat->step,
+               rowBytes);
+    }
 }
 
 int opencv_mat_get_width(const opencv_mat mat)

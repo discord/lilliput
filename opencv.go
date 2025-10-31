@@ -178,6 +178,12 @@ func (h *ImageHeader) IsAnimated() bool {
 	return h.numFrames > 1
 }
 
+// NumFrames returns the number of frames in the image.
+// Returns 1 for static images, >1 for animations.
+func (h *ImageHeader) NumFrames() int {
+	return h.numFrames
+}
+
 // HasAlpha returns true if the image has an alpha channel.
 func (h *ImageHeader) HasAlpha() bool {
 	return h.pixelType.Channels() == 4
@@ -191,10 +197,34 @@ func (h *ImageHeader) ContentLength() int {
 	return h.contentLength
 }
 
+// calculateAlignedStride computes a 32-byte aligned stride for the given width and channel count.
+// This alignment is crucial for SIMD performance.
+// For example, with 4 channels (BGRA): 8 pixels * 4 bytes = 32 bytes alignment.
+func calculateAlignedStride(width, channels int) int {
+	stride := width * channels
+	alignmentPixels := 32 / channels // 8 for 4-channel, 16 for 2-channel, etc.
+	if alignmentPixels > 0 && width%alignmentPixels != 0 {
+		alignedWidth := width + alignmentPixels - (width % alignmentPixels)
+		stride = alignedWidth * channels
+	}
+	return stride
+}
+
 // NewFramebuffer creates a backing store for a pixel frame buffer with the specified dimensions.
+// The buffer is allocated with 32-byte aligned strides for optimal SIMD performance.
+//
+// Buffer Allocation: The buffer is allocated assuming 4-channel (BGRA) pixel format with
+// 32-byte alignment (8 pixels * 4 bytes = 32 bytes). This allocation is sufficient for
+// all pixel types since:
+//   - 4-channel requires: alignedWidth * 4 * height bytes (allocated)
+//   - 3-channel requires: alignedWidth * 3 * height bytes (always <= 4-channel)
+//   - 1-channel requires: alignedWidth * 1 * height bytes (always <= 4-channel)
+//
+// The resizeMat method will use the appropriate stride based on the actual pixel type.
 func NewFramebuffer(width, height int) *Framebuffer {
+	stride := calculateAlignedStride(width, 4) // Allocate for 4-channel (BGRA)
 	return &Framebuffer{
-		buf: make([]byte, width*height*4),
+		buf: make([]byte, stride*height),
 		mat: nil,
 	}
 }
@@ -243,7 +273,11 @@ func (f *Framebuffer) resizeMat(width, height int, pixelType PixelType) error {
 	if pixelType.Depth() > 8 {
 		pixelType = PixelType(C.opencv_type_convert_depth(C.int(pixelType), C.CV_8U))
 	}
-	newMat := C.opencv_mat_create_from_data(C.int(width), C.int(height), C.int(pixelType), unsafe.Pointer(&f.buf[0]), C.size_t(len(f.buf)))
+
+	// Calculate aligned stride (32-byte aligned for SIMD performance)
+	stride := calculateAlignedStride(width, pixelType.Channels())
+
+	newMat := C.opencv_mat_create_from_data_with_stride(C.int(width), C.int(height), C.int(pixelType), unsafe.Pointer(&f.buf[0]), C.size_t(len(f.buf)), C.size_t(stride))
 	if newMat == nil {
 		return ErrBufTooSmall
 	}
