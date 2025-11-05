@@ -52,11 +52,11 @@ type ImageOptions struct {
 	// DisableAnimatedOutput controls the encoder behavior when given a multi-frame input
 	DisableAnimatedOutput bool
 
-	// VideoFrameSampleInterval controls the frame sampling rate for video inputs.
-	// For example, 0.1 means extract a frame every 100ms (10 FPS).
+	// VideoFrameSampleIntervalMs controls the frame sampling rate for video inputs.
+	// For example, 100 means extract a frame every 100ms (10 FPS).
 	// If set to 0, only the first frame will be extracted (default behavior).
 	// This option only applies to video formats (MP4, MOV, WEBM).
-	VideoFrameSampleInterval float64
+	VideoFrameSampleIntervalMs int
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -407,9 +407,9 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHead
 // and creating an appropriate encoder. Returns the header, encoder, and any error.
 func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte) (*ImageHeader, Encoder, error) {
 	// Enable multi-frame video extraction if requested
-	if opt.VideoFrameSampleInterval > 0 {
+	if opt.VideoFrameSampleIntervalMs > 0 {
 		if vd, ok := d.(VideoDecoder); ok {
-			vd.SetFrameSampleInterval(opt.VideoFrameSampleInterval)
+			vd.SetFrameSampleInterval(opt.VideoFrameSampleIntervalMs)
 		}
 	}
 

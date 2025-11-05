@@ -87,7 +87,7 @@ type VideoDecoder interface {
 	// SetFrameSampleInterval configures the decoder to extract frames at the specified
 	// interval in seconds. For example, 0.1 means extract a frame every 100ms (10 FPS).
 	// This enables multi-frame extraction mode.
-	SetFrameSampleInterval(intervalSeconds float64)
+	SetFrameSampleInterval(intervalMs int)
 }
 
 // An Encoder compresses raw pixel data into a well-known image type.

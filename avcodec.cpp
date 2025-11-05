@@ -51,11 +51,11 @@ struct avcodec_decoder_struct {
     int video_stream_index;
 
     // Multi-frame extraction state
-    float frame_sample_interval;  // Interval between frames in seconds
-    double next_frame_time;       // Next frame time to extract
-    double last_extracted_pts;    // Last extracted frame PTS
-    int frame_delay_ms;           // Delay for current frame in milliseconds
-    bool multi_frame_mode;        // Whether we're extracting multiple frames
+    int frame_sample_interval_ms;  // Interval between frames in milliseconds
+    double next_frame_time;        // Next frame time to extract
+    double last_extracted_pts;     // Last extracted frame PTS
+    int frame_delay_ms;            // Delay for current frame in milliseconds
+    bool multi_frame_mode;         // Whether we're extracting multiple frames
 };
 
 static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_size)
@@ -646,14 +646,14 @@ static bool avcodec_decoder_process_sampled_frame(avcodec_decoder d,
             if (delay_ms > 0 && delay_ms <= 60000) {
                 d->frame_delay_ms = delay_ms;
             } else {
-                d->frame_delay_ms = (int)(d->frame_sample_interval * 1000.0);
+                d->frame_delay_ms = (int)(d->frame_sample_interval_ms);
             }
         } else {
-            d->frame_delay_ms = (int)(d->frame_sample_interval * 1000.0);
+            d->frame_delay_ms = (int)(d->frame_sample_interval_ms);
         }
 
         d->last_extracted_pts = frame_time;
-        d->next_frame_time = frame_time + d->frame_sample_interval;
+        d->next_frame_time = frame_time + (d->frame_sample_interval_ms / 1000.0);
 
         // Convert frame to output mat
         *out_result = avcodec_decoder_convert_frame(d, mat, frame);
@@ -744,16 +744,16 @@ bool avcodec_decoder_decode(avcodec_decoder d, opencv_mat mat)
     return success;
 }
 
-void avcodec_decoder_set_frame_sample_interval(avcodec_decoder d, float interval_seconds)
+void avcodec_decoder_set_frame_sample_interval_ms(avcodec_decoder d, int frame_sample_interval_ms)
 {
     if (!d) {
         return;
     }
-    d->frame_sample_interval = interval_seconds;
+    d->frame_sample_interval_ms = frame_sample_interval_ms;
     d->next_frame_time = 0.0;
     d->last_extracted_pts = -1.0;
     d->frame_delay_ms = 0;
-    d->multi_frame_mode = (interval_seconds > 0.0);
+    d->multi_frame_mode = (frame_sample_interval_ms > 0);
 }
 
 int avcodec_decoder_get_frame_delay_ms(const avcodec_decoder d)

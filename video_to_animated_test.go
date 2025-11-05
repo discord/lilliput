@@ -33,13 +33,13 @@ func testBasicVideoToAnimatedWebP(t *testing.T) {
 	// Prepare transformation options
 	dstBuf := make([]byte, 50*1024*1024) // 50MB buffer for output
 	options := &ImageOptions{
-		FileType:                 ".webp",
-		Width:                    200,
-		Height:                   200,
-		ResizeMethod:             ImageOpsFit,
-		EncodeOptions:            map[int]int{WebpQuality: 75},
-		VideoFrameSampleInterval: 1.0, // Extract a frame every 1 second
-		EncodeTimeout:            time.Second * 30,
+		FileType:                   ".webp",
+		Width:                      200,
+		Height:                     200,
+		ResizeMethod:               ImageOpsFit,
+		EncodeOptions:              map[int]int{WebpQuality: 75},
+		VideoFrameSampleIntervalMs: 1000,
+		EncodeTimeout:              time.Second * 30,
 	}
 
 	// Transform video to animated WebP
@@ -86,12 +86,12 @@ func testVideoToAnimatedWebPWithCustomSampleInterval(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		interval float64
+		interval int
 		maxSize  int
 	}{
-		{"500ms intervals", 0.5, 20},
-		{"2 second intervals", 2.0, 5},
-		{"250ms intervals", 0.25, 40},
+		{"500ms intervals", 500, 20},
+		{"2 second intervals", 2000, 5},
+		{"250ms intervals", 250, 40},
 	}
 
 	for _, tc := range testCases {
@@ -104,13 +104,13 @@ func testVideoToAnimatedWebPWithCustomSampleInterval(t *testing.T) {
 
 			dstBuf := make([]byte, 50*1024*1024)
 			options := &ImageOptions{
-				FileType:                 ".webp",
-				Width:                    200,
-				Height:                   200,
-				ResizeMethod:             ImageOpsFit,
-				EncodeOptions:            map[int]int{WebpQuality: 75},
-				VideoFrameSampleInterval: tc.interval,
-				EncodeTimeout:            time.Second * 30,
+				FileType:                   ".webp",
+				Width:                      200,
+				Height:                     200,
+				ResizeMethod:               ImageOpsFit,
+				EncodeOptions:              map[int]int{WebpQuality: 75},
+				VideoFrameSampleIntervalMs: tc.interval,
+				EncodeTimeout:              time.Second * 30,
 			}
 
 			ops := NewImageOps(2000)
@@ -139,13 +139,13 @@ func testVideoToAnimatedWebPWithMaxFrames(t *testing.T) {
 	testCases := []struct {
 		name               string
 		maxFrames          int
-		sampleInterval     float64
+		sampleInterval     int
 		expectedFrameCount int
 	}{
-		{"MaxFrames 5", 5, 1.0, 5},
-		{"MaxFrames 3", 3, 0.5, 3},
-		{"MaxFrames 10", 10, 1.0, 10},
-		{"MaxFrames 1 (single frame)", 1, 1.0, 1},
+		{"MaxFrames 5", 5, 1000, 5},
+		{"MaxFrames 3", 3, 500, 3},
+		{"MaxFrames 10", 10, 1000, 10},
+		{"MaxFrames 1 (single frame)", 1, 1000, 1},
 	}
 
 	for _, tc := range testCases {
@@ -158,14 +158,14 @@ func testVideoToAnimatedWebPWithMaxFrames(t *testing.T) {
 
 			dstBuf := make([]byte, 50*1024*1024)
 			options := &ImageOptions{
-				FileType:                 ".webp",
-				Width:                    200,
-				Height:                   200,
-				ResizeMethod:             ImageOpsFit,
-				EncodeOptions:            map[int]int{WebpQuality: 75},
-				VideoFrameSampleInterval: tc.sampleInterval,
-				MaxEncodeFrames:          tc.maxFrames,
-				EncodeTimeout:            time.Second * 30,
+				FileType:                   ".webp",
+				Width:                      200,
+				Height:                     200,
+				ResizeMethod:               ImageOpsFit,
+				EncodeOptions:              map[int]int{WebpQuality: 75},
+				VideoFrameSampleIntervalMs: tc.sampleInterval,
+				MaxEncodeFrames:            tc.maxFrames,
+				EncodeTimeout:              time.Second * 30,
 			}
 
 			ops := NewImageOps(2000)
@@ -218,13 +218,13 @@ func testVideoToAnimatedWebPWithZeroInterval(t *testing.T) {
 
 	dstBuf := make([]byte, 10*1024*1024)
 	options := &ImageOptions{
-		FileType:                 ".webp",
-		Width:                    200,
-		Height:                   200,
-		ResizeMethod:             ImageOpsFit,
-		EncodeOptions:            map[int]int{WebpQuality: 75},
-		VideoFrameSampleInterval: 0, // No multi-frame extraction
-		EncodeTimeout:            time.Second * 10,
+		FileType:                   ".webp",
+		Width:                      200,
+		Height:                     200,
+		ResizeMethod:               ImageOpsFit,
+		EncodeOptions:              map[int]int{WebpQuality: 75},
+		VideoFrameSampleIntervalMs: 0, // No multi-frame extraction
+		EncodeTimeout:              time.Second * 10,
 	}
 
 	ops := NewImageOps(2000)
@@ -282,18 +282,18 @@ func testVideoToAnimatedWebPVerifyFrameCount(t *testing.T) {
 	}
 	defer decoder.Close()
 
-	sampleInterval := 2.0 // 2 seconds
-	expectedFrames := int(duration.Seconds()/sampleInterval) + 1
+	sampleIntervalMs := 2000
+	expectedFrames := int(float64(duration.Milliseconds())/float64(sampleIntervalMs)) + 1
 
 	dstBuf := make([]byte, 50*1024*1024)
 	options := &ImageOptions{
-		FileType:                 ".webp",
-		Width:                    200,
-		Height:                   200,
-		ResizeMethod:             ImageOpsFit,
-		EncodeOptions:            map[int]int{WebpQuality: 75},
-		VideoFrameSampleInterval: sampleInterval,
-		EncodeTimeout:            time.Second * 30,
+		FileType:                   ".webp",
+		Width:                      200,
+		Height:                     200,
+		ResizeMethod:               ImageOpsFit,
+		EncodeOptions:              map[int]int{WebpQuality: 75},
+		VideoFrameSampleIntervalMs: sampleIntervalMs,
+		EncodeTimeout:              time.Second * 30,
 	}
 
 	ops := NewImageOps(2000)
@@ -323,8 +323,8 @@ func testVideoToAnimatedWebPVerifyFrameCount(t *testing.T) {
 		t.Errorf("Expected approximately %d frames, got %d frames", expectedFrames, actualFrames)
 	}
 
-	t.Logf("Video duration: %v, sample interval: %.1fs, expected ~%d frames, got %d frames",
-		duration, sampleInterval, expectedFrames, actualFrames)
+	t.Logf("Video duration: %v, sample interval: %dms, expected ~%d frames, got %d frames",
+		duration, sampleIntervalMs, expectedFrames, actualFrames)
 }
 
 func testVideoToAnimatedWebPWithResizing(t *testing.T) {
@@ -355,14 +355,14 @@ func testVideoToAnimatedWebPWithResizing(t *testing.T) {
 
 			dstBuf := make([]byte, 50*1024*1024)
 			options := &ImageOptions{
-				FileType:                 ".webp",
-				Width:                    tc.width,
-				Height:                   tc.height,
-				ResizeMethod:             tc.resizeMethod,
-				EncodeOptions:            map[int]int{WebpQuality: 75},
-				VideoFrameSampleInterval: 2.0,
-				MaxEncodeFrames:          3, // Limit to 3 frames for faster testing
-				EncodeTimeout:            time.Second * 30,
+				FileType:                   ".webp",
+				Width:                      tc.width,
+				Height:                     tc.height,
+				ResizeMethod:               tc.resizeMethod,
+				EncodeOptions:              map[int]int{WebpQuality: 75},
+				VideoFrameSampleIntervalMs: 2000,
+				MaxEncodeFrames:            3,
+				EncodeTimeout:              time.Second * 30,
 			}
 
 			ops := NewImageOps(2000)
@@ -431,14 +431,14 @@ func testVideoToAnimatedWebPWithNonAlignedDimensions(t *testing.T) {
 
 			dstBuf := make([]byte, 50*1024*1024)
 			options := &ImageOptions{
-				FileType:                 ".webp",
-				Width:                    tc.width,
-				Height:                   tc.height,
-				ResizeMethod:             ImageOpsResize,
-				EncodeOptions:            map[int]int{WebpQuality: 75},
-				VideoFrameSampleInterval: 2.0,
-				MaxEncodeFrames:          3, // Limit to 3 frames for faster testing
-				EncodeTimeout:            time.Second * 30,
+				FileType:                   ".webp",
+				Width:                      tc.width,
+				Height:                     tc.height,
+				ResizeMethod:               ImageOpsResize,
+				EncodeOptions:              map[int]int{WebpQuality: 75},
+				VideoFrameSampleIntervalMs: 2000,
+				MaxEncodeFrames:            3,
+				EncodeTimeout:              time.Second * 30,
 			}
 
 			ops := NewImageOps(2000)

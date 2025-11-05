@@ -22,15 +22,15 @@ var av1Enabled string
 
 // avCodecDecoder handles decoding of various video/image formats using FFmpeg's avcodec.
 type avCodecDecoder struct {
-	decoder             C.avcodec_decoder
-	mat                 C.opencv_mat
-	buf                 []byte
-	hasDecoded          bool
-	maybeMP4            bool
-	isStreamable        bool
-	hasSubtitles        bool
-	multiFrameMode      bool
-	frameSampleInterval float64
+	decoder               C.avcodec_decoder
+	mat                   C.opencv_mat
+	buf                   []byte
+	hasDecoded            bool
+	maybeMP4              bool
+	isStreamable          bool
+	hasSubtitles          bool
+	multiFrameMode        bool
+	frameSampleIntervalMs int
 }
 
 // newAVCodecDecoder creates a new decoder instance from the provided buffer.
@@ -135,11 +135,11 @@ func (d *avCodecDecoder) Duration() time.Duration {
 // Frame count is 1 for single-frame mode, or estimated from duration and sample interval in multi-frame mode.
 func (d *avCodecDecoder) Header() (*ImageHeader, error) {
 	numFrames := 1
-	if d.multiFrameMode && d.frameSampleInterval > 0 {
+	if d.multiFrameMode && d.frameSampleIntervalMs > 0 {
 		// Estimate the number of frames based on duration and sample interval
 		duration := float64(C.avcodec_decoder_get_duration(d.decoder))
 		if duration > 0 {
-			numFrames = int(duration/d.frameSampleInterval) + 1
+			numFrames = int(duration/(float64(d.frameSampleIntervalMs)/1000.0)) + 1
 		}
 	}
 
@@ -182,7 +182,7 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 		// Validate delay is reasonable (WebP supports up to 65535ms per frame)
 		// Fall back to sample interval if delay is invalid
 		if frameDelayMs <= 0 || frameDelayMs > 65535 {
-			frameDelayMs = int(d.frameSampleInterval * 1000.0)
+			frameDelayMs = d.frameSampleIntervalMs
 		}
 		f.duration = time.Duration(frameDelayMs) * time.Millisecond
 	} else {
@@ -204,10 +204,10 @@ func (d *avCodecDecoder) SkipFrame() error {
 
 // SetFrameSampleInterval configures the decoder to extract frames at the specified
 // interval in seconds. This enables multi-frame extraction mode for videos.
-func (d *avCodecDecoder) SetFrameSampleInterval(intervalSeconds float64) {
+func (d *avCodecDecoder) SetFrameSampleInterval(frameSampleIntervalMs int) {
 	d.multiFrameMode = true
-	d.frameSampleInterval = intervalSeconds
-	C.avcodec_decoder_set_frame_sample_interval(d.decoder, C.float(intervalSeconds))
+	d.frameSampleIntervalMs = frameSampleIntervalMs
+	C.avcodec_decoder_set_frame_sample_interval_ms(d.decoder, C.int(frameSampleIntervalMs))
 }
 
 // Close releases all resources associated with the decoder.
