@@ -80,6 +80,16 @@ type Decoder interface {
 	AudioCodec() string
 }
 
+// VideoDecoder extends Decoder with video-specific functionality
+type VideoDecoder interface {
+	Decoder
+
+	// SetFrameSampleInterval configures the decoder to extract frames at the specified
+	// interval in seconds. For example, 0.1 means extract a frame every 100ms (10 FPS).
+	// This enables multi-frame extraction mode.
+	SetFrameSampleInterval(intervalMs int)
+}
+
 // An Encoder compresses raw pixel data into a well-known image type.
 type Encoder interface {
 	// Encode encodes the pixel data in f into the dst provided to NewEncoder. Encode quality

@@ -49,6 +49,13 @@ struct avcodec_decoder_struct {
     AVCodecContext* codec;
     AVIOContext* avio;
     int video_stream_index;
+
+    // Multi-frame extraction state
+    int frame_sample_interval_ms;  // Interval between frames in milliseconds
+    double next_frame_time;        // Next frame time to extract
+    double last_extracted_pts;     // Last extracted frame PTS
+    int frame_delay_ms;            // Delay for current frame in milliseconds
+    bool multi_frame_mode;         // Whether we're extracting multiple frames
 };
 
 static int avcodec_decoder_read_callback(void* d_void, uint8_t* buf, int buf_size)
@@ -154,7 +161,9 @@ bool avcodec_decoder_is_streamable(const opencv_mat mat)
     return false;
 }
 
-avcodec_decoder avcodec_decoder_create(const opencv_mat buf, const bool hevc_enabled, const bool av1_enabled)
+avcodec_decoder avcodec_decoder_create(const opencv_mat buf,
+                                       const bool hevc_enabled,
+                                       const bool av1_enabled)
 {
     avcodec_decoder d = new struct avcodec_decoder_struct();
     memset(d, 0, sizeof(struct avcodec_decoder_struct));
@@ -286,7 +295,7 @@ int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len
     if (!d || !d->codec) {
         return -1;
     }
-    
+
     const uint8_t* profile_data = avcodec_get_icc_profile(d->codec->color_primaries, profile_size);
 
     if (profile_size > dest_len) {
@@ -413,7 +422,7 @@ const char* avcodec_decoder_get_video_codec(const avcodec_decoder d)
     if (!d || !d->codec) {
         return "Unknown";
     }
-    
+
     switch (d->codec->codec_id) {
     case AV_CODEC_ID_H264:
         return "H264";
@@ -437,7 +446,7 @@ const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d)
     if (!d || !d->container) {
         return "Unknown";
     }
-    
+
     for (unsigned int i = 0; i < d->container->nb_streams; i++) {
         AVStream* stream = d->container->streams[i];
         if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -457,7 +466,7 @@ const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d)
             }
         }
     }
-    
+
     return "Unknown";
 }
 
@@ -472,40 +481,59 @@ bool avcodec_decoder_has_subtitles(const avcodec_decoder d)
     return false;
 }
 
-static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
+static int avcodec_decoder_convert_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
 {
     if (!d || !d->codec || !d->codec->codec || !mat || !frame) {
         return -1;
     }
-    
+
     auto cvMat = static_cast<cv::Mat*>(mat);
     if (!cvMat) {
         return -1;
     }
 
-    int res = avcodec_receive_frame(d->codec, frame);
-    if (res >= 0) {
-        // Calculate the step size based on the cv::Mat's width
-        int stepSize =
-          4 * cvMat->cols; // Assuming the cv::Mat is in BGRA format, which has 4 channels
-        if (cvMat->cols % 32 != 0) {
-            int width = cvMat->cols + 32 - (cvMat->cols % 32);
-            stepSize = 4 * width;
+    // Check if rotation/transformation is needed
+    CVImageOrientation orientation = (CVImageOrientation)avcodec_decoder_get_orientation(d);
+    bool needs_transformation = (orientation != CV_IMAGE_ORIENTATION_TL);
+    bool dimensions_swapped = (orientation == CV_IMAGE_ORIENTATION_RT || orientation == CV_IMAGE_ORIENTATION_LB);
+
+    int res = 0;
+    cv::Mat tempMat;
+    cv::Mat* decodeDst = cvMat;
+
+    // If transformation is needed, decode to a temporary buffer with raw dimensions
+    if (needs_transformation) {
+        // For 90/270 rotation, create temp Mat with swapped dimensions
+        // For other transformations, use same dimensions as output
+        if (dimensions_swapped) {
+            tempMat = cv::Mat(frame->height, frame->width, CV_8UC4);
+        } else {
+            tempMat = cv::Mat(cvMat->rows, cvMat->cols, CV_8UC4);
         }
-        if (!opencv_mat_set_row_stride(mat, stepSize)) {
+        decodeDst = &tempMat;
+    }
+
+    {
+        // Use the decode destination's actual step (stride)
+        int stepSize = decodeDst->step;
+
+        // Validate that the stride and height are within the allocated buffer bounds
+        size_t required_size = stepSize * decodeDst->rows;
+        size_t available_size =
+          (decodeDst->datalimit && decodeDst->data) ? (decodeDst->datalimit - decodeDst->data) : 0;
+        if (available_size > 0 && required_size > available_size) {
             return -1;
         }
 
-        // Create SwsContext for converting the frame format and scaling
+        // Create SwsContext for converting the frame format
         struct SwsContext* sws =
           sws_getContext(frame->width,
                          frame->height,
                          (AVPixelFormat)(frame->format), // Source dimensions and format
-                         cvMat->cols,
-                         cvMat->rows,
-                         AV_PIX_FMT_BGRA, // Destination dimensions and format
-                         SWS_BILINEAR,    // Specify the scaling algorithm; you can choose another
-                                          // according to your needs
+                         decodeDst->cols,
+                         decodeDst->rows,
+                         AV_PIX_FMT_BGRA, // Destination format
+                         SWS_BILINEAR,
                          NULL,
                          NULL,
                          NULL);
@@ -541,9 +569,8 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         sws_setColorspaceDetails(sws, inv_table, srcRange, table, 1, 0, 1 << 16, 1 << 16);
 
         // The linesizes and data pointers for the destination
-        int dstLinesizes[4];
-        av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, stepSize / 4);
-        uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
+        int dstLinesizes[4] = {stepSize, 0, 0, 0};
+        uint8_t* dstData[4] = {decodeDst->data, NULL, NULL, NULL};
 
         // Perform the scaling and format conversion
         sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesizes);
@@ -552,6 +579,28 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         sws_freeContext(sws);
     }
 
+    // Apply orientation transformation if needed
+    if (needs_transformation) {
+        cv::OrientationTransform(int(orientation), tempMat);
+
+        // Verify dimensions match after transformation
+        if (tempMat.cols != cvMat->cols || tempMat.rows != cvMat->rows) {
+            return -1;
+        }
+
+        // Copy the transformed image to the output Mat, respecting stride
+        opencv_mat_copy_with_stride(&tempMat, cvMat);
+    }
+
+    return res;
+}
+
+static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
+{
+    int res = avcodec_receive_frame(d->codec, frame);
+    if (res >= 0) {
+        return avcodec_decoder_convert_frame(d, mat, frame);
+    }
     return res;
 }
 
@@ -573,12 +622,106 @@ static int avcodec_decoder_decode_packet(const avcodec_decoder d, opencv_mat mat
     return res;
 }
 
-bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
+// Helper function to check if a frame should be extracted and process it
+// Returns true if the frame was processed and should be returned
+static bool avcodec_decoder_process_sampled_frame(avcodec_decoder d,
+                                                   opencv_mat mat,
+                                                   AVFrame* frame,
+                                                   AVStream* video_stream,
+                                                   int* out_result)
+{
+    double frame_time = -1.0;
+    if (frame->pts != AV_NOPTS_VALUE) {
+        frame_time = frame->pts * av_q2d(video_stream->time_base);
+    }
+
+    // Check if this frame should be extracted based on sampling interval
+    if (frame_time >= 0 && frame_time >= d->next_frame_time) {
+        // Calculate frame delay for animation
+        if (d->last_extracted_pts >= 0) {
+            double delay_seconds = frame_time - d->last_extracted_pts;
+            int delay_ms = (int)(delay_seconds * 1000.0);
+            // Validate delay is reasonable (between 1ms and 60 seconds)
+            // Use sample interval if delay is out of bounds
+            if (delay_ms > 0 && delay_ms <= 60000) {
+                d->frame_delay_ms = delay_ms;
+            } else {
+                d->frame_delay_ms = (int)(d->frame_sample_interval_ms);
+            }
+        } else {
+            d->frame_delay_ms = (int)(d->frame_sample_interval_ms);
+        }
+
+        d->last_extracted_pts = frame_time;
+        d->next_frame_time = frame_time + (d->frame_sample_interval_ms / 1000.0);
+
+        // Convert frame to output mat
+        *out_result = avcodec_decoder_convert_frame(d, mat, frame);
+        return true;
+    }
+
+    return false;
+}
+
+bool avcodec_decoder_decode(avcodec_decoder d, opencv_mat mat)
 {
     if (!d || !d->container || !d->codec || !mat) {
         return false;
     }
+
     AVPacket packet;
+    AVStream* video_stream = d->container->streams[d->video_stream_index];
+
+    // If we're in multi-frame mode, we need to sample frames based on time
+    if (d->multi_frame_mode) {
+        AVFrame* frame = av_frame_alloc();
+        if (!frame) {
+            return false;
+        }
+
+        while (true) {
+            int res = av_read_frame(d->container, &packet);
+            if (res < 0) {
+                // Reached EOF - flush remaining frames from the decoder
+                avcodec_send_packet(d->codec, NULL);
+                while (avcodec_receive_frame(d->codec, frame) == 0) {
+                    int convert_result;
+                    if (avcodec_decoder_process_sampled_frame(d, mat, frame, video_stream, &convert_result)) {
+                        av_frame_free(&frame);
+                        return (convert_result >= 0);
+                    }
+                    av_frame_unref(frame);
+                }
+
+                // No more frames available
+                av_frame_free(&frame);
+                return false;
+            }
+
+            if (packet.stream_index != d->video_stream_index) {
+                av_packet_unref(&packet);
+                continue;
+            }
+
+            res = avcodec_send_packet(d->codec, &packet);
+            av_packet_unref(&packet);
+
+            if (res < 0) {
+                continue;
+            }
+
+            while (avcodec_receive_frame(d->codec, frame) == 0) {
+                int convert_result;
+                if (avcodec_decoder_process_sampled_frame(d, mat, frame, video_stream, &convert_result)) {
+                    av_frame_free(&frame);
+                    return (convert_result >= 0);
+                }
+                av_frame_unref(frame);
+            }
+        }
+    }
+
+    // Single-frame mode: just decode the first video frame
     bool done = false;
     bool success = false;
     while (!done) {
@@ -599,6 +742,26 @@ bool avcodec_decoder_decode(const avcodec_decoder d, opencv_mat mat)
         av_packet_unref(&packet);
     }
     return success;
+}
+
+void avcodec_decoder_set_frame_sample_interval_ms(avcodec_decoder d, int frame_sample_interval_ms)
+{
+    if (!d) {
+        return;
+    }
+    d->frame_sample_interval_ms = frame_sample_interval_ms;
+    d->next_frame_time = 0.0;
+    d->last_extracted_pts = -1.0;
+    d->frame_delay_ms = 0;
+    d->multi_frame_mode = (frame_sample_interval_ms > 0);
+}
+
+int avcodec_decoder_get_frame_delay_ms(const avcodec_decoder d)
+{
+    if (!d) {
+        return 0;
+    }
+    return d->frame_delay_ms;
 }
 
 void avcodec_decoder_release(avcodec_decoder d)
