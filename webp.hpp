@@ -68,6 +68,18 @@ size_t webp_encoder_write(webp_encoder e,
                           int dispose,
                           int x_offset,
                           int y_offset);
+size_t webp_encoder_write_with_tone_mapping(webp_encoder e,
+                                            const opencv_mat src,
+                                            const int* opt,
+                                            size_t opt_len,
+                                            int delay,
+                                            int blend,
+                                            int dispose,
+                                            int x_offset,
+                                            int y_offset,
+                                            const uint8_t* icc_data,
+                                            size_t icc_len,
+                                            bool force_sdr);
 void webp_encoder_release(webp_encoder e);
 size_t webp_encoder_flush(webp_encoder e);
 void webp_decoder_advance_frame(webp_decoder d);

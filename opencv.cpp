@@ -1,4 +1,5 @@
 #include "opencv.hpp"
+#include "tone_mapping.hpp"
 
 #include <stdbool.h>
 #include <opencv2/highgui.hpp>
@@ -7,6 +8,7 @@
 #include <png.h>
 #include <setjmp.h>
 #include <iostream>
+#include <lcms2.h>
 
 // Interpolation constants
 const int CV_INTER_AREA = cv::INTER_AREA;
@@ -197,6 +199,58 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
     }
     return e_ptr->write(*mat, params);
 };
+
+// Apply HDR to SDR tone mapping using littleCMS
+// Wrapper function for PNG encoder - delegates to shared tone mapping implementation
+static cv::Mat* apply_tone_mapping(const cv::Mat* src, const uint8_t* icc_data, size_t icc_len)
+{
+    std::cerr << "SALAR (PNG C++): apply_tone_mapping called, delegating to shared implementation" << std::endl;
+    return apply_hdr_to_sdr_tone_mapping(src, icc_data, icc_len);
+}
+
+// Encoder write with tone mapping support
+bool opencv_encoder_write_with_tone_mapping(
+    opencv_encoder e,
+    const opencv_mat src,
+    const int* opt,
+    size_t opt_len,
+    const uint8_t* icc_data,
+    size_t icc_len,
+    bool force_sdr)
+{
+    std::cerr << "========================================" << std::endl;
+    std::cerr << "USING MEDIA PROXY LILLIPUT VERSION" << std::endl;
+    std::cerr << "========================================" << std::endl;
+
+    auto e_ptr = static_cast<cv::ImageEncoder*>(e);
+    auto mat = static_cast<const cv::Mat*>(src);
+    std::vector<int> params;
+    for (size_t i = 0; i < opt_len; i++) {
+        params.push_back(opt[i]);
+    }
+
+    // Apply tone mapping if requested and ICC profile is available
+    const cv::Mat* mat_to_encode = mat;
+    cv::Mat* transformed_mat = nullptr;
+
+    if (force_sdr && icc_data && icc_len > 0) {
+        std::cerr << "SALAR (C++): force_sdr=true, applying tone mapping" << std::endl;
+        transformed_mat = apply_tone_mapping(mat, icc_data, icc_len);
+        if (transformed_mat) {
+            mat_to_encode = transformed_mat;
+        } else {
+            std::cerr << "SALAR (C++): Tone mapping failed, encoding original" << std::endl;
+        }
+    }
+
+    bool result = e_ptr->write(*mat_to_encode, params);
+
+    if (transformed_mat) {
+        delete transformed_mat;
+    }
+
+    return result;
+}
 
 void opencv_mat_resize(const opencv_mat src,
                        opencv_mat dst,
