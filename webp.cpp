@@ -1,4 +1,5 @@
 #include "webp.hpp"
+#include "tone_mapping.hpp"
 #include <opencv2/imgproc.hpp>
 #include <webp/decode.h>
 #include <webp/encode.h>
@@ -6,6 +7,8 @@
 #include <webp/mux_types.h>
 #include <webp/demux.h>
 #include <stdbool.h>
+#include <lcms2.h>
+#include <iostream>
 
 struct webp_decoder_struct {
     WebPMux* mux;
@@ -739,6 +742,68 @@ size_t webp_encoder_write(webp_encoder e,
 
     e->frame_count++;
     return size;
+}
+
+// Apply HDR to SDR tone mapping using littleCMS
+// Wrapper function for WebP encoder - delegates to shared tone mapping implementation
+static cv::Mat* apply_tone_mapping_webp(const cv::Mat* src, const uint8_t* icc_data, size_t icc_len)
+{
+    return apply_hdr_to_sdr_tone_mapping(src, icc_data, icc_len);
+}
+
+/**
+ * Encodes the given OpenCV matrix as a WebP image with HDR to SDR tone mapping.
+ * This function applies tone mapping before encoding if force_sdr is true and ICC data is provided.
+ * @param e The webp_encoder_struct pointer.
+ * @param src The OpenCV matrix containing the image to encode.
+ * @param opt The encoding options.
+ * @param opt_len The number of encoding options.
+ * @param delay The delay time for the current frame.
+ * @param blend The blend method for the current frame.
+ * @param dispose The dispose method for the current frame.
+ * @param x_offset The x-offset for the current frame.
+ * @param y_offset The y-offset for the current frame.
+ * @param icc_data The ICC profile data from the source image.
+ * @param icc_len The length of the ICC profile data.
+ * @param force_sdr Whether to force SDR output by applying tone mapping.
+ * @return The size of the encoded WebP data, or 0 if encoding failed.
+ */
+size_t webp_encoder_write_with_tone_mapping(webp_encoder e,
+                                            const opencv_mat src,
+                                            const int* opt,
+                                            size_t opt_len,
+                                            int delay,
+                                            int blend,
+                                            int dispose,
+                                            int x_offset,
+                                            int y_offset,
+                                            const uint8_t* icc_data,
+                                            size_t icc_len,
+                                            bool force_sdr)
+{
+    // If not forcing SDR or no ICC data, just use regular encoding
+    if (!force_sdr || !icc_data || icc_len == 0) {
+        return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
+    }
+
+    // Apply tone mapping to the source Mat
+    auto mat = static_cast<const cv::Mat*>(src);
+    if (!mat || mat->empty()) {
+        return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
+    }
+
+    cv::Mat* tone_mapped = apply_tone_mapping_webp(mat, icc_data, icc_len);
+    if (!tone_mapped) {
+        return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
+    }
+
+    // Encode the tone-mapped image
+    size_t result = webp_encoder_write(e, tone_mapped, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
+
+    // Clean up the tone-mapped Mat
+    delete tone_mapped;
+
+    return result;
 }
 
 /**
