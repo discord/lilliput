@@ -748,7 +748,6 @@ size_t webp_encoder_write(webp_encoder e,
 // Wrapper function for WebP encoder - delegates to shared tone mapping implementation
 static cv::Mat* apply_tone_mapping_webp(const cv::Mat* src, const uint8_t* icc_data, size_t icc_len)
 {
-    std::cerr << "SALAR (WebP C++): apply_tone_mapping_webp called, delegating to shared implementation" << std::endl;
     return apply_hdr_to_sdr_tone_mapping(src, icc_data, icc_len);
 }
 
@@ -782,35 +781,21 @@ size_t webp_encoder_write_with_tone_mapping(webp_encoder e,
                                             size_t icc_len,
                                             bool force_sdr)
 {
-    std::cerr << "========================================" << std::endl;
-    std::cerr << "SALAR: webp_encoder_write_with_tone_mapping called" << std::endl;
-    std::cerr << "force_sdr=" << force_sdr << ", icc_len=" << icc_len << std::endl;
-    std::cerr << "========================================" << std::endl;
-
     // If not forcing SDR or no ICC data, just use regular encoding
     if (!force_sdr || !icc_data || icc_len == 0) {
-        std::cerr << "SALAR: Skipping tone mapping (force_sdr=" << force_sdr
-                  << ", icc_len=" << icc_len << ")" << std::endl;
         return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
     }
 
     // Apply tone mapping to the source Mat
     auto mat = static_cast<const cv::Mat*>(src);
     if (!mat || mat->empty()) {
-        std::cerr << "SALAR: Source mat is null or empty" << std::endl;
         return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
     }
-
-    std::cerr << "SALAR: Applying tone mapping to " << mat->rows << "x" << mat->cols
-              << " image before WebP encoding" << std::endl;
 
     cv::Mat* tone_mapped = apply_tone_mapping_webp(mat, icc_data, icc_len);
     if (!tone_mapped) {
-        std::cerr << "SALAR: Tone mapping failed, using original image" << std::endl;
         return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
     }
-
-    std::cerr << "SALAR: Tone mapping successful, encoding tone-mapped image" << std::endl;
 
     // Encode the tone-mapped image
     size_t result = webp_encoder_write(e, tone_mapped, opt, opt_len, delay, blend, dispose, x_offset, y_offset);

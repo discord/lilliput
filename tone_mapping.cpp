@@ -1,5 +1,4 @@
 #include "tone_mapping.hpp"
-#include <iostream>
 #include <cstring>
 
 cv::Mat* apply_hdr_to_sdr_tone_mapping(
@@ -9,21 +8,18 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
 )
 {
     if (!src || !icc_data || icc_len == 0) {
-        std::cerr << "Tone mapping: Invalid input parameters" << std::endl;
         return nullptr;
     }
 
     // Only support 8-bit RGB or RGBA
     int channels = src->channels();
     if (src->depth() != CV_8U || (channels != 3 && channels != 4)) {
-        std::cerr << "Tone mapping: Unsupported format (must be 8-bit BGR/BGRA)" << std::endl;
         return nullptr;
     }
 
     // Load ICC profile
     cmsHPROFILE src_profile = cmsOpenProfileFromMem(icc_data, icc_len);
     if (!src_profile) {
-        std::cerr << "Tone mapping: Failed to open ICC profile" << std::endl;
         return nullptr;
     }
 
@@ -40,11 +36,8 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
 
     // If not PQ, just return a copy unchanged
     if (!is_pq_profile) {
-        std::cerr << "Tone mapping: Non-PQ profile (" << profile_desc << "), returning unchanged" << std::endl;
         return new cv::Mat(*src);
     }
-
-    std::cerr << "Tone mapping: PQ profile detected (" << profile_desc << "), applying tone mapping" << std::endl;
 
     // Handle alpha channel separately - alpha should NOT be tone mapped
     bool has_alpha = (channels == 4);
@@ -113,6 +106,5 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
         result = dst_bgr;
     }
 
-    std::cerr << "Tone mapping: Complete" << std::endl;
     return result;
 }
