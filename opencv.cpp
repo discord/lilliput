@@ -2,6 +2,8 @@
 #include "tone_mapping.hpp"
 
 #include <stdbool.h>
+#include <cstdio>
+#include <memory>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <jpeglib.h>
@@ -217,8 +219,13 @@ bool opencv_encoder_write_with_tone_mapping(
     size_t icc_len,
     bool force_sdr)
 {
-    auto e_ptr = static_cast<cv::ImageEncoder*>(e);
+    // Validate input early
     auto mat = static_cast<const cv::Mat*>(src);
+    if (!mat || mat->empty()) {
+        return false;
+    }
+
+    auto e_ptr = static_cast<cv::ImageEncoder*>(e);
     std::vector<int> params;
     for (size_t i = 0; i < opt_len; i++) {
         params.push_back(opt[i]);
@@ -226,22 +233,18 @@ bool opencv_encoder_write_with_tone_mapping(
 
     // Apply tone mapping if requested and ICC profile is available
     const cv::Mat* mat_to_encode = mat;
-    cv::Mat* transformed_mat = nullptr;
+    std::unique_ptr<cv::Mat> transformed_mat;
 
     if (force_sdr && icc_data && icc_len > 0) {
-        transformed_mat = apply_tone_mapping(mat, icc_data, icc_len);
+        transformed_mat.reset(apply_tone_mapping(mat, icc_data, icc_len));
         if (transformed_mat) {
-            mat_to_encode = transformed_mat;
+            mat_to_encode = transformed_mat.get();
+        } else {
+            fprintf(stderr, "PNG: Tone mapping failed, falling back to regular encoding\n");
         }
     }
 
-    bool result = e_ptr->write(*mat_to_encode, params);
-
-    if (transformed_mat) {
-        delete transformed_mat;
-    }
-
-    return result;
+    return e_ptr->write(*mat_to_encode, params);
 }
 
 void opencv_mat_resize(const opencv_mat src,

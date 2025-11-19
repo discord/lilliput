@@ -8,7 +8,7 @@
 #include <webp/demux.h>
 #include <stdbool.h>
 #include <lcms2.h>
-#include <iostream>
+#include <memory>
 
 struct webp_decoder_struct {
     WebPMux* mux;
@@ -781,29 +781,24 @@ size_t webp_encoder_write_with_tone_mapping(webp_encoder e,
                                             size_t icc_len,
                                             bool force_sdr)
 {
+    // Validate input early
+    auto mat = static_cast<const cv::Mat*>(src);
+    if (!mat || mat->empty()) {
+        return 0;
+    }
+
     // If not forcing SDR or no ICC data, just use regular encoding
     if (!force_sdr || !icc_data || icc_len == 0) {
         return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
     }
 
-    // Apply tone mapping to the source Mat
-    auto mat = static_cast<const cv::Mat*>(src);
-    if (!mat || mat->empty()) {
-        return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
-    }
-
-    cv::Mat* tone_mapped = apply_tone_mapping_webp(mat, icc_data, icc_len);
+    std::unique_ptr<cv::Mat> tone_mapped(apply_tone_mapping_webp(mat, icc_data, icc_len));
     if (!tone_mapped) {
+        fprintf(stderr, "WebP: Tone mapping failed, falling back to regular encoding\n");
         return webp_encoder_write(e, src, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
     }
 
-    // Encode the tone-mapped image
-    size_t result = webp_encoder_write(e, tone_mapped, opt, opt_len, delay, blend, dispose, x_offset, y_offset);
-
-    // Clean up the tone-mapped Mat
-    delete tone_mapped;
-
-    return result;
+    return webp_encoder_write(e, tone_mapped.get(), opt, opt_len, delay, blend, dispose, x_offset, y_offset);
 }
 
 /**

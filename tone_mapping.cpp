@@ -1,5 +1,10 @@
 #include "tone_mapping.hpp"
 #include <cstring>
+#include <memory>
+
+// Tone mapping constants
+constexpr float MIN_LUMA_THRESHOLD = 0.001f;  // Threshold to avoid division by near-zero luminance
+constexpr float REINHARD_LUMINANCE_SCALE = 1.2f;  // Gentle luminance boost before tone mapping
 
 cv::Mat* apply_hdr_to_sdr_tone_mapping(
     const cv::Mat* src,
@@ -41,13 +46,13 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
 
     // Handle alpha channel separately - alpha should NOT be tone mapped
     bool has_alpha = (channels == 4);
-    cv::Mat* bgr_only = nullptr;
-    cv::Mat* alpha_channel = nullptr;
+    std::unique_ptr<cv::Mat> bgr_only;
+    std::unique_ptr<cv::Mat> alpha_channel;
     const cv::Mat* src_for_transform = src;
 
     if (has_alpha) {
-        bgr_only = new cv::Mat(src->rows, src->cols, CV_8UC3);
-        alpha_channel = new cv::Mat(src->rows, src->cols, CV_8UC1);
+        bgr_only = std::make_unique<cv::Mat>(src->rows, src->cols, CV_8UC3);
+        alpha_channel = std::make_unique<cv::Mat>(src->rows, src->cols, CV_8UC1);
 
         cv::Mat channels_split[4];
         cv::split(*src, channels_split);
@@ -56,11 +61,11 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
         cv::merge(bgr_channels, 3, *bgr_only);
         *alpha_channel = channels_split[3];
 
-        src_for_transform = bgr_only;
+        src_for_transform = bgr_only.get();
     }
 
     // Apply Reinhard tone mapping
-    cv::Mat* dst_bgr = new cv::Mat(src_for_transform->rows, src_for_transform->cols, CV_8UC3);
+    std::unique_ptr<cv::Mat> dst_bgr = std::make_unique<cv::Mat>(src_for_transform->rows, src_for_transform->cols, CV_8UC3);
 
     // Apply luminance-based tone mapping to preserve color relationships
     // This prevents oversaturation by operating on brightness only
@@ -79,11 +84,11 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
             float luma = 0.2126f * r + 0.7152f * g + 0.0722f * b;
 
             // Apply gentle Reinhard tone mapping to luminance only
-            float luma_scaled = luma * 1.2f;  // Gentle scaling
+            float luma_scaled = luma * REINHARD_LUMINANCE_SCALE;
             float luma_mapped = luma_scaled / (1.0f + luma_scaled);
 
             // Scale RGB channels by the luminance ratio to preserve color
-            float ratio = (luma > 0.001f) ? (luma_mapped / luma) : 0.0f;
+            float ratio = (luma > MIN_LUMA_THRESHOLD) ? (luma_mapped / luma) : 0.0f;
 
             dst_row[idx + 0] = static_cast<uint8_t>(std::min(b * ratio * 255.0f, 255.0f));
             dst_row[idx + 1] = static_cast<uint8_t>(std::min(g * ratio * 255.0f, 255.0f));
@@ -91,20 +96,14 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
         }
     }
 
-    // Merge alpha back if needed
-    cv::Mat* result = nullptr;
     if (has_alpha) {
-        result = new cv::Mat(src->rows, src->cols, src->type());
+        auto result = std::make_unique<cv::Mat>(src->rows, src->cols, src->type());
         cv::Mat bgr_channels_out[3];
         cv::split(*dst_bgr, bgr_channels_out);
         cv::Mat final_channels[4] = {bgr_channels_out[0], bgr_channels_out[1], bgr_channels_out[2], *alpha_channel};
         cv::merge(final_channels, 4, *result);
-        delete bgr_only;
-        delete alpha_channel;
-        delete dst_bgr;
+        return result.release();
     } else {
-        result = dst_bgr;
+        return dst_bgr.release();
     }
-
-    return result;
 }
