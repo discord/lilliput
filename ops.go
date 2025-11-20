@@ -57,6 +57,11 @@ type ImageOptions struct {
 	// If set to 0, only the first frame will be extracted (default behavior).
 	// This option only applies to video formats (MP4, MOV, WEBM).
 	VideoFrameSampleIntervalMs int
+
+	// ForceSdr enables HDR to SDR tone mapping for images with PQ (Perceptual Quantizer) profiles.
+	// When enabled, images with HDR color profiles will be tone-mapped to SDR for better compatibility.
+	// Only applies to WebP and PNG output formats.
+	ForceSdr bool
 }
 
 // ImageOps is a reusable object that can resize and encode images.
@@ -418,7 +423,7 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 		return nil, nil, err
 	}
 
-	enc, err := NewEncoder(opt.FileType, d, dst)
+	enc, err := NewEncoder(opt.FileType, d, dst, opt.ForceSdr)
 	if err != nil {
 		return nil, nil, err
 	}

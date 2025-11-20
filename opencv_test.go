@@ -269,7 +269,7 @@ func TestICC(t *testing.T) {
 
 			// try encoding a WebP image, including ICC profile data when available
 			dstBuf := make([]byte, destinationBufferSize)
-			encoder, err := newWebpEncoder(decoder, dstBuf)
+			encoder, err := newWebpEncoder(decoder, dstBuf, false)
 			if err != nil {
 				t.Fatalf("Failed to create a new webp encoder: %v", err)
 			}

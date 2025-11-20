@@ -138,9 +138,11 @@ type openCVDecoder struct {
 
 // openCVEncoder implements the Encoder interface for images supported by OpenCV.
 type openCVEncoder struct {
-	encoder C.opencv_encoder // Native OpenCV encoder
-	dst     C.opencv_mat     // Destination OpenCV matrix
-	dstBuf  []byte           // Destination buffer for encoded data
+	encoder  C.opencv_encoder // Native OpenCV encoder
+	dst      C.opencv_mat     // Destination OpenCV matrix
+	dstBuf   []byte           // Destination buffer for encoded data
+	icc      []byte           // ICC color profile from source image
+	forceSdr bool             // Enable HDR to SDR tone mapping
 }
 
 // Depth returns the number of bits in the PixelType.
@@ -762,7 +764,7 @@ func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte, forceSdr bool) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 
@@ -777,10 +779,14 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEnco
 		return nil, ErrInvalidImage
 	}
 
+	icc := decodedBy.ICC()
+
 	return &openCVEncoder{
-		encoder: enc,
-		dst:     dst,
-		dstBuf:  dstBuf,
+		encoder:  enc,
+		dst:      dst,
+		dstBuf:   dstBuf,
+		icc:      icc,
+		forceSdr: forceSdr,
 	}, nil
 }
 
@@ -797,7 +803,21 @@ func (e *openCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 	if len(optList) > 0 {
 		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
 	}
-	if !C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))) {
+
+	var success bool
+	if e.forceSdr && len(e.icc) > 0 {
+		var iccPtr unsafe.Pointer
+		if len(e.icc) > 0 {
+			iccPtr = unsafe.Pointer(&e.icc[0])
+		}
+		success = bool(C.opencv_encoder_write_with_tone_mapping(
+			e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
+			(*C.uint8_t)(iccPtr), C.size_t(len(e.icc)), C.bool(true)))
+	} else {
+		success = bool(C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))))
+	}
+
+	if !success {
 		return nil, ErrInvalidImage
 	}
 

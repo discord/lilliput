@@ -170,13 +170,13 @@ func NewDecoderWithOptionalToneMapping(buf []byte, toneMappingEnabled bool) (Dec
 // into compressed image data. ext should be a string like ".jpeg" or
 // ".png". decodedBy is optional and can be the Decoder used to make
 // the Framebuffer. dst is where an encoded image will be written.
-func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
+func NewEncoder(ext string, decodedBy Decoder, dst []byte, forceSdr bool) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
 	}
 
 	if strings.ToLower(ext) == ".webp" {
-		return newWebpEncoder(decodedBy, dst)
+		return newWebpEncoder(decodedBy, dst, forceSdr)
 	}
 
 	if strings.ToLower(ext) == ".avif" {
@@ -191,5 +191,5 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 		return newThumbhashEncoder(decodedBy, dst)
 	}
 
-	return newOpenCVEncoder(ext, decodedBy, dst)
+	return newOpenCVEncoder(ext, decodedBy, dst, forceSdr)
 }
