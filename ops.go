@@ -423,7 +423,11 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 		return nil, nil, err
 	}
 
-	enc, err := NewEncoder(opt.FileType, d, dst, opt.ForceSdr)
+	var encoderOpts []EncoderOption
+	if opt.ForceSdr {
+		encoderOpts = append(encoderOpts, WithForceSdr(true))
+	}
+	enc, err := NewEncoder(opt.FileType, d, dst, encoderOpts...)
 	if err != nil {
 		return nil, nil, err
 	}

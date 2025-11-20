@@ -166,17 +166,38 @@ func NewDecoderWithOptionalToneMapping(buf []byte, toneMappingEnabled bool) (Dec
 	return newAVCodecDecoder(buf)
 }
 
+// encoderOptions contains optional configuration for encoders.
+type encoderOptions struct {
+	forceSdr bool
+}
+
+// EncoderOption is a functional option for configuring encoders.
+type EncoderOption func(*encoderOptions)
+
+// WithForceSdr enables HDR to SDR tone mapping for images with PQ profiles.
+// Only applies to WebP and PNG formats.
+func WithForceSdr(enable bool) EncoderOption {
+	return func(opts *encoderOptions) {
+		opts.forceSdr = enable
+	}
+}
+
 // NewEncoder returns an Encode which can be used to encode Framebuffer
 // into compressed image data. ext should be a string like ".jpeg" or
 // ".png". decodedBy is optional and can be the Decoder used to make
 // the Framebuffer. dst is where an encoded image will be written.
-func NewEncoder(ext string, decodedBy Decoder, dst []byte, forceSdr bool) (Encoder, error) {
+// Options can be passed to configure encoder behavior.
+func NewEncoder(ext string, decodedBy Decoder, dst []byte, opts ...EncoderOption) (Encoder, error) {
+	options := &encoderOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	if strings.ToLower(ext) == ".gif" {
 		return newGifEncoder(decodedBy, dst)
 	}
 
 	if strings.ToLower(ext) == ".webp" {
-		return newWebpEncoder(decodedBy, dst, forceSdr)
+		return newWebpEncoder(decodedBy, dst, options.forceSdr)
 	}
 
 	if strings.ToLower(ext) == ".avif" {
@@ -191,5 +212,5 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte, forceSdr bool) (Encod
 		return newThumbhashEncoder(decodedBy, dst)
 	}
 
-	return newOpenCVEncoder(ext, decodedBy, dst, forceSdr)
+	return newOpenCVEncoder(ext, decodedBy, dst, options.forceSdr)
 }
