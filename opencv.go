@@ -3,6 +3,7 @@ package lilliput
 // #include "opencv.hpp"
 // #include "avif.hpp"
 // #include "webp.hpp"
+// #include "tone_mapping.hpp"
 import "C"
 
 import (
@@ -315,7 +316,7 @@ func (f *Framebuffer) ApplyToneMapping(icc []byte) error {
 		iccPtr = unsafe.Pointer(&icc[0])
 	}
 
-	toneMappedMat := C.opencv_mat_apply_tone_mapping(
+	toneMappedMat := C.apply_tone_mapping_ffi(
 		f.mat,
 		(*C.uint8_t)(iccPtr),
 		C.size_t(len(icc)))

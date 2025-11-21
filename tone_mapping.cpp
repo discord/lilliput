@@ -107,3 +107,27 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
         return dst_bgr.release();
     }
 }
+
+// C FFI wrapper for tone mapping
+extern "C" {
+
+opencv_mat apply_tone_mapping_ffi(
+    const opencv_mat src,
+    const uint8_t* icc_data,
+    size_t icc_len
+)
+{
+    auto mat = static_cast<const cv::Mat*>(src);
+    if (!mat || mat->empty()) {
+        return nullptr;
+    }
+
+    if (!icc_data || icc_len == 0) {
+        // No ICC profile, just return a copy
+        return new cv::Mat(*mat);
+    }
+
+    return apply_hdr_to_sdr_tone_mapping(mat, icc_data, icc_len);
+}
+
+}

@@ -202,23 +202,6 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
     return e_ptr->write(*mat, params);
 };
 
-// Public API: Apply tone mapping to an opencv_mat
-// Returns a new mat (caller must release) or nullptr on error
-opencv_mat opencv_mat_apply_tone_mapping(const opencv_mat src, const uint8_t* icc_data, size_t icc_len)
-{
-    auto mat = static_cast<const cv::Mat*>(src);
-    if (!mat || mat->empty()) {
-        return nullptr;
-    }
-
-    if (!icc_data || icc_len == 0) {
-        // No ICC profile, just return a copy
-        return new cv::Mat(*mat);
-    }
-
-    return apply_hdr_to_sdr_tone_mapping(mat, icc_data, icc_len);
-}
-
 void opencv_mat_resize(const opencv_mat src,
                        opencv_mat dst,
                        int width,
