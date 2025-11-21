@@ -1,5 +1,4 @@
 #include "webp.hpp"
-#include "tone_mapping.hpp"
 #include <opencv2/imgproc.hpp>
 #include <webp/decode.h>
 #include <webp/encode.h>
@@ -7,8 +6,6 @@
 #include <webp/mux_types.h>
 #include <webp/demux.h>
 #include <stdbool.h>
-#include <lcms2.h>
-#include <memory>
 
 struct webp_decoder_struct {
     WebPMux* mux;

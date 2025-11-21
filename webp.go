@@ -228,10 +228,7 @@ func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 
 	// Encode the current frame
 	frameDelay := int(f.duration.Milliseconds())
-
-	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
-		C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
-
+	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)), C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
 	if length == 0 {
 		return nil, ErrInvalidImage
 	}
