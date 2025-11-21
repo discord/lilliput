@@ -138,11 +138,10 @@ type openCVDecoder struct {
 
 // openCVEncoder implements the Encoder interface for images supported by OpenCV.
 type openCVEncoder struct {
-	encoder  C.opencv_encoder // Native OpenCV encoder
-	dst      C.opencv_mat     // Destination OpenCV matrix
-	dstBuf   []byte           // Destination buffer for encoded data
-	icc      []byte           // ICC color profile from source image
-	forceSdr bool             // Enable HDR to SDR tone mapping
+	encoder C.opencv_encoder // Native OpenCV encoder
+	dst     C.opencv_mat     // Destination OpenCV matrix
+	dstBuf  []byte           // Destination buffer for encoded data
+	icc     []byte           // ICC color profile from source image
 }
 
 // Depth returns the number of bits in the PixelType.
@@ -300,6 +299,40 @@ func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 	C.opencv_mat_orientation_transform(C.CVImageOrientation(orientation), f.mat)
 	f.width = int(C.opencv_mat_get_width(f.mat))
 	f.height = int(C.opencv_mat_get_height(f.mat))
+}
+
+// ApplyToneMapping applies HDR to SDR tone mapping if the ICC profile indicates HDR content.
+// This is an in-place operation that replaces the framebuffer's contents with tone-mapped data.
+// If the image is not HDR or tone mapping is not needed, the framebuffer is unchanged (copied in-place).
+// Returns an error if tone mapping fails.
+func (f *Framebuffer) ApplyToneMapping(icc []byte) error {
+	if f.mat == nil {
+		return ErrInvalidImage
+	}
+
+	var iccPtr unsafe.Pointer
+	if len(icc) > 0 {
+		iccPtr = unsafe.Pointer(&icc[0])
+	}
+
+	toneMappedMat := C.opencv_mat_apply_tone_mapping(
+		f.mat,
+		(*C.uint8_t)(iccPtr),
+		C.size_t(len(icc)))
+
+	if toneMappedMat == nil {
+		return ErrInvalidImage
+	}
+
+	// Replace the current mat with the tone-mapped one
+	C.opencv_mat_release(f.mat)
+	f.mat = toneMappedMat
+
+	// Update dimensions in case they changed (they shouldn't, but be safe)
+	f.width = int(C.opencv_mat_get_width(f.mat))
+	f.height = int(C.opencv_mat_get_height(f.mat))
+
+	return nil
 }
 
 // ResizeTo performs a resizing transform on the Framebuffer and puts the result
@@ -764,7 +797,7 @@ func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte, forceSdr bool) (*openCVEncoder, error) {
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 
@@ -782,11 +815,10 @@ func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte, forceSdr boo
 	icc := decodedBy.ICC()
 
 	return &openCVEncoder{
-		encoder:  enc,
-		dst:      dst,
-		dstBuf:   dstBuf,
-		icc:      icc,
-		forceSdr: forceSdr,
+		encoder: enc,
+		dst:     dst,
+		dstBuf:  dstBuf,
+		icc:     icc,
 	}, nil
 }
 
@@ -804,18 +836,7 @@ func (e *openCVEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) 
 		firstOpt = (*C.int)(unsafe.Pointer(&optList[0]))
 	}
 
-	var success bool
-	if e.forceSdr && len(e.icc) > 0 {
-		var iccPtr unsafe.Pointer
-		if len(e.icc) > 0 {
-			iccPtr = unsafe.Pointer(&e.icc[0])
-		}
-		success = bool(C.opencv_encoder_write_with_tone_mapping(
-			e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
-			(*C.uint8_t)(iccPtr), C.size_t(len(e.icc)), C.bool(true)))
-	} else {
-		success = bool(C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))))
-	}
+	success := bool(C.opencv_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList))))
 
 	if !success {
 		return nil, ErrInvalidImage

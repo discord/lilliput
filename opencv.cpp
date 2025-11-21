@@ -202,49 +202,21 @@ bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt
     return e_ptr->write(*mat, params);
 };
 
-// Apply HDR to SDR tone mapping using littleCMS
-// Wrapper function for PNG encoder - delegates to shared tone mapping implementation
-static cv::Mat* apply_tone_mapping(const cv::Mat* src, const uint8_t* icc_data, size_t icc_len)
+// Public API: Apply tone mapping to an opencv_mat
+// Returns a new mat (caller must release) or nullptr on error
+opencv_mat opencv_mat_apply_tone_mapping(const opencv_mat src, const uint8_t* icc_data, size_t icc_len)
 {
-    return apply_hdr_to_sdr_tone_mapping(src, icc_data, icc_len);
-}
-
-// Encoder write with tone mapping support
-bool opencv_encoder_write_with_tone_mapping(
-    opencv_encoder e,
-    const opencv_mat src,
-    const int* opt,
-    size_t opt_len,
-    const uint8_t* icc_data,
-    size_t icc_len,
-    bool force_sdr)
-{
-    // Validate input early
     auto mat = static_cast<const cv::Mat*>(src);
     if (!mat || mat->empty()) {
-        return false;
+        return nullptr;
     }
 
-    auto e_ptr = static_cast<cv::ImageEncoder*>(e);
-    std::vector<int> params;
-    for (size_t i = 0; i < opt_len; i++) {
-        params.push_back(opt[i]);
+    if (!icc_data || icc_len == 0) {
+        // No ICC profile, just return a copy
+        return new cv::Mat(*mat);
     }
 
-    // Apply tone mapping if requested and ICC profile is available
-    const cv::Mat* mat_to_encode = mat;
-    std::unique_ptr<cv::Mat> transformed_mat;
-
-    if (force_sdr && icc_data && icc_len > 0) {
-        transformed_mat.reset(apply_tone_mapping(mat, icc_data, icc_len));
-        if (transformed_mat) {
-            mat_to_encode = transformed_mat.get();
-        } else {
-            fprintf(stderr, "PNG: Tone mapping failed, falling back to regular encoding\n");
-        }
-    }
-
-    return e_ptr->write(*mat_to_encode, params);
+    return apply_hdr_to_sdr_tone_mapping(mat, icc_data, icc_len);
 }
 
 void opencv_mat_resize(const opencv_mat src,

@@ -123,16 +123,14 @@ void* opencv_mat_get_data(const opencv_mat mat);
 opencv_encoder opencv_encoder_create(const char* ext, opencv_mat dst);
 void opencv_encoder_release(opencv_encoder e);
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len);
-bool opencv_encoder_write_with_tone_mapping(
-    opencv_encoder e,
-    const opencv_mat src,
-    const int* opt,
-    size_t opt_len,
-    const uint8_t* icc_data,
-    size_t icc_len,
-    bool force_sdr);
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len);
+
+// Tone mapping - applies HDR to SDR tone mapping if needed
+// Returns a new opencv_mat with tone-mapped data, or a copy if no tone mapping is needed
+// The caller is responsible for releasing the returned mat with opencv_mat_release
+// Returns NULL on error
+opencv_mat opencv_mat_apply_tone_mapping(const opencv_mat src, const uint8_t* icc_data, size_t icc_len);
 
 // Error codes
 #define OPENCV_SUCCESS 0

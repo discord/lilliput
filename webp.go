@@ -21,7 +21,6 @@ type webpEncoder struct {
 	encoder    C.webp_encoder
 	dstBuf     []byte
 	icc        []byte
-	forceSdr   bool // Enable HDR to SDR tone mapping
 	frameIndex int
 	hasFlushed bool
 }
@@ -174,7 +173,7 @@ func (d *webpDecoder) SkipFrame() error {
 
 // newWebpEncoder creates a new WebP encoder using the provided decoder for metadata
 // and destination buffer for the encoded output.
-func newWebpEncoder(decodedBy Decoder, dstBuf []byte, forceSdr bool) (*webpEncoder, error) {
+func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
 	icc := decodedBy.ICC()
 	bgColor := decodedBy.BackgroundColor()
@@ -191,10 +190,9 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte, forceSdr bool) (*webpEncod
 	}
 
 	return &webpEncoder{
-		encoder:  enc,
-		dstBuf:   dstBuf,
-		icc:      icc,
-		forceSdr: forceSdr,
+		encoder: enc,
+		dstBuf:  dstBuf,
+		icc:     icc,
 	}, nil
 }
 
@@ -231,20 +229,8 @@ func (e *webpEncoder) Encode(f *Framebuffer, opt map[int]int) ([]byte, error) {
 	// Encode the current frame
 	frameDelay := int(f.duration.Milliseconds())
 
-	var length C.size_t
-	if e.forceSdr && len(e.icc) > 0 {
-		var iccPtr unsafe.Pointer
-		if len(e.icc) > 0 {
-			iccPtr = unsafe.Pointer(&e.icc[0])
-		}
-		length = C.webp_encoder_write_with_tone_mapping(
-			e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
-			C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0,
-			(*C.uint8_t)(iccPtr), C.size_t(len(e.icc)), C.bool(true))
-	} else {
-		length = C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
-			C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
-	}
+	length := C.webp_encoder_write(e.encoder, f.mat, firstOpt, C.size_t(len(optList)),
+		C.int(frameDelay), C.int(f.blend), C.int(f.dispose), 0, 0)
 
 	if length == 0 {
 		return nil, ErrInvalidImage

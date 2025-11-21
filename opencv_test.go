@@ -291,3 +291,77 @@ func TestICC(t *testing.T) {
 		})
 	}
 }
+
+// TestStandaloneToneMapping tests the standalone tone mapping API
+func TestStandaloneToneMapping(t *testing.T) {
+	// Test that tone mapping can be applied independently of encoding
+	hdrPngData, err := ioutil.ReadFile("data/hdr-ohmama.png")
+	if err != nil {
+		t.Skipf("HDR test image not found: %v", err)
+	}
+
+	decoder, err := NewDecoder(hdrPngData)
+	if err != nil {
+		t.Fatalf("Failed to create decoder: %v", err)
+	}
+	defer decoder.Close()
+
+	header, err := decoder.Header()
+	if err != nil {
+		t.Fatalf("Failed to read header: %v", err)
+	}
+
+	// Create a framebuffer and decode the image
+	fb := NewFramebuffer(header.Width(), header.Height())
+	defer fb.Close()
+
+	if err := decoder.DecodeTo(fb); err != nil {
+		t.Fatalf("Failed to decode: %v", err)
+	}
+
+	// Get the ICC profile
+	icc := decoder.ICC()
+	if len(icc) == 0 {
+		t.Skip("No ICC profile found in test image")
+	}
+
+	// Apply tone mapping as a standalone operation
+	if err := fb.ApplyToneMapping(icc); err != nil {
+		t.Fatalf("Failed to apply tone mapping: %v", err)
+	}
+
+	// Verify the framebuffer is still valid
+	if fb.Width() != header.Width() || fb.Height() != header.Height() {
+		t.Fatalf("Framebuffer dimensions changed after tone mapping: got %dx%d, want %dx%d",
+			fb.Width(), fb.Height(), header.Width(), header.Height())
+	}
+
+	// Now encode to multiple formats to demonstrate independence
+	outputBuf := make([]byte, 50*1024*1024)
+
+	for _, format := range []string{".png", ".webp"} {
+		encodeOptions := map[int]int{}
+		if format == ".png" {
+			encodeOptions[PngCompression] = 7
+		} else if format == ".webp" {
+			encodeOptions[WebpQuality] = 85
+		}
+
+		// Create encoder without ForceSdr since we already tone-mapped
+		encoder, err := NewEncoder(format, decoder, outputBuf)
+		if err != nil {
+			t.Fatalf("Failed to create %s encoder: %v", format, err)
+		}
+
+		encoded, err := encoder.Encode(fb, encodeOptions)
+		if err != nil {
+			t.Fatalf("Failed to encode to %s: %v", format, err)
+		}
+
+		if len(encoded) == 0 {
+			t.Fatalf("Encoded %s data is empty", format)
+		}
+
+		encoder.Close()
+	}
+}
