@@ -23,6 +23,8 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
     }
 
     // Load ICC profile
+    // NOTE: it may not be reliable to use just the icc profile for detecting HDR. some formats contain
+    // flags and not profiles, but going to go with this for a first pass
     cmsHPROFILE src_profile = cmsOpenProfileFromMem(icc_data, icc_len);
     if (!src_profile) {
         return nullptr;
@@ -65,6 +67,8 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
     }
 
     // Apply Reinhard tone mapping
+    // Tried to use OpenCV's built in tone mapping, but ran into issues with
+    // dimming blown out/deep fried images. Using this as a first pass
     std::unique_ptr<cv::Mat> dst_bgr = std::make_unique<cv::Mat>(src_for_transform->rows, src_for_transform->cols, CV_8UC3);
 
     // Apply luminance-based tone mapping to preserve color relationships

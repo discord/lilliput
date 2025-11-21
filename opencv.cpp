@@ -1,16 +1,12 @@
 #include "opencv.hpp"
-#include "tone_mapping.hpp"
 
 #include <stdbool.h>
-#include <cstdio>
-#include <memory>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <jpeglib.h>
 #include <png.h>
 #include <setjmp.h>
 #include <iostream>
-#include <lcms2.h>
 
 // Interpolation constants
 const int CV_INTER_AREA = cv::INTER_AREA;
