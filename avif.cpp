@@ -702,8 +702,13 @@ size_t avif_encoder_write(avif_encoder e,
         return 0;
     }
 
+    // Determine pixel format based on input channels
+    // Grayscale (1 channel) -> YUV400 (monochrome)
+    // BGR (3 channels) or BGRA (4 channels) -> YUV444
+    const avifPixelFormat pixelFormat = (cvMat->channels() == 1) ? AVIF_PIXEL_FORMAT_YUV400 : AVIF_PIXEL_FORMAT_YUV444;
+
     // Create AVIF image
-    avifImage* avifImage = avifImageCreate(cvMat->cols, cvMat->rows, 8, AVIF_PIXEL_FORMAT_YUV444);
+    avifImage* avifImage = avifImageCreate(cvMat->cols, cvMat->rows, 8, pixelFormat);
     if (!avifImage) {
         fprintf(stderr, "AVIF Encoder: failed to create image\n");
         return 0;
@@ -729,24 +734,34 @@ size_t avif_encoder_write(avif_encoder e,
         }
     }
 
-    // Convert from BGR/BGRA to YUV
-    avifRGBImage rgb;
-    avifRGBImageSetDefaults(&rgb, avifImage);
+    avifResult result;
 
-    // Set the correct pixel format based on input channels
-    rgb.format = cvMat->channels() == 4 ? AVIF_RGB_FORMAT_BGRA : AVIF_RGB_FORMAT_BGR;
-    rgb.depth = 8;
-    rgb.pixels = cvMat->data;
-    rgb.rowBytes = cvMat->step;
-    rgb.width = cvMat->cols;
-    rgb.height = cvMat->rows;
+    // Handle grayscale images directly as YUV400
+    if (cvMat->channels() == 1) {
+        // Point the Y (luminance) plane directly at the grayscale data
+        avifImage->yuvPlanes[AVIF_CHAN_Y] = cvMat->data;
+        avifImage->yuvRowBytes[AVIF_CHAN_Y] = cvMat->step;
+        avifImage->imageOwnsYUVPlanes = AVIF_FALSE;
+    } else {
+        // Convert from BGR/BGRA to YUV
+        avifRGBImage rgb;
+        avifRGBImageSetDefaults(&rgb, avifImage);
 
-    avifResult result = avifImageRGBToYUV(avifImage, &rgb);
-    if (result != AVIF_RESULT_OK) {
-        fprintf(
-          stderr, "AVIF Encoder: RGB to YUV conversion failed: %s\n", avifResultToString(result));
-        avifImageDestroy(avifImage);
-        return 0;
+        // Set the correct pixel format based on input channels
+        rgb.format = cvMat->channels() == 4 ? AVIF_RGB_FORMAT_BGRA : AVIF_RGB_FORMAT_BGR;
+        rgb.depth = 8;
+        rgb.pixels = cvMat->data;
+        rgb.rowBytes = cvMat->step;
+        rgb.width = cvMat->cols;
+        rgb.height = cvMat->rows;
+
+        result = avifImageRGBToYUV(avifImage, &rgb);
+        if (result != AVIF_RESULT_OK) {
+            fprintf(
+              stderr, "AVIF Encoder: RGB to YUV conversion failed: %s\n", avifResultToString(result));
+            avifImageDestroy(avifImage);
+            return 0;
+        }
     }
 
     // Set up frame timing and flags
