@@ -1,10 +1,16 @@
 #include "tone_mapping.hpp"
 #include <cstring>
 #include <memory>
+#include <algorithm>
 
 // Tone mapping constants
 constexpr float MIN_LUMA_THRESHOLD = 0.001f;  // Threshold to avoid division by near-zero luminance
-constexpr float REINHARD_LUMINANCE_SCALE = 1.2f;  // Gentle luminance boost before tone mapping
+constexpr float REINHARD_LUMINANCE_SCALE = 0.85f;  // Moderate compression for HDR content
+
+// Helper function to calculate luminance from RGB using Rec.709 coefficients
+static inline float calculate_luminance(float r, float g, float b) {
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
+}
 
 cv::Mat* apply_hdr_to_sdr_tone_mapping(
     const cv::Mat* src,
@@ -66,6 +72,31 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
         src_for_transform = bgr_only.get();
     }
 
+    // Analyze image brightness to adaptively tune tone mapping scale
+    // Calculate average luminance across the image
+    float total_luma = 0.0f;
+    int pixel_count = src_for_transform->rows * src_for_transform->cols;
+
+    for (int y = 0; y < src_for_transform->rows; y++) {
+        const uint8_t* src_row = src_for_transform->ptr<uint8_t>(y);
+        for (int x = 0; x < src_for_transform->cols; x++) {
+            int idx = x * 3;
+            float b = src_row[idx + 0] / 255.0f;
+            float g = src_row[idx + 1] / 255.0f;
+            float r = src_row[idx + 2] / 255.0f;
+            total_luma += calculate_luminance(r, g, b);
+        }
+    }
+    float avg_brightness = total_luma / pixel_count;
+
+    // Adaptive scale factor: brighter images get more compression (lower scale)
+    // Map brightness [0.0-1.0] to scale [0.85-1.1]
+    // Very bright images (0.7+) get compression (0.85-0.92)
+    // Moderate images (0.3-0.7) get balanced treatment (0.92-1.02)
+    // Dark images (0.0-0.3) get slight boost (1.02-1.1)
+    float adaptive_scale = 1.1f - (avg_brightness * 0.25f);
+    adaptive_scale = std::max(0.85f, std::min(1.1f, adaptive_scale));
+
     // Apply Reinhard tone mapping
     // Tried to use OpenCV's built in tone mapping, but ran into issues with
     // dimming blown out/deep fried images. Using this as a first pass
@@ -85,10 +116,10 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
             float r = src_row[idx + 2] / 255.0f;
 
             // Calculate luminance using Rec.709 coefficients
-            float luma = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+            float luma = calculate_luminance(r, g, b);
 
-            // Apply gentle Reinhard tone mapping to luminance only
-            float luma_scaled = luma * REINHARD_LUMINANCE_SCALE;
+            // Apply Reinhard tone mapping to luminance only with adaptive scale
+            float luma_scaled = luma * adaptive_scale;
             float luma_mapped = luma_scaled / (1.0f + luma_scaled);
 
             // Scale RGB channels by the luminance ratio to preserve color
