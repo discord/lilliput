@@ -124,7 +124,9 @@ int png_encoder_encode(png_encoder e,
 
     // Determine color type
     int color_type;
-    if (channels == 3) {
+    if (channels == 1) {
+        color_type = PNG_COLOR_TYPE_GRAY;
+    } else if (channels == 3) {
         color_type = PNG_COLOR_TYPE_RGB;
     } else if (channels == 4) {
         color_type = PNG_COLOR_TYPE_RGBA;
@@ -133,8 +135,10 @@ int png_encoder_encode(png_encoder e,
         return L_PNG_ERROR_INVALID_CHANNEL_COUNT;
     }
 
-    // Signal that the source data is in BGR format
-    png_set_bgr(png_ptr);
+    // Signal that the source data is in BGR format (if non-grayscale)
+    if (channels >= 3) {
+        png_set_bgr(png_ptr);
+    }
 
     png_set_IHDR(
         png_ptr,

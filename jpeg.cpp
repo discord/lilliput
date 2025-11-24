@@ -89,12 +89,18 @@ int jpeg_encoder_encode(jpeg_encoder e,
     }
 
     // Determine pixel format based on channel count
-    // TurboJPEG supports encoding from BGR/BGRA directly
+    // TurboJPEG supports encoding from grayscale, BGR, and BGRA directly
     int pixelFormat;
-    if (channels == 3) {
+    int subsampling;
+    if (channels == 1) {
+        pixelFormat = TJPF_GRAY;
+        subsampling = TJSAMP_GRAY;
+    } else if (channels == 3) {
         pixelFormat = TJPF_BGR;
+        subsampling = TJSAMP_420;
     } else if (channels == 4) {
         pixelFormat = TJPF_BGRA;  // Alpha will be discarded
+        subsampling = TJSAMP_420;
     } else {
         return L_JPEG_ERROR_INVALID_CHANNEL_COUNT;
     }
@@ -108,7 +114,7 @@ int jpeg_encoder_encode(jpeg_encoder e,
     // Configure compression parameters
     tj3Set(handle, TJPARAM_QUALITY, quality);
     tj3Set(handle, TJPARAM_OPTIMIZE, L_JPEG_DEFAULT_OPTIMIZE);
-    tj3Set(handle, TJPARAM_SUBSAMP, TJSAMP_420);
+    tj3Set(handle, TJPARAM_SUBSAMP, subsampling);
     tj3Set(handle, TJPARAM_PROGRESSIVE, progressive);
     tj3Set(handle, TJPARAM_NOREALLOC, 1);  // Disable buffer reallocation
 
