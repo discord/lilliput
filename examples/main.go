@@ -25,6 +25,7 @@ func main() {
 	var outputFilename string
 	var stretch bool
 	var encodeTimeoutOption string
+	var forceSdr bool
 
 	flag.StringVar(&inputFilename, "input", "", "name of input file to resize/transcode")
 	flag.StringVar(&outputFilename, "output", "", "name of output file, also determines output type")
@@ -32,6 +33,7 @@ func main() {
 	flag.IntVar(&outputHeight, "height", 0, "height of output file")
 	flag.BoolVar(&stretch, "stretch", false, "perform stretching resize instead of cropping")
 	flag.StringVar(&encodeTimeoutOption, "timeout", "60s", "encode timeout for videos")
+	flag.BoolVar(&forceSdr, "force-sdr", false, "enable HDR to SDR tone mapping for images with PQ profiles")
 	flag.Parse()
 
 	if inputFilename == "" {
@@ -120,6 +122,7 @@ func main() {
 		NormalizeOrientation: true,
 		EncodeOptions:        EncodeOptions[outputType],
 		EncodeTimeout:        encodeTimeout,
+		ForceSdr:             forceSdr,
 	}
 
 	transformStartTime := time.Now()

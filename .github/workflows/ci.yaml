@@ -84,3 +84,26 @@ jobs:
             wc -l | grep -q "2" || \
             (echo "Valgrind output:" && echo "$VALGRIND_OUT" && false)
           done
+
+      - name: Run HDR Tone Mapping Valgrind Tests
+        run: |
+          cd examples
+          hdr_test_cases=(
+            "100 100 ../data/hdr-ohmama.png out-hdr-1.webp"
+            "200 200 ../data/hdr-ohmama.png out-hdr-2.png"
+            "150 150 ../data/hdr-ohmama.png out-hdr-3.webp"
+          )
+
+          for test_case in "${hdr_test_cases[@]}"; do
+            read -r height width input output <<< "$test_case"
+            echo "Testing HDR tone mapping with height=$height width=$width input=$input output=$output"
+            VALGRIND_OUT=$(valgrind --leak-check=full ./example \
+              -height "$height" \
+              -width "$width" \
+              -input "$input" \
+              -output "$output" \
+              -force-sdr 2>&1) && \
+            echo "$VALGRIND_OUT" | grep -E "definitely lost: 0 bytes in 0 blocks|indirectly lost: 0 bytes in 0 blocks" | \
+            wc -l | grep -q "2" || \
+            (echo "Valgrind output:" && echo "$VALGRIND_OUT" && false)
+          done
