@@ -1,4 +1,6 @@
 #include "tone_mapping.hpp"
+#include <opencv2/opencv.hpp>
+#include <lcms2.h>
 #include <cstring>
 #include <memory>
 #include <algorithm>
@@ -12,6 +14,18 @@ static inline float calculate_luminance(float r, float g, float b) {
     return 0.2126f * r + 0.7152f * g + 0.0722f * b;
 }
 
+/**
+ * Applies HDR to SDR tone mapping using Reinhard algorithm.
+ *
+ * This function detects PQ (Perceptual Quantizer) HDR profiles and applies
+ * luminance-based tone mapping to reduce brightness while preserving color
+ * relationships. Non-PQ images are returned unchanged (as a copy).
+ *
+ * @param src Source image (BGR or BGRA format, 8-bit)
+ * @param icc_data ICC profile data from the source image
+ * @param icc_len Length of ICC profile data in bytes
+ * @return Tone-mapped image (caller owns the pointer), or nullptr on error
+ */
 cv::Mat* apply_hdr_to_sdr_tone_mapping(
     const cv::Mat* src,
     const uint8_t* icc_data,
@@ -146,7 +160,7 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
 // C FFI wrapper for tone mapping
 extern "C" {
 
-opencv_mat apply_tone_mapping_ffi(
+opencv_mat apply_tone_mapping(
     const opencv_mat src,
     const uint8_t* icc_data,
     size_t icc_len
