@@ -316,7 +316,7 @@ func (f *Framebuffer) ApplyToneMapping(icc []byte) error {
 		iccPtr = unsafe.Pointer(&icc[0])
 	}
 
-	toneMappedMat := C.apply_tone_mapping_ffi(
+	toneMappedMat := C.apply_tone_mapping(
 		f.mat,
 		(*C.uint8_t)(iccPtr),
 		C.size_t(len(icc)))

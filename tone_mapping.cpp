@@ -160,7 +160,7 @@ cv::Mat* apply_hdr_to_sdr_tone_mapping(
 // C FFI wrapper for tone mapping
 extern "C" {
 
-opencv_mat apply_tone_mapping_ffi(
+opencv_mat apply_tone_mapping(
     const opencv_mat src,
     const uint8_t* icc_data,
     size_t icc_len
