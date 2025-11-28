@@ -21,6 +21,7 @@ var (
 	ErrFrameBufNoPixels = errors.New("Framebuffer contains no pixels")
 	ErrSkipNotSupported = errors.New("skip operation not supported by this decoder")
 	ErrEncodeTimeout    = errors.New("encode timed out")
+	ErrInvalidParam     = errors.New("invalid encoding parameter")
 
 	gif87Magic   = []byte("GIF87a")
 	gif89Magic   = []byte("GIF89a")
@@ -171,24 +172,34 @@ func NewDecoderWithOptionalToneMapping(buf []byte, toneMappingEnabled bool) (Dec
 // ".png". decodedBy is optional and can be the Decoder used to make
 // the Framebuffer. dst is where an encoded image will be written.
 func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
-	if strings.ToLower(ext) == ".gif" {
+	extLower := strings.ToLower(ext)
+
+	if extLower == ".gif" {
 		return newGifEncoder(decodedBy, dst)
 	}
 
-	if strings.ToLower(ext) == ".webp" {
+	if extLower == ".webp" {
 		return newWebpEncoder(decodedBy, dst)
 	}
 
-	if strings.ToLower(ext) == ".avif" {
+	if extLower == ".avif" {
 		return newAvifEncoder(decodedBy, dst)
 	}
 
-	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {
+	if extLower == ".mp4" || extLower == ".webm" {
 		return nil, errors.New("Encoder cannot encode into video types")
 	}
 
-	if strings.ToLower(ext) == ".thumbhash" {
+	if extLower == ".thumbhash" {
 		return newThumbhashEncoder(decodedBy, dst)
+	}
+
+	if extLower == ".jpeg" || extLower == ".jpg" || extLower == ".jfif" {
+		return newJpegEncoder(decodedBy, dst)
+	}
+
+	if extLower == ".png" {
+		return newPngEncoder(decodedBy, dst)
 	}
 
 	return newOpenCVEncoder(ext, decodedBy, dst)

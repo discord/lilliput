@@ -118,6 +118,7 @@ void opencv_mat_copy_with_stride(const opencv_mat src, opencv_mat dst);
 void opencv_mat_copy_to_packed_buffer(const opencv_mat src, void* dst_buffer, int width, int height, int channels);
 int opencv_mat_get_width(const opencv_mat mat);
 int opencv_mat_get_height(const opencv_mat mat);
+size_t opencv_mat_get_step(const opencv_mat mat);
 void* opencv_mat_get_data(const opencv_mat mat);
 
 opencv_encoder opencv_encoder_create(const char* ext, opencv_mat dst);
