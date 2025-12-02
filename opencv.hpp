@@ -98,12 +98,6 @@ opencv_mat opencv_mat_create_from_data(int width,
                                        int type,
                                        void* data,
                                        size_t data_len);
-opencv_mat opencv_mat_create_from_data_with_stride(int width,
-                                                    int height,
-                                                    int type,
-                                                    void* data,
-                                                    size_t data_len,
-                                                    size_t step);
 opencv_mat opencv_mat_create_empty_from_data(int length, void* data);
 bool opencv_mat_set_row_stride(opencv_mat mat, size_t stride);
 void opencv_mat_release(opencv_mat mat);
@@ -114,8 +108,6 @@ void opencv_mat_resize(const opencv_mat src,
                        int interpolation);
 opencv_mat opencv_mat_crop(const opencv_mat src, int x, int y, int width, int height);
 void opencv_mat_orientation_transform(CVImageOrientation orientation, opencv_mat mat);
-void opencv_mat_copy_with_stride(const opencv_mat src, opencv_mat dst);
-void opencv_mat_copy_to_packed_buffer(const opencv_mat src, void* dst_buffer, int width, int height, int channels);
 int opencv_mat_get_width(const opencv_mat mat);
 int opencv_mat_get_height(const opencv_mat mat);
 void* opencv_mat_get_data(const opencv_mat mat);
