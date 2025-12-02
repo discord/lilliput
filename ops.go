@@ -52,12 +52,6 @@ type ImageOptions struct {
 	// DisableAnimatedOutput controls the encoder behavior when given a multi-frame input
 	DisableAnimatedOutput bool
 
-	// VideoFrameSampleIntervalMs controls the frame sampling rate for video inputs.
-	// For example, 100 means extract a frame every 100ms (10 FPS).
-	// If set to 0, only the first frame will be extracted (default behavior).
-	// This option only applies to video formats (MP4, MOV, WEBM).
-	VideoFrameSampleIntervalMs int
-
 	// ForceSdr enables HDR to SDR tone mapping for images with PQ (Perceptual Quantizer) profiles.
 	// When enabled, images with HDR color profiles will be tone-mapped to SDR for better compatibility.
 	// Only applies to WebP and PNG output formats.
@@ -270,16 +264,11 @@ func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
 
 // skipToEnd advances the decoder to the final frame of an animation.
 // Returns io.EOF when the end is reached or an error if seeking fails.
-// If the decoder doesn't support skipping, this is a no-op and returns io.EOF.
 func (o *ImageOps) skipToEnd(d Decoder) error {
 	var err error
 	for {
 		err = d.SkipFrame()
 		if err != nil {
-			// If skip is not supported, treat it as end-of-stream
-			if err == ErrSkipNotSupported {
-				return io.EOF
-			}
 			return err
 		}
 	}
@@ -421,13 +410,6 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHead
 // initializeTransform prepares for image transformation by reading the input header
 // and creating an appropriate encoder. Returns the header, encoder, and any error.
 func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte) (*ImageHeader, Encoder, error) {
-	// Enable multi-frame video extraction if requested
-	if opt.VideoFrameSampleIntervalMs > 0 {
-		if vd, ok := d.(VideoDecoder); ok {
-			vd.SetFrameSampleInterval(opt.VideoFrameSampleIntervalMs)
-		}
-	}
-
 	inputHeader, err := d.Header()
 	if err != nil {
 		return nil, nil, err

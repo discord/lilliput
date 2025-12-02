@@ -484,7 +484,7 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* 
 
     // Save current frame content before drawing new frame
     if (d->have_read_first_frame) {
-        opencv_mat_copy_to_packed_buffer(mat, d->prev_frame_bgra.data(), buf_width, buf_height, BYTES_PER_PIXEL);
+        memcpy(d->prev_frame_bgra.data(), cvMat->data, buf_width * buf_height * BYTES_PER_PIXEL);
     }
 
     // Draw the new frame
@@ -1083,7 +1083,7 @@ static bool giflib_encoder_render_frame(giflib_encoder e,
     }
 
     // XXX change this if we do partial frames (only copy over some)
-    opencv_mat_copy_to_packed_buffer((opencv_mat)frame, e->prev_frame_bgra, e->gif->SWidth, e->gif->SHeight, BYTES_PER_PIXEL);
+    memcpy(e->prev_frame_bgra, frame->data, 4 * e->gif->SWidth * e->gif->SHeight);
 
     e->prev_frame_color_map = color_map;
     e->prev_frame_disposal = gcb.DisposalMode;

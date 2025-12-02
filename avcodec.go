@@ -22,15 +22,13 @@ var av1Enabled string
 
 // avCodecDecoder handles decoding of various video/image formats using FFmpeg's avcodec.
 type avCodecDecoder struct {
-	decoder               C.avcodec_decoder
-	mat                   C.opencv_mat
-	buf                   []byte
-	hasDecoded            bool
-	maybeMP4              bool
-	isStreamable          bool
-	hasSubtitles          bool
-	multiFrameMode        bool
-	frameSampleIntervalMs int
+	decoder      C.avcodec_decoder
+	mat          C.opencv_mat
+	buf          []byte
+	hasDecoded   bool
+	maybeMP4     bool
+	isStreamable bool
+	hasSubtitles bool
 }
 
 // newAVCodecDecoder creates a new decoder instance from the provided buffer.
@@ -132,23 +130,14 @@ func (d *avCodecDecoder) Duration() time.Duration {
 }
 
 // Header returns the image metadata including dimensions, pixel format, and orientation.
-// Frame count is 1 for single-frame mode, or estimated from duration and sample interval in multi-frame mode.
+// Frame count is always 1 since it requires the entire buffer to be decoded.
 func (d *avCodecDecoder) Header() (*ImageHeader, error) {
-	numFrames := 1
-	if d.multiFrameMode && d.frameSampleIntervalMs > 0 {
-		// Estimate the number of frames based on duration and sample interval
-		duration := float64(C.avcodec_decoder_get_duration(d.decoder))
-		if duration > 0 {
-			numFrames = int(duration/(float64(d.frameSampleIntervalMs)/1000.0)) + 1
-		}
-	}
-
 	return &ImageHeader{
 		width:         int(C.avcodec_decoder_get_width(d.decoder)),
 		height:        int(C.avcodec_decoder_get_height(d.decoder)),
 		pixelType:     PixelType(C.CV_8UC4),
 		orientation:   ImageOrientation(C.avcodec_decoder_get_orientation(d.decoder)),
-		numFrames:     numFrames,
+		numFrames:     1,
 		contentLength: len(d.buf),
 	}, nil
 }
@@ -156,8 +145,7 @@ func (d *avCodecDecoder) Header() (*ImageHeader, error) {
 // DecodeTo decodes the next frame into the provided Framebuffer.
 // Returns io.EOF when no more frames are available.
 func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
-	// In single-frame mode, only decode once
-	if !d.multiFrameMode && d.hasDecoded {
+	if d.hasDecoded {
 		return io.EOF
 	}
 	h, err := d.Header()
@@ -168,46 +156,22 @@ func (d *avCodecDecoder) DecodeTo(f *Framebuffer) error {
 	if err != nil {
 		return err
 	}
-
-	// Call decode - it handles both single-frame and multi-frame modes internally
 	ret := C.avcodec_decoder_decode(d.decoder, f.mat)
 	if !ret {
-		return io.EOF
+		return ErrDecodingFailed
 	}
-
-	// Set frame properties
-	if d.multiFrameMode {
-		// Get the frame delay from the decoder
-		frameDelayMs := int(C.avcodec_decoder_get_frame_delay_ms(d.decoder))
-		// Validate delay is reasonable (WebP supports up to 65535ms per frame)
-		// Fall back to sample interval if delay is invalid
-		if frameDelayMs <= 0 || frameDelayMs > 65535 {
-			frameDelayMs = d.frameSampleIntervalMs
-		}
-		f.duration = time.Duration(frameDelayMs) * time.Millisecond
-	} else {
-		f.duration = time.Duration(0)
-		d.hasDecoded = true
-	}
-
 	f.blend = NoBlend
 	f.dispose = DisposeToBackgroundColor
+	f.duration = time.Duration(0)
 	f.xOffset = 0
 	f.yOffset = 0
+	d.hasDecoded = true
 	return nil
 }
 
 // SkipFrame attempts to skip the next frame, but is not supported by this decoder.
 func (d *avCodecDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
-}
-
-// SetFrameSampleInterval configures the decoder to extract frames at the specified
-// interval in seconds. This enables multi-frame extraction mode for videos.
-func (d *avCodecDecoder) SetFrameSampleInterval(frameSampleIntervalMs int) {
-	d.multiFrameMode = true
-	d.frameSampleIntervalMs = frameSampleIntervalMs
-	C.avcodec_decoder_set_frame_sample_interval_ms(d.decoder, C.int(frameSampleIntervalMs))
 }
 
 // Close releases all resources associated with the decoder.
