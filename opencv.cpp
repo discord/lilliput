@@ -226,6 +226,12 @@ int opencv_mat_get_height(const opencv_mat mat)
     return cvMat->rows;
 }
 
+size_t opencv_mat_get_step(const opencv_mat mat)
+{
+    auto cvMat = static_cast<const cv::Mat*>(mat);
+    return cvMat->step;
+}
+
 void* opencv_mat_get_data(const opencv_mat mat)
 {
     auto cvMat = static_cast<const cv::Mat*>(mat);
