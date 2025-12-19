@@ -173,9 +173,17 @@ func (d *webpDecoder) SkipFrame() error {
 
 // newWebpEncoder creates a new WebP encoder using the provided decoder for metadata
 // and destination buffer for the encoded output.
-func newWebpEncoder(decodedBy Decoder, dstBuf []byte) (*webpEncoder, error) {
+func newWebpEncoder(decodedBy Decoder, dstBuf []byte, config *EncodeConfig) (*webpEncoder, error) {
 	dstBuf = dstBuf[:1]
-	icc := decodedBy.ICC()
+
+	// Use ICC override from config if provided, otherwise use decoder's ICC
+	var icc []byte
+	if config != nil && len(config.ICCOverride) > 0 {
+		icc = config.ICCOverride
+	} else {
+		icc = decodedBy.ICC()
+	}
+
 	bgColor := decodedBy.BackgroundColor()
 	loopCount := decodedBy.LoopCount()
 

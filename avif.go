@@ -155,9 +155,17 @@ func (d *avifDecoder) Close() {
 // Encoder Implementation
 // ----------------------------------------
 
-func newAvifEncoder(decodedBy Decoder, dstBuf []byte) (*avifEncoder, error) {
+func newAvifEncoder(decodedBy Decoder, dstBuf []byte, config *EncodeConfig) (*avifEncoder, error) {
 	dstBuf = dstBuf[:1]
-	icc := decodedBy.ICC()
+
+	// Use ICC override from config if provided, otherwise use decoder's ICC
+	var icc []byte
+	if config != nil && len(config.ICCOverride) > 0 {
+		icc = config.ICCOverride
+	} else {
+		icc = decodedBy.ICC()
+	}
+
 	loopCount := decodedBy.LoopCount()
 	bgColor := decodedBy.BackgroundColor()
 

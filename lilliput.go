@@ -4,6 +4,7 @@ package lilliput
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"strings"
 	"time"
@@ -13,6 +14,12 @@ const (
 	// ICCProfileBufferSize is the buffer size for ICC color profile data
 	ICCProfileBufferSize = 32768
 )
+
+// SRGBICCProfile is the sRGB ICC profile (v4) - used when force_sdr overrides HDR ICC profiles.
+// Source: https://github.com/saucecontrol/Compact-ICC-Profiles
+//
+//go:embed icc_profiles/srgb_profile.icc
+var SRGBICCProfile []byte
 
 var (
 	ErrInvalidImage     = errors.New("unrecognized image format")
@@ -156,21 +163,31 @@ func NewDecoderWithOptionalToneMapping(buf []byte, toneMappingEnabled bool) (Dec
 	return newAVCodecDecoder(buf)
 }
 
-// NewEncoder returns an Encode which can be used to encode Framebuffer
+// EncodeConfig provides configuration options for encoders.
+// This struct provides a clean extension point for future encoding config
+// without changing function signatures.
+type EncodeConfig struct {
+	// ICCOverride overrides the decoder's ICC profile when set.
+	// Used for HDR→SDR conversion to force sRGB output.
+	ICCOverride []byte
+}
+
+// NewEncoder returns an Encoder which can be used to encode Framebuffer
 // into compressed image data. ext should be a string like ".jpeg" or
 // ".png". decodedBy is optional and can be the Decoder used to make
 // the Framebuffer. dst is where an encoded image will be written.
-func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
+// config can be nil to use default settings.
+func NewEncoder(ext string, decodedBy Decoder, dst []byte, config *EncodeConfig) (Encoder, error) {
 	if strings.ToLower(ext) == ".gif" {
-		return newGifEncoder(decodedBy, dst)
+		return newGifEncoder(decodedBy, dst, config)
 	}
 
 	if strings.ToLower(ext) == ".webp" {
-		return newWebpEncoder(decodedBy, dst)
+		return newWebpEncoder(decodedBy, dst, config)
 	}
 
 	if strings.ToLower(ext) == ".avif" {
-		return newAvifEncoder(decodedBy, dst)
+		return newAvifEncoder(decodedBy, dst, config)
 	}
 
 	if strings.ToLower(ext) == ".mp4" || strings.ToLower(ext) == ".webm" {
@@ -178,8 +195,8 @@ func NewEncoder(ext string, decodedBy Decoder, dst []byte) (Encoder, error) {
 	}
 
 	if strings.ToLower(ext) == ".thumbhash" {
-		return newThumbhashEncoder(decodedBy, dst)
+		return newThumbhashEncoder(decodedBy, dst, config)
 	}
 
-	return newOpenCVEncoder(ext, decodedBy, dst)
+	return newOpenCVEncoder(ext, decodedBy, dst, config)
 }

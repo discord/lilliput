@@ -164,7 +164,7 @@ func testNewAvifEncoder(t *testing.T) {
 			defer decoder.Close()
 
 			dstBuf := make([]byte, destinationBufferSize)
-			encoder, err := newAvifEncoder(decoder, dstBuf)
+			encoder, err := newAvifEncoder(decoder, dstBuf, nil)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -252,7 +252,7 @@ func testAvifEncoderEncode(t *testing.T) {
 			}
 
 			dstBuf := make([]byte, destinationBufferSize)
-			encoder, err := newAvifEncoder(decoder, dstBuf)
+			encoder, err := newAvifEncoder(decoder, dstBuf, nil)
 			if err != nil {
 				t.Fatalf("Failed to create a new AVIF encoder: %v", err)
 			}

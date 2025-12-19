@@ -18,7 +18,8 @@ type thumbhashEncoder struct {
 // newThumbhashEncoder creates a new ThumbHash encoder instance.
 // It takes a decoder and a buffer as input, initializing the C-based encoder.
 // Returns an error if the provided buffer is too small.
-func newThumbhashEncoder(decodedBy Decoder, buf []byte) (*thumbhashEncoder, error) {
+// config is accepted for API uniformity but not used by ThumbHash encoder.
+func newThumbhashEncoder(decodedBy Decoder, buf []byte, config *EncodeConfig) (*thumbhashEncoder, error) {
 	buf = buf[:1]
 	enc := C.thumbhash_encoder_create(unsafe.Pointer(&buf[0]), C.size_t(cap(buf)))
 	if enc == nil {
