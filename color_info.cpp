@@ -1,10 +1,13 @@
 #include "color_info.hpp"
 #include <lcms2.h>
 
+// Maximum ICC profile size we're willing to parse (1MB)
+static const size_t MAX_ICC_PROFILE_SIZE = 1024 * 1024;
+
 // Check if ICC profile indicates HDR (PQ or HLG transfer function)
 bool is_hdr_transfer_function(const uint8_t* icc_data, size_t icc_len)
 {
-    if (!icc_data || icc_len == 0) {
+    if (!icc_data || icc_len == 0 || icc_len > MAX_ICC_PROFILE_SIZE) {
         return false;
     }
 
