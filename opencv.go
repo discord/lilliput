@@ -3,7 +3,7 @@ package lilliput
 // #include "opencv.hpp"
 // #include "avif.hpp"
 // #include "webp.hpp"
-// #include "tone_mapping.hpp"
+// #include "color_info.hpp"
 import "C"
 
 import (
@@ -268,38 +268,13 @@ func (f *Framebuffer) OrientationTransform(orientation ImageOrientation) {
 	f.height = int(C.opencv_mat_get_height(f.mat))
 }
 
-// ApplyToneMapping applies HDR to SDR tone mapping if the ICC profile indicates HDR content.
-// This is an in-place operation that replaces the framebuffer's contents with tone-mapped data.
-// If the image is not HDR or tone mapping is not needed, the framebuffer is unchanged (copied in-place).
-// Returns an error if tone mapping fails.
-func (f *Framebuffer) ApplyToneMapping(icc []byte) error {
-	if f.mat == nil {
-		return ErrInvalidImage
+// IsHDRICCProfile checks if an ICC profile indicates HDR content (PQ or HLG transfer function).
+// Returns true if the profile's CICP tag indicates PQ or HLG transfer characteristics.
+func IsHDRICCProfile(icc []byte) bool {
+	if len(icc) == 0 {
+		return false
 	}
-
-	var iccPtr unsafe.Pointer
-	if len(icc) > 0 {
-		iccPtr = unsafe.Pointer(&icc[0])
-	}
-
-	toneMappedMat := C.apply_tone_mapping(
-		f.mat,
-		(*C.uint8_t)(iccPtr),
-		C.size_t(len(icc)))
-
-	if toneMappedMat == nil {
-		return ErrInvalidImage
-	}
-
-	// Replace the current mat with the tone-mapped one
-	C.opencv_mat_release(f.mat)
-	f.mat = toneMappedMat
-
-	// Update dimensions in case they changed (they shouldn't, but be safe)
-	f.width = int(C.opencv_mat_get_width(f.mat))
-	f.height = int(C.opencv_mat_get_height(f.mat))
-
-	return nil
+	return bool(C.is_hdr_transfer_function((*C.uint8_t)(unsafe.Pointer(&icc[0])), C.size_t(len(icc))))
 }
 
 // ResizeTo performs a resizing transform on the Framebuffer and puts the result
@@ -764,7 +739,9 @@ func (d *openCVDecoder) SkipFrame() error {
 	return ErrSkipNotSupported
 }
 
-func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte) (*openCVEncoder, error) {
+// newOpenCVEncoder creates an OpenCV-based encoder.
+// config is accepted for API uniformity but not used by OpenCV encoder.
+func newOpenCVEncoder(ext string, decodedBy Decoder, dstBuf []byte, config *EncodeConfig) (*openCVEncoder, error) {
 	dstBuf = dstBuf[:1]
 	dst := C.opencv_mat_create_empty_from_data(C.int(cap(dstBuf)), unsafe.Pointer(&dstBuf[0]))
 

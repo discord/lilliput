@@ -75,7 +75,7 @@ func testNewWebpEncoder(t *testing.T) {
 			defer decoder.Close()
 
 			dstBuf := make([]byte, destinationBufferSize)
-			encoder, err := newWebpEncoder(decoder, dstBuf)
+			encoder, err := newWebpEncoder(decoder, dstBuf, nil)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -161,7 +161,7 @@ func testWebpEncoderEncode(t *testing.T) {
 			}
 
 			dstBuf := make([]byte, destinationBufferSize)
-			encoder, err := newWebpEncoder(decoder, dstBuf)
+			encoder, err := newWebpEncoder(decoder, dstBuf, nil)
 			if err != nil {
 				t.Fatalf("Failed to create a new webp encoder: %v", err)
 			}
@@ -195,7 +195,7 @@ func testWebpEncoderEncode(t *testing.T) {
 		defer decoder.Close()
 
 		dstBuf := make([]byte, destinationBufferSize)
-		encoder, err := newWebpEncoder(decoder, dstBuf)
+		encoder, err := newWebpEncoder(decoder, dstBuf, nil)
 		if err != nil {
 			t.Fatalf("Failed to create a new webp encoder: %v", err)
 		}

@@ -331,16 +331,6 @@ func (o *ImageOps) Transform(d Decoder, opt *ImageOptions, dst []byte) ([]byte, 
 			}
 		}
 
-		// Apply tone mapping if requested (before encoding)
-		if !emptyFrame && opt.ForceSdr {
-			icc := d.ICC()
-			if len(icc) > 0 {
-				if err := o.active().ApplyToneMapping(icc); err != nil {
-					return nil, err
-				}
-			}
-		}
-
 		// encode the frame to the output buffer
 		var content []byte
 		if emptyFrame {
@@ -415,7 +405,18 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 		return nil, nil, err
 	}
 
-	enc, err := NewEncoder(opt.FileType, d, dst)
+	// Build encode config, including ICC override for HDR→SDR conversion
+	var encodeConfig *EncodeConfig
+	if opt.ForceSdr {
+		icc := d.ICC()
+		if len(icc) > 0 && IsHDRICCProfile(icc) {
+			encodeConfig = &EncodeConfig{
+				ICCOverride: SRGBICCProfile,
+			}
+		}
+	}
+
+	enc, err := NewEncoder(opt.FileType, d, dst, encodeConfig)
 	if err != nil {
 		return nil, nil, err
 	}

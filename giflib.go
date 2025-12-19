@@ -235,7 +235,8 @@ func (d *gifDecoder) SkipFrame() error {
 
 // newGifEncoder creates a new GIF encoder that will write to the provided buffer.
 // Requires the original decoder that was used to decode the source GIF.
-func newGifEncoder(decodedBy Decoder, buf []byte) (*gifEncoder, error) {
+// config is accepted for API uniformity but not used by GIF encoder.
+func newGifEncoder(decodedBy Decoder, buf []byte, config *EncodeConfig) (*gifEncoder, error) {
 	// we must have a decoder since we can't build our own palettes
 	// so if we don't get a gif decoder, bail out
 	if decodedBy == nil {
