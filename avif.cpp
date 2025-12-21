@@ -365,6 +365,66 @@ int avif_decoder_get_pixel_type(const avif_decoder d)
     return d->has_alpha ? CV_8UC4 : CV_8UC3;
 }
 
+int avif_decoder_get_orientation(const avif_decoder d)
+{
+    if (!d || !d->decoder || !d->decoder->image) {
+        return CV_IMAGE_ORIENTATION_TL;
+    }
+
+    const avifImage* image = d->decoder->image;
+    const bool has_irot = (image->transformFlags & AVIF_TRANSFORM_IROT) != 0;
+    const bool has_imir = (image->transformFlags & AVIF_TRANSFORM_IMIR) != 0;
+
+    // Map AVIF irot (rotation) and imir (mirror) to EXIF/OpenCV orientation
+    // irot.angle: 0=0 degrees, 1=90 degrees CCW, 2=180 degrees, 3=270 degrees CCW
+    // imir.axis: 0=vertical flip (top/bottom), 1=horizontal flip (left/right)
+
+    constexpr uint8_t NOT_MIRRORED = 0xFF;
+    uint8_t rotation = has_irot ? image->irot.angle : 0;
+    uint8_t mirror_axis = has_imir ? image->imir.axis : NOT_MIRRORED;
+
+    // If the rotation is invalid, reset it to 0
+    rotation = rotation <= 3 ? rotation : 0;
+    // If the mirroring type is invalid, ignore it
+    mirror_axis = mirror_axis <= 1 ? mirror_axis : NOT_MIRRORED;
+
+    // Since rotations and mirroring are non-commutative, e.g.:
+    // [rotate 90 degrees counter-clockwise] then [mirror horizontally]
+    // = [mirror horizontally] then [rotate 90 degrees clockwise],
+    // it is important to note that mirroring is applied before rotation.
+    // Corresponding EXIF orientation values are shown in comments.
+    if (mirror_axis == NOT_MIRRORED) {
+        // No mirroring, only rotation
+        switch (rotation) {
+            case 0: return CV_IMAGE_ORIENTATION_TL; // 1: Normal
+            case 1: return CV_IMAGE_ORIENTATION_LB; // 8: 90 degrees CCW
+            case 2: return CV_IMAGE_ORIENTATION_BR; // 3: 180 degrees
+            case 3: return CV_IMAGE_ORIENTATION_RT; // 6: 270 degrees CCW (90 degrees CW)
+            default: return CV_IMAGE_ORIENTATION_TL;
+        }
+    } else if (mirror_axis == 0) {
+        // Vertical flip (top/bottom exchange)
+        switch (rotation) {
+            case 0: return CV_IMAGE_ORIENTATION_BL; // 4: Mirrored vertical
+            case 1: return CV_IMAGE_ORIENTATION_LT; // 5: Mirrored vertical + 90 degrees CCW
+            case 2: return CV_IMAGE_ORIENTATION_TR; // 2: Mirrored vertical + 180 degrees
+            case 3: return CV_IMAGE_ORIENTATION_RB; // 7: Mirrored vertical + 270 degrees CCW
+            default: return CV_IMAGE_ORIENTATION_BL;
+        }
+    } else if (mirror_axis == 1) {
+        // Horizontal flip (left/right exchange)
+        switch (rotation) {
+            case 0: return CV_IMAGE_ORIENTATION_TR; // 2: Mirrored horizontal
+            case 1: return CV_IMAGE_ORIENTATION_RB; // 7: Mirrored horizontal + 90 degrees CCW
+            case 2: return CV_IMAGE_ORIENTATION_BL; // 4: Mirrored horizontal + 180 degrees
+            case 3: return CV_IMAGE_ORIENTATION_LT; // 5: Mirrored horizontal + 270 degrees CCW
+            default: return CV_IMAGE_ORIENTATION_TR;
+        }
+    }
+
+    return CV_IMAGE_ORIENTATION_TL;
+}
+
 bool avif_decoder_is_animated(const avif_decoder d)
 {
     if (!d || !d->decoder) {
