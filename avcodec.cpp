@@ -619,3 +619,126 @@ void avcodec_decoder_release(avcodec_decoder d)
 
     delete d;
 }
+
+// avcodec_decoder_convert_frame converts a decoded AVFrame into the opencv_mat,
+// performing YUV→BGRA conversion and stride alignment. Unlike avcodec_decoder_copy_frame,
+// this function does NOT call avcodec_receive_frame — it works with an already-decoded frame.
+static bool avcodec_decoder_convert_frame(const avcodec_decoder d, opencv_mat mat, AVFrame* frame)
+{
+    auto cvMat = static_cast<cv::Mat*>(mat);
+    if (!cvMat || !frame) {
+        return false;
+    }
+
+    // Calculate the stride-aligned step size (matching avcodec_decoder_copy_frame logic).
+    int stepSize = 4 * cvMat->cols;
+    if (cvMat->cols % 32 != 0) {
+        int width = cvMat->cols + 32 - (cvMat->cols % 32);
+        stepSize = 4 * width;
+    }
+    if (!opencv_mat_set_row_stride(mat, stepSize)) {
+        return false;
+    }
+
+    struct SwsContext* sws = sws_getContext(
+        frame->width, frame->height, (AVPixelFormat)(frame->format),
+        cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA,
+        SWS_BILINEAR, NULL, NULL, NULL);
+    if (!sws) {
+        return false;
+    }
+
+    int colorspace;
+    switch (frame->colorspace) {
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL: colorspace = SWS_CS_BT2020; break;
+    case AVCOL_SPC_BT470BG:   colorspace = SWS_CS_ITU601; break;
+    case AVCOL_SPC_SMPTE170M: colorspace = SWS_CS_SMPTE170M; break;
+    case AVCOL_SPC_SMPTE240M: colorspace = SWS_CS_SMPTE240M; break;
+    default:                  colorspace = SWS_CS_ITU709; break;
+    }
+    const int* inv_table = sws_getCoefficients(colorspace);
+    const int* table = sws_getCoefficients(SWS_CS_DEFAULT);
+    int srcRange = frame->color_range == AVCOL_RANGE_JPEG ? 1 : 0;
+    sws_setColorspaceDetails(sws, inv_table, srcRange, table, 1, 0, 1 << 16, 1 << 16);
+
+    int dstLinesizes[4];
+    av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, stepSize / 4);
+    uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
+    sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesizes);
+    sws_freeContext(sws);
+    return true;
+}
+
+bool avcodec_decoder_seek_and_decode(const avcodec_decoder d, float timestamp_sec, opencv_mat mat)
+{
+    if (!d || !d->container || !d->codec || !mat) {
+        return false;
+    }
+
+    AVStream* stream = d->container->streams[d->video_stream_index];
+    int64_t ts = (int64_t)(timestamp_sec * AV_TIME_BASE);
+
+    // Seek to the nearest keyframe at or before the target timestamp.
+    int ret = av_seek_frame(d->container, -1, ts, AVSEEK_FLAG_BACKWARD);
+    if (ret < 0) {
+        return false;
+    }
+    avcodec_flush_buffers(d->codec);
+
+    // Target PTS in the video stream's time base.
+    int64_t target_pts = (int64_t)(timestamp_sec / av_q2d(stream->time_base));
+
+    bool success = false;
+    int max_packets = 512;
+
+    while (!success && max_packets-- > 0) {
+        AVPacket packet;
+        ret = av_read_frame(d->container, &packet);
+        if (ret < 0) {
+            break;
+        }
+        if (packet.stream_index != d->video_stream_index) {
+            av_packet_unref(&packet);
+            continue;
+        }
+
+        ret = avcodec_send_packet(d->codec, &packet);
+        av_packet_unref(&packet);
+        if (ret < 0 && ret != AVERROR(EAGAIN)) {
+            break;
+        }
+
+        // Drain all frames from the decoder after this packet.
+        while (!success) {
+            AVFrame* frame = av_frame_alloc();
+            if (!frame) { goto done; }
+
+            ret = avcodec_receive_frame(d->codec, frame);
+            if (ret == AVERROR(EAGAIN)) {
+                av_frame_free(&frame);
+                break; // need another packet
+            }
+            if (ret < 0) {
+                av_frame_free(&frame);
+                goto done;
+            }
+
+            // Check if this frame is at or past the target PTS.
+            int64_t frame_pts = (frame->pts != AV_NOPTS_VALUE)
+                ? frame->pts
+                : frame->best_effort_timestamp;
+
+            if (frame_pts >= target_pts) {
+                // Found the right frame — convert it directly (no second avcodec_receive_frame).
+                success = avcodec_decoder_convert_frame(d, mat, frame);
+                av_frame_free(&frame);
+                goto done;
+            }
+            av_frame_free(&frame);
+        }
+    }
+
+done:
+    return success;
+}
