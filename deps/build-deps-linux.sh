@@ -237,7 +237,7 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-6.1.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
 make CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="-fPIC -O2" libgif.a -Wno-format-truncation -Wno-format-overflow
