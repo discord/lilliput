@@ -68,7 +68,7 @@ rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.5.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.5.2 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -140,7 +140,7 @@ echo '\n--------------------'
 echo 'Building giflib'
 echo '--------------------\n'
 mkdir -p $BASEDIR/giflib
-tar -xzf $SRCDIR/giflib-5.2.2.tar.gz -C $BASEDIR/giflib --strip-components 1
+tar -xzf $SRCDIR/giflib-6.1.2.tar.gz -C $BASEDIR/giflib --strip-components 1
 mkdir -p $BUILDDIR/giflib
 cd $BASEDIR/giflib
 
