@@ -25,6 +25,10 @@ const char* avcodec_decoder_get_video_codec(const avcodec_decoder d);
 const char* avcodec_decoder_get_audio_codec(const avcodec_decoder d);
 int avcodec_decoder_get_icc(const avcodec_decoder d, void* dest, size_t dest_len);
 
+// Seek to a timestamp (in seconds) and decode a single video frame into mat.
+// Returns true on success, false on failure.
+bool avcodec_decoder_seek_and_decode(const avcodec_decoder d, float timestamp_sec, opencv_mat mat);
+
 #ifdef __cplusplus
 }
 #endif
