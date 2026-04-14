@@ -1,5 +1,7 @@
 #include "avcodec.hpp"
 
+#include <cstdio>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +21,94 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+/* converts a decoded AVFrame (YUV) into a BGRA cv::Mat at the mat's dimensions.
+ * this does four things in a single sws_scale pass:
+ *   1. pixel format conversion — decoded frames are YUV (e.g. YUV420P), but
+ *      cv::Mat and downstream encoders (JPEG/WebP) expect BGRA
+ *   2. scaling — resizes from source dimensions (e.g. 1920x1080) to the
+ *      thumbnail dimensions already set on the output mat
+ *   3. colorspace mapping — selects the correct YUV-to-RGB conversion matrix
+ *      based on the source video's color standard (BT.709 for HD, BT.601 for
+ *      SD, BT.2020 for HDR, etc.) so colors don't shift
+ *   4. stride alignment — pads output rows to 32-byte boundaries, which
+ *      opencv and SIMD operations expect for performance
+ * returns true on success. */
+static bool scale_yuv_frame_to_bgra_mat(AVFrame* frame, opencv_mat output_mat)
+{
+    auto cvMat = static_cast<cv::Mat*>(output_mat);
+    if (!cvMat) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: output_mat is null\n");
+        return false;
+    }
+
+    /* stride alignment: pad row width to next 32-byte boundary */
+    int stepSize = 4 * cvMat->cols;
+    if (cvMat->cols % 32 != 0) {
+        int width = cvMat->cols + 32 - (cvMat->cols % 32);
+        stepSize = 4 * width;
+    }
+    if (!opencv_mat_set_row_stride(output_mat, stepSize)) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: failed to set row stride\n");
+        return false;
+    }
+
+    /* set up sws context for format conversion + scaling */
+    struct SwsContext* sws = sws_getContext(
+        frame->width, frame->height, (AVPixelFormat)(frame->format), /* source */
+        cvMat->cols, cvMat->rows, AV_PIX_FMT_BGRA,                  /* destination */
+        SWS_BILINEAR, NULL, NULL, NULL);
+
+    if (!sws) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: sws_getContext failed\n");
+        return false;
+    }
+
+    /* pick the correct YUV color matrix for this video's standard */
+    int colorspace;
+    switch (frame->colorspace) {
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+        colorspace = SWS_CS_BT2020;
+        break;
+    case AVCOL_SPC_BT470BG:
+        colorspace = SWS_CS_ITU601;
+        break;
+    case AVCOL_SPC_SMPTE170M:
+        colorspace = SWS_CS_SMPTE170M;
+        break;
+    case AVCOL_SPC_SMPTE240M:
+        colorspace = SWS_CS_SMPTE240M;
+        break;
+    default:
+        colorspace = SWS_CS_ITU709;
+        break;
+    }
+    const int* inv_table = sws_getCoefficients(colorspace);
+    int srcRange = frame->color_range == AVCOL_RANGE_JPEG ? 1 : 0;
+    const int* table = sws_getCoefficients(SWS_CS_DEFAULT);
+    if (sws_setColorspaceDetails(sws, inv_table, srcRange, table, 1, 0, 1 << 16, 1 << 16) < 0) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: sws_setColorspaceDetails failed\n");
+        sws_freeContext(sws);
+        return false;
+    }
+
+    int dstLinesizes[4];
+    if (av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, stepSize / 4) < 0) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: av_image_fill_linesizes failed\n");
+        sws_freeContext(sws);
+        return false;
+    }
+    uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
+
+    int ret = sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesizes);
+    sws_freeContext(sws);
+    if (ret < 0) {
+        fprintf(stderr, "scale_yuv_frame_to_bgra_mat: sws_scale failed\n");
+        return false;
+    }
+    return true;
+}
 
 extern AVInputFormat ff_mov_demuxer;
 extern AVInputFormat ff_matroska_demuxer;
@@ -478,78 +568,11 @@ static int avcodec_decoder_copy_frame(const avcodec_decoder d, opencv_mat mat, A
         return -1;
     }
     
-    auto cvMat = static_cast<cv::Mat*>(mat);
-    if (!cvMat) {
-        return -1;
-    }
-
     int res = avcodec_receive_frame(d->codec, frame);
     if (res >= 0) {
-        // Calculate the step size based on the cv::Mat's width
-        int stepSize =
-          4 * cvMat->cols; // Assuming the cv::Mat is in BGRA format, which has 4 channels
-        if (cvMat->cols % 32 != 0) {
-            int width = cvMat->cols + 32 - (cvMat->cols % 32);
-            stepSize = 4 * width;
-        }
-        if (!opencv_mat_set_row_stride(mat, stepSize)) {
+        if (!scale_yuv_frame_to_bgra_mat(frame, mat)) {
             return -1;
         }
-
-        // Create SwsContext for converting the frame format and scaling
-        struct SwsContext* sws =
-          sws_getContext(frame->width,
-                         frame->height,
-                         (AVPixelFormat)(frame->format), // Source dimensions and format
-                         cvMat->cols,
-                         cvMat->rows,
-                         AV_PIX_FMT_BGRA, // Destination dimensions and format
-                         SWS_BILINEAR,    // Specify the scaling algorithm; you can choose another
-                                          // according to your needs
-                         NULL,
-                         NULL,
-                         NULL);
-
-        // Configure colorspace
-        int colorspace;
-        switch (frame->colorspace) {
-        case AVCOL_SPC_BT2020_NCL:
-        case AVCOL_SPC_BT2020_CL:
-            colorspace = SWS_CS_BT2020;
-            break;
-        case AVCOL_SPC_BT470BG:
-            colorspace = SWS_CS_ITU601;
-            break;
-        case AVCOL_SPC_SMPTE170M:
-            colorspace = SWS_CS_SMPTE170M;
-            break;
-        case AVCOL_SPC_SMPTE240M:
-            colorspace = SWS_CS_SMPTE240M;
-            break;
-        default:
-            colorspace = SWS_CS_ITU709;
-            break;
-        }
-        const int* inv_table = sws_getCoefficients(colorspace);
-
-        // Configure color range
-        int srcRange = frame->color_range == AVCOL_RANGE_JPEG ? 1 : 0;
-
-        // Configure YUV conversion table
-        const int* table = sws_getCoefficients(SWS_CS_DEFAULT);
-
-        sws_setColorspaceDetails(sws, inv_table, srcRange, table, 1, 0, 1 << 16, 1 << 16);
-
-        // The linesizes and data pointers for the destination
-        int dstLinesizes[4];
-        av_image_fill_linesizes(dstLinesizes, AV_PIX_FMT_BGRA, stepSize / 4);
-        uint8_t* dstData[4] = {cvMat->data, NULL, NULL, NULL};
-
-        // Perform the scaling and format conversion
-        sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesizes);
-
-        // Free the SwsContext
-        sws_freeContext(sws);
     }
 
     return res;
@@ -618,4 +641,225 @@ void avcodec_decoder_release(avcodec_decoder d)
     }
 
     delete d;
+}
+
+/* ── spritesheet support ──────────────────────────────────────────── */
+
+/* returns the number of keyframes (I-frames) in the video stream's index.
+ * the index is populated by libavformat when it parses the moov atom during
+ * avcodec_decoder_create(). returns -1 on error. */
+int avcodec_decoder_get_keyframe_count(const avcodec_decoder d)
+{
+    if (!d || !d->container) {
+        return -1;
+    }
+
+    if (d->video_stream_index < 0 || d->video_stream_index >= (int)d->container->nb_streams) {
+        return -1;
+    }
+
+    AVStream* st = d->container->streams[d->video_stream_index];
+    int total = avformat_index_get_entries_count(st);
+    int keyframe_count = 0;
+
+    for (int i = 0; i < total; i++) {
+        const AVIndexEntry* e = avformat_index_get_entry(st, i);
+        if (e && (e->flags & AVINDEX_KEYFRAME)) {
+            keyframe_count++;
+        }
+    }
+
+    return keyframe_count;
+}
+
+/* copies keyframe index entries from the moov atom into the caller-provided array.
+ * each entry contains a timestamp, absolute byte offset into mdat, and sample size —
+ * enough to issue an HTTP range request for the raw compressed keyframe data.
+ * returns the number of entries written, or -1 on error. */
+int avcodec_decoder_get_keyframes(
+    const avcodec_decoder d,
+    avcodec_keyframe_entry* out_entries,
+    int max_entries)
+{
+    if (!d || !d->container || !out_entries || max_entries <= 0) {
+        return -1;
+    }
+
+    if (d->video_stream_index < 0 || d->video_stream_index >= (int)d->container->nb_streams) {
+        return -1;
+    }
+
+    AVStream* st = d->container->streams[d->video_stream_index];
+    AVRational time_base = st->time_base;
+    int total = avformat_index_get_entries_count(st);
+    int count = 0;
+
+    for (int i = 0; i < total && count < max_entries; i++) {
+        const AVIndexEntry* e = avformat_index_get_entry(st, i);
+        if (e && (e->flags & AVINDEX_KEYFRAME)) {
+            // h264 streams with B-frames can have a negative initial decode
+            // timestamp due to composition time offsets (the decoder needs to decode
+            // future reference frames before presenting the first frame, so the first
+            // decode timestamp is shifted negative so that the first presentation
+            // timestamp lands at 0).
+            // clamp to 0 since negative timestamps are meaningless for spritesheet
+            // consumers (interval selection, WebVTT generation, tile layout).
+            int64_t ts = av_rescale_q(e->timestamp, time_base, (AVRational){1, 1000000});
+            out_entries[count].timestamp_us = ts < 0 ? 0 : ts;
+            out_entries[count].byte_offset = e->pos;
+            out_entries[count].size = e->size;
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/* returns the AVCodecID for the video stream, as parsed from the moov atom.
+ * needed to create a standalone decoder context for raw keyframe chunks.
+ * returns -1 on error. */
+int avcodec_decoder_get_codec_id(const avcodec_decoder d)
+{
+    if (!d || !d->codec) {
+        return -1;
+    }
+    return (int)d->codec->codec_id;
+}
+
+/* copies the codec extradata from the moov atom (e.g. SPS/PPS for h264) into dest.
+ * this data is required to initialize a standalone decoder for raw keyframe chunks.
+ * pass dest=NULL to query the required buffer size without copying.
+ * returns bytes written, 0 if no extradata, or -1 on error. */
+int avcodec_decoder_get_extradata(
+    const avcodec_decoder d,
+    void* dest,
+    size_t dest_len)
+{
+    if (!d || !d->codec) {
+        return -1;
+    }
+
+    int size = d->codec->extradata_size;
+    if (size <= 0 || !d->codec->extradata) {
+        return 0;
+    }
+
+    if (!dest) {
+        return size;
+    }
+
+    if ((size_t)size > dest_len) {
+        fprintf(stderr, "avcodec_decoder_get_extradata: dest buffer too small (%zu < %d)\n",
+                dest_len, size);
+        return -1;
+    }
+
+    memcpy(dest, d->codec->extradata, size);
+    return size;
+}
+
+/* decodes a single raw keyframe chunk (from a range request) into BGRA pixels.
+ * creates a temporary codec context internally — no demuxer needed, no shared
+ * state, safe for parallel calls across threads.
+ * codec_id, extradata, width, height come from the moov parse phase.
+ * output_mat must be pre-allocated to the desired thumbnail dimensions. */
+bool avcodec_decode_raw_keyframe(
+    int codec_id,
+    const void* extradata,
+    int extradata_size,
+    int source_width,
+    int source_height,
+    const void* chunk_data,
+    int chunk_size,
+    opencv_mat output_mat)
+{
+    if (!chunk_data || chunk_size <= 0 || !output_mat) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: invalid input (chunk_data=%p, chunk_size=%d)\n",
+                chunk_data, chunk_size);
+        return false;
+    }
+
+    if (extradata && extradata_size > 10 * 1024) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: extradata too large (%d bytes)\n",
+                extradata_size);
+        return false;
+    }
+
+    const AVCodec* codec = avcodec_find_decoder((AVCodecID)codec_id);
+    if (!codec) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: no decoder for codec_id=%d\n", codec_id);
+        return false;
+    }
+
+    /* resources that need cleanup -- initialized to NULL so the
+     * cleanup label can free whichever ones were allocated */
+    AVCodecContext* ctx = NULL;
+    AVPacket* pkt = NULL;
+    AVFrame* frame = NULL;
+    bool success = false;
+
+    ctx = avcodec_alloc_context3(codec);
+    if (!ctx) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: failed to alloc codec context\n");
+        goto cleanup;
+    }
+
+    ctx->width = source_width;
+    ctx->height = source_height;
+
+    if (extradata && extradata_size > 0) {
+        ctx->extradata = (uint8_t*)av_mallocz(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
+        if (!ctx->extradata) {
+            fprintf(stderr, "avcodec_decode_raw_keyframe: failed to alloc extradata (%d bytes)\n",
+                    extradata_size);
+            goto cleanup;
+        }
+        memcpy(ctx->extradata, extradata, extradata_size);
+        ctx->extradata_size = extradata_size;
+    }
+
+    if (avcodec_open2(ctx, codec, NULL) < 0) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: avcodec_open2 failed for codec_id=%d\n",
+                codec_id);
+        goto cleanup;
+    }
+
+    pkt = av_packet_alloc();
+    if (!pkt) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: failed to alloc packet\n");
+        goto cleanup;
+    }
+    pkt->data = (uint8_t*)chunk_data;
+    pkt->size = chunk_size;
+    pkt->flags = AV_PKT_FLAG_KEY;
+
+    if (avcodec_send_packet(ctx, pkt) < 0) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: avcodec_send_packet failed\n");
+        goto cleanup;
+    }
+
+    /* flush: signal no more packets so decoder emits the keyframe */
+    avcodec_send_packet(ctx, NULL);
+
+    frame = av_frame_alloc();
+    if (!frame) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: failed to alloc frame\n");
+        goto cleanup;
+    }
+
+    if (avcodec_receive_frame(ctx, frame) < 0) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: avcodec_receive_frame failed\n");
+        goto cleanup;
+    }
+
+    success = scale_yuv_frame_to_bgra_mat(frame, output_mat);
+    if (!success) {
+        fprintf(stderr, "avcodec_decode_raw_keyframe: scale_yuv_frame_to_bgra_mat failed\n");
+    }
+
+cleanup:
+    av_frame_free(&frame);
+    av_packet_free(&pkt);
+    avcodec_free_context(&ctx);
+    return success;
 }
