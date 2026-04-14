@@ -651,10 +651,13 @@ void avcodec_decoder_release(avcodec_decoder d)
 int avcodec_decoder_get_keyframe_count(const avcodec_decoder d)
 {
     if (!d || !d->container) {
+        fprintf(stderr, "avcodec_decoder_get_keyframe_count: decoder or container is null\n");
         return -1;
     }
 
     if (d->video_stream_index < 0 || d->video_stream_index >= (int)d->container->nb_streams) {
+        fprintf(stderr, "avcodec_decoder_get_keyframe_count: invalid video_stream_index=%d\n",
+                d->video_stream_index);
         return -1;
     }
 
@@ -682,10 +685,14 @@ int avcodec_decoder_get_keyframes(
     int max_entries)
 {
     if (!d || !d->container || !out_entries || max_entries <= 0) {
+        fprintf(stderr, "avcodec_decoder_get_keyframes: invalid args (d=%p, out_entries=%p, max_entries=%d)\n",
+                (void*)d, (void*)out_entries, max_entries);
         return -1;
     }
 
     if (d->video_stream_index < 0 || d->video_stream_index >= (int)d->container->nb_streams) {
+        fprintf(stderr, "avcodec_decoder_get_keyframes: invalid video_stream_index=%d\n",
+                d->video_stream_index);
         return -1;
     }
 
@@ -736,6 +743,7 @@ int avcodec_decoder_get_extradata(
     size_t dest_len)
 {
     if (!d || !d->codec) {
+        fprintf(stderr, "avcodec_decoder_get_extradata: decoder or codec context is null\n");
         return -1;
     }
 
