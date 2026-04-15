@@ -253,19 +253,23 @@ func (d *avCodecDecoder) Extradata() ([]byte, error) {
 	return buf[:int(copied)], nil
 }
 
+// bgraStrideBufSize returns the buffer size needed for a BGRA framebuffer at
+// the given dimensions, accounting for the 32-pixel row stride alignment that
+// the C layer's sws_scale path requires for SIMD.
+func bgraStrideBufSize(width, height int) int {
+	paddedWidth := width
+	if width%32 != 0 {
+		paddedWidth = width + 32 - (width % 32)
+	}
+	return paddedWidth * height * 4
+}
+
 // DecodeRawKeyframe decodes a raw keyframe chunk into BGRA pixels in the provided Framebuffer.
 // The chunk is raw compressed data from the mdat region (via range request).
 // codecID, extradata, sourceWidth, and sourceHeight come from the moov parse phase.
 // thumbWidth and thumbHeight specify the desired output dimensions.
 func DecodeRawKeyframe(codecID int, extradata []byte, sourceWidth, sourceHeight int, chunk []byte, thumbWidth, thumbHeight int, dst *Framebuffer) error {
-	// the C layer aligns output rows to 32-pixel boundaries for SIMD.
-	// ensure the backing buffer is large enough for the padded stride.
-	paddedWidth := thumbWidth
-	if thumbWidth%32 != 0 {
-		paddedWidth = thumbWidth + 32 - (thumbWidth % 32)
-	}
-	requiredSize := paddedWidth * thumbHeight * 4
-	if len(dst.buf) < requiredSize {
+	if requiredSize := bgraStrideBufSize(thumbWidth, thumbHeight); len(dst.buf) < requiredSize {
 		dst.buf = make([]byte, requiredSize)
 	}
 
