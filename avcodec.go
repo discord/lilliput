@@ -4,6 +4,7 @@ package lilliput
 import "C"
 
 import (
+	"errors"
 	"io"
 	"time"
 	"unsafe"
@@ -179,6 +180,121 @@ func (d *avCodecDecoder) Close() {
 	C.avcodec_decoder_release(d.decoder)
 	C.opencv_mat_release(d.mat)
 	d.buf = nil
+}
+
+// KeyframeEntry represents a keyframe from the video's index (moov atom).
+// Contains the timestamp, byte offset into mdat, and compressed size.
+type KeyframeEntry struct {
+	TimestampUs int64
+	ByteOffset  int64
+	Size        int32
+}
+
+// KeyframeCount returns the number of keyframes in the video stream's index.
+func (d *avCodecDecoder) KeyframeCount() (int, error) {
+	count := C.avcodec_decoder_get_keyframe_count(d.decoder)
+	if count < 0 {
+		return 0, errors.New("failed to get keyframe count")
+	}
+	return int(count), nil
+}
+
+// Keyframes returns all keyframe entries from the video stream's index.
+func (d *avCodecDecoder) Keyframes() ([]KeyframeEntry, error) {
+	count, err := d.KeyframeCount()
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, nil
+	}
+
+	raw := make([]C.avcodec_keyframe_entry, count)
+	got := C.avcodec_decoder_get_keyframes(d.decoder, &raw[0], C.int(count))
+	if got < 0 {
+		return nil, errors.New("failed to get keyframe entries")
+	}
+
+	entries := make([]KeyframeEntry, int(got))
+	for i := 0; i < int(got); i++ {
+		entries[i] = KeyframeEntry{
+			TimestampUs: int64(raw[i].timestamp_us),
+			ByteOffset:  int64(raw[i].byte_offset),
+			Size:        int32(raw[i].size),
+		}
+	}
+	return entries, nil
+}
+
+// CodecID returns the AVCodecID for the video stream.
+func (d *avCodecDecoder) CodecID() (int, error) {
+	id := C.avcodec_decoder_get_codec_id(d.decoder)
+	if id < 0 {
+		return 0, errors.New("failed to get codec id")
+	}
+	return int(id), nil
+}
+
+// Extradata returns the codec extradata (e.g. SPS/PPS for H.264).
+func (d *avCodecDecoder) Extradata() ([]byte, error) {
+	size := C.avcodec_decoder_get_extradata(d.decoder, nil, 0)
+	if size < 0 {
+		return nil, errors.New("failed to get extradata size")
+	}
+	if size == 0 {
+		return nil, nil
+	}
+
+	buf := make([]byte, int(size))
+	copied := C.avcodec_decoder_get_extradata(d.decoder, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	if copied < 0 {
+		return nil, errors.New("failed to copy extradata")
+	}
+	return buf[:int(copied)], nil
+}
+
+// DecodeRawKeyframe decodes a raw keyframe chunk into BGRA pixels in the provided Framebuffer.
+// The chunk is raw compressed data from the mdat region (via range request).
+// codecID, extradata, sourceWidth, and sourceHeight come from the moov parse phase.
+// thumbWidth and thumbHeight specify the desired output dimensions.
+func DecodeRawKeyframe(codecID int, extradata []byte, sourceWidth, sourceHeight int, chunk []byte, thumbWidth, thumbHeight int, dst *Framebuffer) error {
+	// the C layer aligns output rows to 32-pixel boundaries for SIMD.
+	// ensure the backing buffer is large enough for the padded stride.
+	paddedWidth := thumbWidth
+	if thumbWidth%32 != 0 {
+		paddedWidth = thumbWidth + 32 - (thumbWidth % 32)
+	}
+	requiredSize := paddedWidth * thumbHeight * 4
+	if len(dst.buf) < requiredSize {
+		dst.buf = make([]byte, requiredSize)
+	}
+
+	err := dst.resizeMat(thumbWidth, thumbHeight, PixelType(C.CV_8UC4))
+	if err != nil {
+		return err
+	}
+
+	var extradataPtr unsafe.Pointer
+	extradataSize := C.int(0)
+	if len(extradata) > 0 {
+		extradataPtr = unsafe.Pointer(&extradata[0])
+		extradataSize = C.int(len(extradata))
+	}
+
+	ok := C.avcodec_decode_raw_keyframe(
+		C.int(codecID),
+		extradataPtr,
+		extradataSize,
+		C.int(sourceWidth),
+		C.int(sourceHeight),
+		unsafe.Pointer(&chunk[0]),
+		C.int(len(chunk)),
+		dst.mat,
+	)
+	if !ok {
+		return ErrDecodingFailed
+	}
+	return nil
 }
 
 // init initializes the avcodec library when the package is loaded.
