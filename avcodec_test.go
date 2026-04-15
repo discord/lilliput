@@ -118,6 +118,204 @@ func TestAV1VideoDecoding(t *testing.T) {
 	}
 }
 
+func TestKeyframeEntries(t *testing.T) {
+	buf, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_std.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	dec, err := newAVCodecDecoder(buf)
+	if err != nil {
+		t.Fatalf("failed to create decoder: %v", err)
+	}
+	defer dec.Close()
+
+	entries, err := dec.Keyframes()
+	if err != nil {
+		t.Fatalf("failed to get keyframes: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected keyframe entries")
+	}
+
+	if entries[0].TimestampUs < 0 {
+		t.Fatalf("first keyframe timestamp should be non-negative, got %d", entries[0].TimestampUs)
+	}
+
+	for i, e := range entries {
+		if e.ByteOffset <= 0 {
+			t.Fatalf("keyframe %d byte_offset should be positive, got %d", i, e.ByteOffset)
+		}
+		if e.Size <= 0 {
+			t.Fatalf("keyframe %d size should be positive, got %d", i, e.Size)
+		}
+	}
+
+	for i := 1; i < len(entries); i++ {
+		if entries[i].TimestampUs < entries[i-1].TimestampUs {
+			t.Fatalf("keyframe timestamps should be non-decreasing: kf[%d]=%d < kf[%d]=%d",
+				i, entries[i].TimestampUs, i-1, entries[i-1].TimestampUs)
+		}
+	}
+}
+
+func TestCodecIDAndExtradata(t *testing.T) {
+	buf, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_std.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	dec, err := newAVCodecDecoder(buf)
+	if err != nil {
+		t.Fatalf("failed to create decoder: %v", err)
+	}
+	defer dec.Close()
+
+	codecID, err := dec.CodecID()
+	if err != nil {
+		t.Fatalf("failed to get codec id: %v", err)
+	}
+	if codecID <= 0 {
+		t.Fatalf("expected valid codec id, got %d", codecID)
+	}
+
+	extradata, err := dec.Extradata()
+	if err != nil {
+		t.Fatalf("failed to get extradata: %v", err)
+	}
+	if len(extradata) == 0 {
+		t.Fatal("expected non-empty extradata (SPS/PPS)")
+	}
+}
+
+// extractFtypMoov extracts ftyp + moov boxes from an mp4 buffer, stripping mdat.
+// this simulates what a media proxy receives via range requests (moov only, no video data).
+func extractFtypMoov(buf []byte) []byte {
+	var out []byte
+	offset := 0
+	for offset+8 <= len(buf) {
+		boxSize := int(buf[offset])<<24 | int(buf[offset+1])<<16 | int(buf[offset+2])<<8 | int(buf[offset+3])
+		boxType := string(buf[offset+4 : offset+8])
+		if boxSize < 8 || offset+boxSize > len(buf) {
+			break
+		}
+		if boxType == "ftyp" || boxType == "moov" {
+			out = append(out, buf[offset:offset+boxSize]...)
+		}
+		offset += boxSize
+	}
+	return out
+}
+
+func TestMoovOnlyParsing(t *testing.T) {
+	fullBuf, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_std.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	moovBuf := extractFtypMoov(fullBuf)
+	if len(moovBuf) >= len(fullBuf) {
+		t.Fatal("moov-only buffer should be smaller than the full file")
+	}
+
+	dec, err := newAVCodecDecoder(moovBuf)
+	if err != nil {
+		t.Fatalf("failed to create decoder from moov-only buffer: %v", err)
+	}
+	defer dec.Close()
+
+	entries, err := dec.Keyframes()
+	if err != nil {
+		t.Fatalf("failed to get keyframes from moov-only buffer: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected keyframes from moov-only buffer")
+	}
+
+	codecID, err := dec.CodecID()
+	if err != nil {
+		t.Fatalf("failed to get codec id from moov-only buffer: %v", err)
+	}
+	if codecID <= 0 {
+		t.Fatalf("expected valid codec id from moov-only buffer, got %d", codecID)
+	}
+
+	extradata, err := dec.Extradata()
+	if err != nil {
+		t.Fatalf("failed to get extradata from moov-only buffer: %v", err)
+	}
+	if len(extradata) == 0 {
+		t.Fatal("expected extradata from moov-only buffer")
+	}
+
+	for i, e := range entries {
+		if e.ByteOffset <= 0 {
+			t.Fatalf("keyframe %d byte_offset should be positive, got %d", i, e.ByteOffset)
+		}
+		if e.Size <= 0 {
+			t.Fatalf("keyframe %d size should be positive, got %d", i, e.Size)
+		}
+	}
+}
+
+func TestDecodeMultipleKeyframes(t *testing.T) {
+	buf, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_std.mp4")
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	dec, err := newAVCodecDecoder(buf)
+	if err != nil {
+		t.Fatalf("failed to create decoder: %v", err)
+	}
+	defer dec.Close()
+
+	header, err := dec.Header()
+	if err != nil {
+		t.Fatalf("failed to get header: %v", err)
+	}
+	codecID, err := dec.CodecID()
+	if err != nil {
+		t.Fatalf("failed to get codec id: %v", err)
+	}
+	extradata, err := dec.Extradata()
+	if err != nil {
+		t.Fatalf("failed to get extradata: %v", err)
+	}
+	entries, err := dec.Keyframes()
+	if err != nil {
+		t.Fatalf("failed to get keyframes: %v", err)
+	}
+
+	thumbW := 160
+	thumbH := int(float64(header.Height()) / float64(header.Width()) * float64(thumbW))
+	if thumbH%2 != 0 {
+		thumbH++
+	}
+
+	toTest := len(entries)
+	if toTest > 5 {
+		toTest = 5
+	}
+	if toTest == 0 {
+		t.Fatal("need at least one keyframe")
+	}
+
+	for i := 0; i < toTest; i++ {
+		kf := entries[i]
+		start := int(kf.ByteOffset)
+		end := start + int(kf.Size)
+		if end > len(buf) {
+			t.Fatalf("keyframe %d range %d..%d exceeds file size %d", i, start, end, len(buf))
+		}
+		chunk := buf[start:end]
+
+		fb := NewFramebuffer(thumbW, thumbH)
+		err := DecodeRawKeyframe(codecID, extradata, header.Width(), header.Height(), chunk, thumbW, thumbH, fb)
+		fb.Close()
+		if err != nil {
+			t.Fatalf("keyframe %d (t=%dus, offset=%d, size=%d) failed to decode: %v",
+				i, kf.TimestampUs, kf.ByteOffset, kf.Size, err)
+		}
+	}
+}
+
 func BenchmarkIsStreamableWebMp4(b *testing.B) {
 	// Read the web-optimized streamable MP4 file
 	webMp4, err := os.ReadFile("testdata/big_buck_bunny_480p_10s_web.mp4")
