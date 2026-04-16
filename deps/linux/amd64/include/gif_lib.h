@@ -13,8 +13,8 @@ SPDX-License-Identifier: MIT
 extern "C" {
 #endif /* __cplusplus */
 
-#define GIFLIB_MAJOR 5
-#define GIFLIB_MINOR 2
+#define GIFLIB_MAJOR 6
+#define GIFLIB_MINOR 1
 #define GIFLIB_RELEASE 2
 
 #define GIF_ERROR 0
@@ -129,21 +129,21 @@ GifFileType *EGifOpenFileName(const char *GifFileName,
                               const bool GifTestExistence, int *Error);
 GifFileType *EGifOpenFileHandle(const int GifFileHandle, int *Error);
 GifFileType *EGifOpen(void *userPtr, OutputFunc writeFunc, int *Error);
-int EGifSpew(GifFileType *GifFile);
+int EGifSpew(GifFileType *GifFile, int *ErrorCode);
 const char *EGifGetGifVersion(GifFileType *GifFile); /* new in 5.x */
 int EGifCloseFile(GifFileType *GifFile, int *ErrorCode);
 
 #define E_GIF_SUCCEEDED 0
-#define E_GIF_ERR_OPEN_FAILED 1 /* And EGif possible errors. */
-#define E_GIF_ERR_WRITE_FAILED 2
-#define E_GIF_ERR_HAS_SCRN_DSCR 3
-#define E_GIF_ERR_HAS_IMAG_DSCR 4
-#define E_GIF_ERR_NO_COLOR_MAP 5
-#define E_GIF_ERR_DATA_TOO_BIG 6
-#define E_GIF_ERR_NOT_ENOUGH_MEM 7
-#define E_GIF_ERR_DISK_IS_FULL 8
-#define E_GIF_ERR_CLOSE_FAILED 9
-#define E_GIF_ERR_NOT_WRITEABLE 10
+#define E_GIF_ERR_OPEN_FAILED 201 /* And EGif possible errors. */
+#define E_GIF_ERR_WRITE_FAILED 202
+#define E_GIF_ERR_HAS_SCRN_DSCR 203
+#define E_GIF_ERR_HAS_IMAG_DSCR 204
+#define E_GIF_ERR_NO_COLOR_MAP 205
+#define E_GIF_ERR_DATA_TOO_BIG 206
+#define E_GIF_ERR_NOT_ENOUGH_MEM 207
+#define E_GIF_ERR_DISK_IS_FULL 208
+#define E_GIF_ERR_CLOSE_FAILED 209
+#define E_GIF_ERR_NOT_WRITEABLE 210
 
 /* These are legacy.  You probably do not want to call them directly */
 int EGifPutScreenDesc(GifFileType *GifFile, const int GifWidth,
