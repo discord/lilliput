@@ -1306,7 +1306,6 @@ struct GifAnimationInfo giflib_decoder_get_animation_info(const giflib_decoder d
         return info; // Return default on allocation failure
     }
 
-    memset(loopReader, 0, sizeof(struct giflib_decoder_struct));
     loopReader->mat = d->mat; // Share the source data
 
     int error = 0;
