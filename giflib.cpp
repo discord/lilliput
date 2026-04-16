@@ -521,6 +521,10 @@ static bool giflib_decoder_render_frame(giflib_decoder d, GraphicsControlBlock* 
                 dst += 4;
                 continue;
             }
+            if (palette_index >= colorMap->ColorCount) {
+                dst += 4;
+                continue;
+            }
             *dst++ = colorMap->Colors[palette_index].Blue;
             *dst++ = colorMap->Colors[palette_index].Green;
             *dst++ = colorMap->Colors[palette_index].Red;
