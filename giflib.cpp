@@ -273,6 +273,12 @@ static bool giflib_set_frame_gcb(GifFileType* gif, const GraphicsControlBlock* g
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
         ExtensionBlock* b = &gif->ExtensionBlocks[i];
         if (b->Function == GRAPHICS_EXT_FUNC_CODE) {
+            if (b->ByteCount < 4) {
+                // Truncated GCE block — skip to avoid heap OOB write
+                // in EGifGCBToExtension which unconditionally writes 4 bytes.
+                // CVE-2026-26740
+                continue;
+            }
             int res = EGifGCBToExtension(gcb, b->Bytes);
             success = res == GIF_OK;
         }
