@@ -254,6 +254,7 @@ static bool giflib_get_frame_gcb(GifFileType* gif, GraphicsControlBlock* gcb)
     gcb->DisposalMode = DISPOSAL_UNSPECIFIED;
     gcb->UserInputFlag = false;
     gcb->DelayTime = 0;
+    gcb->TransparentColor = NO_TRANSPARENT_COLOR;
 
     bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
