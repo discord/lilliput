@@ -88,8 +88,12 @@ case "$ARCH" in
         ARCH_CFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
         ARCH_CXXFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
 
-        # OpenCV ARM-specific optimizations
-        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=VFPV3,NEON -DCPU_DISPATCH=VFPV4"
+        # OpenCV ARM-specific optimizations.
+        # NEON is mandatory on aarch64 (always-on baseline). NEON_DOTPROD and
+        # NEON_FP16 are runtime-dispatched and will fire on Graviton 3/4 hosts
+        # that support them. (VFPV3/VFPV4 are 32-bit ARM concepts and are
+        # silently ignored by opencv on aarch64; replaced with valid tokens.)
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16"
         CONFIGURE_HOST="aarch64-linux-gnu"
         CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
         FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
@@ -264,10 +268,8 @@ cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
+cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS $OPENCV_EXTRA_FLAGS \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCPU_BASELINE=SSE4_2,AVX \
-    -DCPU_DISPATCH=AVX,AVX2 \
     -DWITH_AVIF=OFF \
     -DWITH_WEBP=ON \
     -DWITH_JASPER=OFF \
