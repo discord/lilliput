@@ -93,7 +93,7 @@ case "$ARCH" in
         # NEON_FP16 are runtime-dispatched and will fire on Graviton 3/4 hosts
         # that support them. (VFPV3/VFPV4 are 32-bit ARM concepts and are
         # silently ignored by opencv on aarch64; replaced with valid tokens.)
-        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16"
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16 -DWITH_CAROTENE=OFF"
         CONFIGURE_HOST="aarch64-linux-gnu"
         CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
         FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
