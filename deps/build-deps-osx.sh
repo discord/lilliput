@@ -233,7 +233,9 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/bzip2
 tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
-make PREFIX=$PREFIX install
+# bzip2's Makefile defaults CFLAGS to '-Wall -Winline -O2 -g $(BIGFILES)'.
+# Override to match the Linux script's -O3 baseline (build-deps-linux.sh:309).
+make CFLAGS="-Wall -Winline -O3 -D_FILE_OFFSET_BITS=64 $ARCH_SPECIFIC_CFLAGS" PREFIX=$PREFIX install
 
 echo '\n--------------------'
 echo 'Building liblcms'
