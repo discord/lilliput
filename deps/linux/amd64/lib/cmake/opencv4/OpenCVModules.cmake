@@ -19,7 +19,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_cmake_targets_defined "")
 set(_cmake_targets_not_defined "")
 set(_cmake_expected_targets "")
-foreach(_cmake_expected_target IN ITEMS ippiw libprotobuf ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs opencv_highgui)
+foreach(_cmake_expected_target IN ITEMS libopenjp2 ippiw libprotobuf ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs opencv_highgui)
   list(APPEND _cmake_expected_targets "${_cmake_expected_target}")
   if(TARGET "${_cmake_expected_target}")
     list(APPEND _cmake_targets_defined "${_cmake_expected_target}")
@@ -54,6 +54,14 @@ get_filename_component(_IMPORT_PREFIX "${_IMPORT_PREFIX}" PATH)
 if(_IMPORT_PREFIX STREQUAL "/")
   set(_IMPORT_PREFIX "")
 endif()
+
+# Create imported target libopenjp2
+add_library(libopenjp2 STATIC IMPORTED)
+
+set_target_properties(libopenjp2 PROPERTIES
+  INTERFACE_COMPILE_DEFINITIONS "OPJ_STATIC"
+  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:m>"
+)
 
 # Create imported target ippiw
 add_library(ippiw STATIC IMPORTED)
@@ -96,7 +104,7 @@ set_target_properties(opencv_photo PROPERTIES
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libjpeg.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebp.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebpmux.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebpdemux.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libpng16.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:openjp2>;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:ippiw>;\$<LINK_ONLY:ippicv>;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libjpeg.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebp.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebpmux.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libwebpdemux.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libpng16.a;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/runner/work/lilliput/lilliput/deps/linux/amd64/lib/libz.a"
 )
 
 # Create imported target opencv_highgui

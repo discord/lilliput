@@ -1,5 +1,5 @@
 {
-    "commit_sha": "b7704672f043c19c1e19482dc73dbd225f753510",
+    "commit_sha": "6b35fe537c54219c49826e778e4ace66bf7fe562",
     "platform": "linux-amd64",
     "files": {
         "include/lcms2.h": "269c03864756c3c6642627d5f6710bd2793d5f7098db97ed9bcad8abdf2c2be6",
@@ -225,7 +225,7 @@
         "include/libavfilter/version_major.h": "7a8bf18dba3ba32195c213a29a5779e21949c43b41a7c2a7c28f2822e69be9e5",
         "lib/libopencv_imgproc.a": "5854d8536184209e98dda8d2875bbdd78cb0d93c9a53c3b3cc56f8a43869d30d",
         "lib/libwebp.a": "8dbc6f116f4da4283dfaa12fc95b28f8fe2e1d8dc5f56ee0b890db6f9306171b",
-        "lib/libdav1d.a": "a096221e632654482b11d3944c21eecc22ac2a2c45a8396296a6d7cbcc2147c8",
+        "lib/libdav1d.a": "540edc2815dc33f1a47dee606c4314ad38dce01558c28f3d39468e81baec3053",
         "lib/libz.a": "c3ede55152e5099f9d76358ca1be7edaaadab07a3501d327739fe48ff18fcb7b",
         "lib/libwebpdemux.a": "8aaf3754765bc91abdd85d0062367c86313ae4fed2c1163bb5eabe53c0fda575",
         "lib/libgif.a": "64704eeaf0464f490c9f3e388da500dd0ec1eae388cf92690f9ec5c3c7d59e09",
@@ -236,11 +236,11 @@
         "lib/libaom.a": "8fd92af38604cbc475a54a8a9e74a0b922e089d964669f843f2831c6b81fbc59",
         "lib/libopencv_highgui.a": "460d299d2e875bf43fea0ad04c9e7d66d2237bca1aba134343e1f1abb8b87b6e",
         "lib/libbz2.a": "c21ff97a9a7f3256d2ad3d2ccba8de5b1bf85395b08f54cebcc5cad992cce30b",
-        "lib/libopencv_imgcodecs.a": "f470e12a701239282935f456d009804fbaca19e4b9c08d32af71f09afb32769f",
+        "lib/libopencv_imgcodecs.a": "a6e6b0d68a01b8584464dd1ce4e5f56ec25c74df1d7989f1539522020a3d1377",
         "lib/liblcms2.a": "b850208fffe9194cf46d07f8082a6f3214fec39dcd4428d67d17c2373766ab99",
         "lib/libyuv.a": "99cb0c6b82e7c7b2df62d6b3b7913edee7e9793f628d07d79455daf2df6f2eeb",
         "lib/libturbojpeg.a": "705c85af229681050dfc7f564beb9f5f4ff3b8ee413337fc5c31100c9566a287",
-        "lib/libopencv_core.a": "b50a8dc7751b071788ef5f43f77716d5540e0b4cce4a29b9c00142280c5a9638",
+        "lib/libopencv_core.a": "f82a78377006bd27525b2619888f421f885be9d44a79089dbd166e472b9658f5",
         "lib/libswresample.a": "c9c9c98a79652426f9b36ab975d938314d4323e3d8c16ec67c25c9af2920bb53",
         "lib/libsharpyuv.a": "786b7b0c54dd07e3a01ffe2d52b7b6222fa944712fbeb53e38f091bc2595583c",
         "lib/libavif.a": "e30135b9403306542d7e27b10a145d7d7916d34204e4d3ac13293111695a2ca9",
@@ -253,6 +253,6 @@
         "lib/opencv4/3rdparty/libippicv.a": "e5d8932da2dfd2a2a162a0958795ca54740d5a18edaf3b94b6fbf3fbe91c9bce",
         "lib/opencv4/3rdparty/libittnotify.a": "8d6777cb72d6dec2e7fe1329ef1064ececac3347cadc5f221292e6299eb08aad",
         "lib/opencv4/3rdparty/libippiw.a": "c0f6ae74336a506fd64b0cf08e01ddcced32e4eded1eb7d5cec5bee50e919bdf",
-        "lib/opencv4/3rdparty/liblibopenjp2.a": "2c6a3f100d1f34825dac80530771f75819f5077b70c3e8296a626abee2e6adcf"
+        "lib/opencv4/3rdparty/liblibopenjp2.a": "89a21fb0951daed4d5704a61490b25bbf750d7513b7ac1d97c5768055a8658b3"
     }
 }
