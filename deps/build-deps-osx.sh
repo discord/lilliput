@@ -109,7 +109,7 @@ mkdir -p $BASEDIR/libpng
 tar -xf $SRCDIR/libpng-1.6.47.tar -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --host=arm-apple-darwin
+$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --host=arm-apple-darwin CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 
@@ -132,7 +132,7 @@ if [ ! -f "./configure" ]; then
 fi
 mkdir -p $BUILDDIR/libwebp
 cd $BUILDDIR/libwebp
-$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static
+$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 
@@ -241,7 +241,7 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/lcms
 tar -xzf $SRCDIR/lcms-fbfa67a.tar.gz -C $BASEDIR/lcms --strip-components 1
 cd $BASEDIR/lcms
-./configure --prefix=$PREFIX --disable-shared --enable-static
+./configure --prefix=$PREFIX --disable-shared --enable-static CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 

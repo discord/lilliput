@@ -205,7 +205,9 @@ $BASEDIR/libpng/configure \
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
+    RANLIB="$RANLIB" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 make
 make install
 verify_arch "$PREFIX/lib/libpng16.a"
@@ -227,7 +229,9 @@ $BASEDIR/libwebp/configure \
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
+    RANLIB="$RANLIB" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 
 make
 make install
@@ -323,8 +327,10 @@ cd $BASEDIR/lcms
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
-    STRIP="$STRIP"
+    RANLIB="$RANLIB" \
+    STRIP="$STRIP" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 make
 make install
 verify_arch "$PREFIX/lib/liblcms2.a"
