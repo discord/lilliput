@@ -1,5 +1,5 @@
 {
-    "commit_sha": "6b35fe537c54219c49826e778e4ace66bf7fe562",
+    "commit_sha": "60d600367b8e359c957939968026589a3317beb1",
     "platform": "linux-aarch64",
     "files": {
         "include/lcms2.h": "269c03864756c3c6642627d5f6710bd2793d5f7098db97ed9bcad8abdf2c2be6",
@@ -225,7 +225,7 @@
         "include/libavfilter/version_major.h": "7a8bf18dba3ba32195c213a29a5779e21949c43b41a7c2a7c28f2822e69be9e5",
         "lib/libopencv_imgproc.a": "3ff9a06cff92a8abc82e0d6542464399b9f4a79f127ec3661110dbd203fcf59e",
         "lib/libwebp.a": "9a3f4a02aa08b13616906950b88149f8a0091d71798a4b67d7b8accb952ce66d",
-        "lib/libdav1d.a": "3eea22632dcde6367d30f43d338a10bbecf28adabd8889abdc80c6b20020b8a4",
+        "lib/libdav1d.a": "5114fc8b019d4189e6159e7ba7f1b4ba36a46d9322e406b272c5301a13c171b3",
         "lib/libz.a": "0522661753462f000540f3c1d3a7c77f211fd27dc85d1e96360d59cf739c3e03",
         "lib/libwebpdemux.a": "08ad5e0523069291b8b36a96a83bd9678ffa9d13edc61dc40ab7e5400fb1a274",
         "lib/libgif.a": "9575ae6d16c49820e6297b69cdc5036d98ef866edb3e9bfdb590b31fc97b2aa6",
@@ -240,7 +240,7 @@
         "lib/liblcms2.a": "784bab14e9a02ce902737deb0c726f02273d6c6caa102449d8018acab385ccb6",
         "lib/libyuv.a": "1fa8b9de7890b700592da0509b9f92dfa99bb04254d3840062f09dbe3aa8ca4d",
         "lib/libturbojpeg.a": "4627b0bd3548718fb11c292d5e30bbc4ecc1b23058787dc90263fabd4caf89bd",
-        "lib/libopencv_core.a": "9330118819747a79dd13e44a93155406158f5c649fb08e39c7bf9a35e8a043ce",
+        "lib/libopencv_core.a": "b19813e282e0e9ad12a1daedbdfe1accbac3813e6d5e6611615b1ec499123c1f",
         "lib/libswresample.a": "050fdbf4188e2ad66c45864a5824ec489b4117fd2f5133fc9fbd7560ead69148",
         "lib/libsharpyuv.a": "7c9bf8b27777ff9b031bb89cfdd10538007f962bea07cd3471e84397f4c503ca",
         "lib/libavif.a": "86530a2ad92f886771d269a4a7aa42e278b38cb3e248a1d452f3675401905837",
