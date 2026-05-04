@@ -60,18 +60,23 @@ case "$ARCH" in
         AOM_CMAKE_FLAGS=""
         ;;
     "aarch64")
-        # Detect ARM CPU features
-        if grep -q "ARMv8.4" /proc/cpuinfo; then
-            ARM_ARCH="armv8.4-a"
-            ARM_FEATURES="+dotprod+simd+i8mm+crypto+crc"
-        elif grep -q "ARMv8.2" /proc/cpuinfo; then
-            ARM_ARCH="armv8.2-a"
-            ARM_FEATURES="+dotprod+simd+crypto+crc"
-        else
-            # Default to ARMv8.0 for maximum compatibility
-            ARM_ARCH="armv8-a"
-            ARM_FEATURES="+simd+crypto+crc"
-        fi
+        # Multi-cloud LCD across mixed Graviton fleet (G2/G3/G4) plus GCP C4A.
+        # G2 (Neoverse-N1) is ARMv8.2-A; G3 (V1) is ARMv8.4-A; G4 (V2) and C4A (V2)
+        # are ARMv9.0-A. ARMv8.2-A is the floor across all four. Per AWS's recommended
+        # balanced flag for current Graviton generations:
+        # https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
+        #
+        # The previous detection block grepped /proc/cpuinfo for "ARMv8.4"/"ARMv8.2",
+        # but CI runs on x86_64 GHA runners cross-compiling for aarch64; those strings
+        # never match the build host's CPU, so the script silently fell through to
+        # ARMv8-A baseline. Replaced with explicit ARMv8.2-A floor.
+        #
+        # Note: ffmpeg/libaom/dav1d compile in DOTPROD/I8MM paths via their own
+        # configure-time probes against compiler headers (independent of -march),
+        # and runtime-dispatch them per host. So we don't lose those features on
+        # G3/G4 even with an ARMv8.2-A LCD baseline.
+        ARM_ARCH="armv8.2-a"
+        ARM_FEATURES="+crc"
 
         export CC="aarch64-linux-gnu-gcc"
         export CXX="aarch64-linux-gnu-g++"
