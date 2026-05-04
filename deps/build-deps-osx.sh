@@ -47,6 +47,7 @@ else
     ARCH_SPECIFIC_CFLAGS=""
 fi
 
+rm -rf "$PREFIX"
 mkdir -p "$PREFIX/include"
 mkdir -p "$PREFIX/lib"
 

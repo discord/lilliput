@@ -139,6 +139,7 @@ PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
+rm -rf $PREFIX
 mkdir -p $PREFIX/include
 mkdir -p $PREFIX/lib
 
