@@ -357,15 +357,13 @@ meson setup $BASEDIR/dav1d \
     --buildtype=release \
     -Denable_tools=false \
     -Denable_tests=false \
-    -Db_lto=true \
     --cross-file=$BASEDIR/meson-cross-$ARCH.txt 2>/dev/null || \
 meson setup $BASEDIR/dav1d \
     --prefix=$PREFIX \
     --default-library=static \
     --buildtype=release \
     -Denable_tools=false \
-    -Denable_tests=false \
-    -Db_lto=true
+    -Denable_tests=false
 ninja
 ninja install
 # Move libdav1d.a and dav1d.pc from architecture-specific subdirectory to main directories (AMD64 only)
