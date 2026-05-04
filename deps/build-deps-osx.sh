@@ -47,6 +47,7 @@ else
     ARCH_SPECIFIC_CFLAGS=""
 fi
 
+rm -rf "$PREFIX"
 mkdir -p "$PREFIX/include"
 mkdir -p "$PREFIX/lib"
 
@@ -267,8 +268,7 @@ meson setup $BASEDIR/dav1d \
     --default-library=static \
     --buildtype=release \
     -Denable_tools=false \
-    -Denable_tests=false \
-    -Db_lto=true
+    -Denable_tests=false
 ninja
 ninja install
 

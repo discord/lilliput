@@ -93,7 +93,7 @@ case "$ARCH" in
         # NEON_FP16 are runtime-dispatched and will fire on Graviton 3/4 hosts
         # that support them. (VFPV3/VFPV4 are 32-bit ARM concepts and are
         # silently ignored by opencv on aarch64; replaced with valid tokens.)
-        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16"
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16 -DWITH_CAROTENE=OFF"
         CONFIGURE_HOST="aarch64-linux-gnu"
         CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
         FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
@@ -139,6 +139,7 @@ PREFIX="$BASEDIR/linux/$ARCH"
 BUILDDIR="$BASEDIR/build"
 SRCDIR="$BASEDIR/lilliput-dep-source"
 
+rm -rf $PREFIX
 mkdir -p $PREFIX/include
 mkdir -p $PREFIX/lib
 
@@ -279,6 +280,7 @@ cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS $OPENCV_EXTRA_FLAGS \
     -DBUILD_JPEG=OFF \
     -DBUILD_PNG=OFF \
     -DBUILD_ZLIB=OFF \
+    -DBUILD_OPENJPEG=ON \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_DOCS=OFF \
     -DBUILD_EXAMPLES=OFF \
@@ -355,15 +357,13 @@ meson setup $BASEDIR/dav1d \
     --buildtype=release \
     -Denable_tools=false \
     -Denable_tests=false \
-    -Db_lto=true \
     --cross-file=$BASEDIR/meson-cross-$ARCH.txt 2>/dev/null || \
 meson setup $BASEDIR/dav1d \
     --prefix=$PREFIX \
     --default-library=static \
     --buildtype=release \
     -Denable_tools=false \
-    -Denable_tests=false \
-    -Db_lto=true
+    -Denable_tests=false
 ninja
 ninja install
 # Move libdav1d.a and dav1d.pc from architecture-specific subdirectory to main directories (AMD64 only)
