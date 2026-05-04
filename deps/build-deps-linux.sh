@@ -355,6 +355,7 @@ meson setup $BASEDIR/dav1d \
     --buildtype=release \
     -Denable_tools=false \
     -Denable_tests=false \
+    -Db_lto=true \
     --cross-file=$BASEDIR/meson-cross-$ARCH.txt 2>/dev/null || \
 meson setup $BASEDIR/dav1d \
     --prefix=$PREFIX \

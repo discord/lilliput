@@ -265,7 +265,8 @@ meson setup $BASEDIR/dav1d \
     --default-library=static \
     --buildtype=release \
     -Denable_tools=false \
-    -Denable_tests=false
+    -Denable_tests=false \
+    -Db_lto=true
 ninja
 ninja install
 
