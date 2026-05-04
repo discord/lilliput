@@ -25,6 +25,16 @@ set_target_properties(libprotobuf PROPERTIES
 list(APPEND _cmake_import_check_targets libprotobuf )
 list(APPEND _cmake_import_check_files_for_libprotobuf "${_IMPORT_PREFIX}/lib/opencv4/3rdparty/liblibprotobuf.a" )
 
+# Import target "tegra_hal" for configuration "Release"
+set_property(TARGET tegra_hal APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(tegra_hal PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/opencv4/3rdparty/libtegra_hal.a"
+  )
+
+list(APPEND _cmake_import_check_targets tegra_hal )
+list(APPEND _cmake_import_check_files_for_tegra_hal "${_IMPORT_PREFIX}/lib/opencv4/3rdparty/libtegra_hal.a" )
+
 # Import target "ittnotify" for configuration "Release"
 set_property(TARGET ittnotify APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(ittnotify PROPERTIES

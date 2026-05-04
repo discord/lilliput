@@ -19,7 +19,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_cmake_targets_defined "")
 set(_cmake_targets_not_defined "")
 set(_cmake_expected_targets "")
-foreach(_cmake_expected_target IN ITEMS libopenjp2 libprotobuf ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs opencv_highgui)
+foreach(_cmake_expected_target IN ITEMS libopenjp2 libprotobuf tegra_hal ittnotify ade opencv_core opencv_imgproc opencv_photo opencv_imgcodecs opencv_highgui)
   list(APPEND _cmake_expected_targets "${_cmake_expected_target}")
   if(TARGET "${_cmake_expected_target}")
     list(APPEND _cmake_targets_defined "${_cmake_expected_target}")
@@ -66,6 +66,9 @@ set_target_properties(libopenjp2 PROPERTIES
 # Create imported target libprotobuf
 add_library(libprotobuf STATIC IMPORTED)
 
+# Create imported target tegra_hal
+add_library(tegra_hal STATIC IMPORTED)
+
 # Create imported target ittnotify
 add_library(ittnotify STATIC IMPORTED)
 
@@ -80,35 +83,35 @@ add_library(ade STATIC IMPORTED)
 add_library(opencv_core STATIC IMPORTED)
 
 set_target_properties(opencv_core PROPERTIES
-  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a;\$<LINK_ONLY:ittnotify>"
+  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:tegra_hal>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a;\$<LINK_ONLY:ittnotify>;\$<LINK_ONLY:tegra_hal>"
 )
 
 # Create imported target opencv_imgproc
 add_library(opencv_imgproc STATIC IMPORTED)
 
 set_target_properties(opencv_imgproc PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_core;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_core;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:tegra_hal>"
 )
 
 # Create imported target opencv_photo
 add_library(opencv_photo STATIC IMPORTED)
 
 set_target_properties(opencv_photo PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:tegra_hal>"
 )
 
 # Create imported target opencv_imgcodecs
 add_library(opencv_imgcodecs STATIC IMPORTED)
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libjpeg.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebp.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebpmux.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebpdemux.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libpng16.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:tegra_hal>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libjpeg.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebp.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebpmux.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libwebpdemux.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libpng16.a;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a;\$<LINK_ONLY:m>;\$<LINK_ONLY:libopenjp2>;/home/runner/work/lilliput/lilliput/deps/linux/aarch64/lib/libz.a"
 )
 
 # Create imported target opencv_highgui
 add_library(opencv_highgui STATIC IMPORTED)
 
 set_target_properties(opencv_highgui PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_core;opencv_imgproc;opencv_imgcodecs;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_imgcodecs;opencv_core;opencv_imgproc;opencv_imgcodecs;\$<LINK_ONLY:dl>;\$<LINK_ONLY:m>;\$<LINK_ONLY:pthread>;\$<LINK_ONLY:rt>;\$<LINK_ONLY:tegra_hal>"
 )
 
 # Load information for each installed configuration.
