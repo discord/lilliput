@@ -109,7 +109,7 @@ mkdir -p $BASEDIR/libpng
 tar -xf $SRCDIR/libpng-1.6.47.tar -C $BASEDIR/libpng --strip-components 1
 mkdir -p $BUILDDIR/libpng
 cd $BUILDDIR/libpng
-$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --host=arm-apple-darwin
+$BASEDIR/libpng/configure --prefix=$PREFIX --disable-shared --enable-static --host=arm-apple-darwin CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 
@@ -132,7 +132,7 @@ if [ ! -f "./configure" ]; then
 fi
 mkdir -p $BUILDDIR/libwebp
 cd $BUILDDIR/libwebp
-$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static
+$BASEDIR/libwebp/configure --prefix=$PREFIX --disable-shared --enable-static CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 
@@ -233,7 +233,9 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/bzip2
 tar -xvf $SRCDIR/bzip2-1.0.8.tar.gz -C $BASEDIR/bzip2 --strip-components 1
 cd $BASEDIR/bzip2
-make PREFIX=$PREFIX install
+# bzip2's Makefile defaults CFLAGS to '-Wall -Winline -O2 -g $(BIGFILES)'.
+# Override to match the Linux script's -O3 baseline (build-deps-linux.sh:309).
+make CFLAGS="-Wall -Winline -O3 -D_FILE_OFFSET_BITS=64 $ARCH_SPECIFIC_CFLAGS" PREFIX=$PREFIX install
 
 echo '\n--------------------'
 echo 'Building liblcms'
@@ -241,7 +243,7 @@ echo '--------------------\n'
 mkdir -p $BASEDIR/lcms
 tar -xzf $SRCDIR/lcms-fbfa67a.tar.gz -C $BASEDIR/lcms --strip-components 1
 cd $BASEDIR/lcms
-./configure --prefix=$PREFIX --disable-shared --enable-static
+./configure --prefix=$PREFIX --disable-shared --enable-static CFLAGS="$CFLAGS -O3 $ARCH_SPECIFIC_CFLAGS" CXXFLAGS="$CXXFLAGS -O3 $ARCH_SPECIFIC_CFLAGS"
 make
 make install
 
@@ -265,7 +267,8 @@ meson setup $BASEDIR/dav1d \
     --default-library=static \
     --buildtype=release \
     -Denable_tools=false \
-    -Denable_tests=false
+    -Denable_tests=false \
+    -Db_lto=true
 ninja
 ninja install
 

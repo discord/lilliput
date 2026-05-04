@@ -60,18 +60,23 @@ case "$ARCH" in
         AOM_CMAKE_FLAGS=""
         ;;
     "aarch64")
-        # Detect ARM CPU features
-        if grep -q "ARMv8.4" /proc/cpuinfo; then
-            ARM_ARCH="armv8.4-a"
-            ARM_FEATURES="+dotprod+simd+i8mm+crypto+crc"
-        elif grep -q "ARMv8.2" /proc/cpuinfo; then
-            ARM_ARCH="armv8.2-a"
-            ARM_FEATURES="+dotprod+simd+crypto+crc"
-        else
-            # Default to ARMv8.0 for maximum compatibility
-            ARM_ARCH="armv8-a"
-            ARM_FEATURES="+simd+crypto+crc"
-        fi
+        # Multi-cloud LCD across mixed Graviton fleet (G2/G3/G4) plus GCP C4A.
+        # G2 (Neoverse-N1) is ARMv8.2-A; G3 (V1) is ARMv8.4-A; G4 (V2) and C4A (V2)
+        # are ARMv9.0-A. ARMv8.2-A is the floor across all four. Per AWS's recommended
+        # balanced flag for current Graviton generations:
+        # https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
+        #
+        # The previous detection block grepped /proc/cpuinfo for "ARMv8.4"/"ARMv8.2",
+        # but CI runs on x86_64 GHA runners cross-compiling for aarch64; those strings
+        # never match the build host's CPU, so the script silently fell through to
+        # ARMv8-A baseline. Replaced with explicit ARMv8.2-A floor.
+        #
+        # Note: ffmpeg/libaom/dav1d compile in DOTPROD/I8MM paths via their own
+        # configure-time probes against compiler headers (independent of -march),
+        # and runtime-dispatch them per host. So we don't lose those features on
+        # G3/G4 even with an ARMv8.2-A LCD baseline.
+        ARM_ARCH="armv8.2-a"
+        ARM_FEATURES="+crc"
 
         export CC="aarch64-linux-gnu-gcc"
         export CXX="aarch64-linux-gnu-g++"
@@ -83,8 +88,12 @@ case "$ARCH" in
         ARCH_CFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
         ARCH_CXXFLAGS="-fPIC -O3 -march=$ARM_ARCH$ARM_FEATURES"
 
-        # OpenCV ARM-specific optimizations
-        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=VFPV3,NEON -DCPU_DISPATCH=VFPV4"
+        # OpenCV ARM-specific optimizations.
+        # NEON is mandatory on aarch64 (always-on baseline). NEON_DOTPROD and
+        # NEON_FP16 are runtime-dispatched and will fire on Graviton 3/4 hosts
+        # that support them. (VFPV3/VFPV4 are 32-bit ARM concepts and are
+        # silently ignored by opencv on aarch64; replaced with valid tokens.)
+        OPENCV_EXTRA_FLAGS="-DCPU_BASELINE=NEON -DCPU_DISPATCH=NEON_DOTPROD,NEON_FP16"
         CONFIGURE_HOST="aarch64-linux-gnu"
         CMAKE_CROSS_COMPILE_FLAGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_AR=/usr/bin/$AR -DCMAKE_RANLIB=/usr/bin/$RANLIB"
         FFMPEG_CROSS_COMPILE_FLAGS="--arch=aarch64 --target-os=linux --cross-prefix=aarch64-linux-gnu- --enable-cross-compile"
@@ -205,7 +214,9 @@ $BASEDIR/libpng/configure \
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
+    RANLIB="$RANLIB" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 make
 make install
 verify_arch "$PREFIX/lib/libpng16.a"
@@ -227,7 +238,9 @@ $BASEDIR/libwebp/configure \
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
+    RANLIB="$RANLIB" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 
 make
 make install
@@ -255,10 +268,8 @@ cd $BASEDIR/opencv
 patch -p1 < $SRCDIR/0001-encoder-decoder-exif-orientation.patch
 mkdir -p $BUILDDIR/opencv
 cd $BUILDDIR/opencv
-cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS \
+cmake $BASEDIR/opencv $CMAKE_CROSS_COMPILE_FLAGS $OPENCV_EXTRA_FLAGS \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCPU_BASELINE=SSE4_2,AVX \
-    -DCPU_DISPATCH=AVX,AVX2 \
     -DWITH_AVIF=OFF \
     -DWITH_WEBP=ON \
     -DWITH_JASPER=OFF \
@@ -323,8 +334,10 @@ cd $BASEDIR/lcms
     CC="$CC" \
     CXX="$CXX" \
     AR="$AR" \
-    RANLIB="$RANLIB"
-    STRIP="$STRIP"
+    RANLIB="$RANLIB" \
+    STRIP="$STRIP" \
+    CFLAGS="$ARCH_CFLAGS" \
+    CXXFLAGS="$ARCH_CXXFLAGS"
 make
 make install
 verify_arch "$PREFIX/lib/liblcms2.a"
@@ -342,6 +355,7 @@ meson setup $BASEDIR/dav1d \
     --buildtype=release \
     -Denable_tools=false \
     -Denable_tests=false \
+    -Db_lto=true \
     --cross-file=$BASEDIR/meson-cross-$ARCH.txt 2>/dev/null || \
 meson setup $BASEDIR/dav1d \
     --prefix=$PREFIX \
