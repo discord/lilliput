@@ -197,9 +197,7 @@ AR="$AR" RANLIB="$RANLIB" \
 $BASEDIR/zlib-ng/configure \
     --prefix=$PREFIX \
     --static \
-    --zlib-compat \
-    --without-gtest \
-    --without-tests
+    --zlib-compat
 make
 make install
 verify_arch "$PREFIX/lib/libz.a"

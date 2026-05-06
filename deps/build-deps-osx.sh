@@ -102,9 +102,7 @@ cd $BUILDDIR/zlib-ng
 $BASEDIR/zlib-ng/configure \
     --prefix=$PREFIX \
     --static \
-    --zlib-compat \
-    --without-gtest \
-    --without-tests
+    --zlib-compat
 make
 make install
 
