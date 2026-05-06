@@ -55,7 +55,7 @@ rm -rf "$BUILDDIR"
 mkdir -p "$BUILDDIR"
 
 rm -rf libjpeg-turbo
-rm -rf zlib
+rm -rf zlib-ng
 rm -rf libpng
 rm -rf libwebp
 rm -rf giflib
@@ -69,7 +69,7 @@ rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.5.1 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.5.3 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -93,13 +93,18 @@ make
 make install
 
 echo '\n--------------------'
-echo 'Building zlib'
+echo 'Building zlib-ng (zlib-compat mode)'
 echo '--------------------\n'
-mkdir -p $BASEDIR/zlib
-tar -xzf $SRCDIR/zlib-1.3.1.tar.gz -C $BASEDIR/zlib --strip-components 1
-mkdir -p $BUILDDIR/zlib
-cd $BUILDDIR/zlib
-$BASEDIR/zlib/configure --prefix=$PREFIX --static
+mkdir -p $BASEDIR/zlib-ng
+tar -xzf $SRCDIR/zlib-ng-2.3.3.tar.gz -C $BASEDIR/zlib-ng --strip-components 1
+mkdir -p $BUILDDIR/zlib-ng
+cd $BUILDDIR/zlib-ng
+$BASEDIR/zlib-ng/configure \
+    --prefix=$PREFIX \
+    --static \
+    --zlib-compat \
+    --without-gtest \
+    --without-tests
 make
 make install
 
