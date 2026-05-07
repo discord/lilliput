@@ -4,7 +4,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <jpeglib.h>
-#include <png.h>
+#include <libpng16/png.h>
 #include <setjmp.h>
 #include <iostream>
 
