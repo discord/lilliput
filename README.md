@@ -113,7 +113,7 @@ is the same as `Framebuffer.Fit()` -- it performs a cropping resize that does no
 
 * `NormalizeOrientation`: If `true`, `Transform()` will inspect the image orientation and
 normalize the output so that it is facing in the standard orientation. This will undo
-JPEG EXIF-based orientation.
+JPEG and AVIF metadata-based orientation transforms.
 
 * `EncodeOptions`: Of type `map[int]int`, same options accepted as [Encoder.Encode()](#encoder). This
 controls output encode quality.
@@ -154,7 +154,7 @@ func (h lilliput.ImageHeader) Orientation() lilliput.ImageOrientation
 ```
 Returns the metadata-based orientation of the image. This function can
 be called on all image types but presently only detects orientation in
-JPEG images. An orientation value of 1 indicates default orientation.
+JPEG and AVIF images. An orientation value of 1 indicates default orientation.
 All other values indicate some kind of rotation or mirroring.
 
 ### PixelType

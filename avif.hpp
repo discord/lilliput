@@ -34,6 +34,7 @@ void avif_decoder_release(avif_decoder d);
 int avif_decoder_get_width(const avif_decoder d);
 int avif_decoder_get_height(const avif_decoder d);
 int avif_decoder_get_pixel_type(const avif_decoder d);
+int avif_decoder_get_orientation(const avif_decoder d);
 int avif_decoder_get_num_frames(const avif_decoder d);
 uint32_t avif_decoder_get_duration(const avif_decoder d);
 uint32_t avif_decoder_get_loop_count(const avif_decoder d);

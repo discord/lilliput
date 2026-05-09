@@ -53,7 +53,7 @@ func (d *avifDecoder) Header() (*ImageHeader, error) {
 		width:         int(C.avif_decoder_get_width(d.decoder)),
 		height:        int(C.avif_decoder_get_height(d.decoder)),
 		pixelType:     PixelType(C.avif_decoder_get_pixel_type(d.decoder)),
-		orientation:   OrientationTopLeft,
+		orientation:   ImageOrientation(C.avif_decoder_get_orientation(d.decoder)),
 		numFrames:     int(C.avif_decoder_get_num_frames(d.decoder)),
 		contentLength: len(d.buf),
 	}, nil
