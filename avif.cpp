@@ -5,6 +5,13 @@
 #include <lcms2.h>
 #include <cstring>
 #include "icc_profiles/rec709_profile.h"
+
+
+//--------------------------------
+// Constants
+//--------------------------------
+
+// Default background color for AVIF images (white, fully opaque)
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
 
 //----------------------
@@ -37,11 +44,24 @@ struct avif_encoder_struct {
 //----------------------
 // HDR Support Functions
 //----------------------
+
+/**
+ * Handles errors from the LCMS library.
+ * @param ContextID The context ID.
+ * @param ErrorCode The error code.
+ * @param Text The error text.
+ */
 static void avif_cms_error_handler(cmsContext ContextID, cmsUInt32Number ErrorCode, const char *Text)
 {
     fprintf(stderr, "LCMS error: %s (ErrorCode: %d)\n", Text, ErrorCode);
 }
 
+/**
+ * Gets the color information from the AVIF image.
+ * @param image The AVIF image.
+ * @param colorPrimaries The color primaries.
+ * @param transferCharacteristics The transfer characteristics.
+ */
 static void avif_get_color_info(const avifImage* image, avifColorPrimaries* colorPrimaries, avifTransferCharacteristics* transferCharacteristics)
 {
     *colorPrimaries = image->colorPrimaries;
@@ -68,6 +88,11 @@ static void avif_get_color_info(const avifImage* image, avifColorPrimaries* colo
     }
 }
 
+/**
+ * Checks if the AVIF image is a HDR source.
+ * @param image The AVIF image.
+ * @return True if the AVIF image is a HDR source, false otherwise.
+ */
 static bool avif_is_hdr_source(const avifImage* image)
 {
     if (!image)
@@ -85,7 +110,11 @@ static bool avif_is_hdr_source(const avifImage* image)
     return high_bit_depth && (hdr_primaries || hdr_transfer);
 }
 
-// Convert PQ (SMPTE ST.2084) to linear
+/**
+ * Converts PQ (SMPTE ST.2084) to linear.
+ * @param x The input value.
+ * @return The linear value.
+ */
 static float avif_pq_to_linear(float x)
 {
     const float m1 = 0.1593017578125;
@@ -102,7 +131,11 @@ static float avif_pq_to_linear(float x)
     return linear;
 }
 
-// Convert HLG to linear
+/**
+ * Converts HLG to linear.
+ * @param x The input value.
+ * @return The linear value.
+ */
 static float avif_hlg_to_linear(float x)
 {
     const float a = 0.17883277;
@@ -117,7 +150,16 @@ static float avif_hlg_to_linear(float x)
     }
 }
 
-// Convert HDR RGB values to SDR using OpenCV's tone-mapping
+/**
+ * Converts HDR RGB values to SDR using OpenCV's tone-mapping.
+ * @param src The source image.
+ * @param dst The destination image.
+ * @param width The width of the image.
+ * @param height The height of the image.
+ * @param src_depth The depth of the source image.
+ * @param transfer The transfer characteristics.
+ * @param primaries The color primaries.
+ */
 static void avif_tonemap_rgb(uint16_t* src,
                              uint8_t* dst,
                              int width,
@@ -198,7 +240,13 @@ static void avif_tonemap_rgb(uint16_t* src,
     memcpy(dst, sdrMat.data, width * height * 3);
 }
 
-// Convert YUV to RGB with optional HDR tone-mapping
+/**
+ * Converts YUV to RGB with optional HDR tone-mapping.
+ * @param image The AVIF image.
+ * @param rgb The RGB image.
+ * @param enable_tone_mapping Whether to enable tone-mapping.
+ * @return The result of the conversion.
+ */
 static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image,
                                                             avifRGBImage* rgb,
                                                             bool enable_tone_mapping)
@@ -252,6 +300,13 @@ static avifResult avif_convert_yuv_to_rgb_with_tone_mapping(avifImage* image,
 //----------------------
 // Decoder Management
 //----------------------
+
+/**
+ * Creates an AVIF decoder.
+ * @param buf The input buffer.
+ * @param tone_mapping_enabled Whether to enable tone-mapping.
+ * @return The AVIF decoder.
+ */
 avif_decoder avif_decoder_create(const opencv_mat buf, const bool tone_mapping_enabled)
 {
     auto cvMat = static_cast<const cv::Mat*>(buf);
@@ -327,6 +382,10 @@ avif_decoder avif_decoder_create(const opencv_mat buf, const bool tone_mapping_e
     return d;
 }
 
+/**
+ * Releases the AVIF decoder.
+ * @param d The AVIF decoder.
+ */
 void avif_decoder_release(avif_decoder d)
 {
     if (d) {
@@ -341,6 +400,12 @@ void avif_decoder_release(avif_decoder d)
 //----------------------
 // Decoder Properties
 //----------------------
+
+/**
+ * Gets the width of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The width of the AVIF image.
+ */
 int avif_decoder_get_width(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -349,6 +414,11 @@ int avif_decoder_get_width(const avif_decoder d)
     return d->decoder->image->width;
 }
 
+/**
+ * Gets the height of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The height of the AVIF image.
+ */
 int avif_decoder_get_height(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -357,6 +427,11 @@ int avif_decoder_get_height(const avif_decoder d)
     return d->decoder->image->height;
 }
 
+/**
+ * Gets the pixel type of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The pixel type of the AVIF image.
+ */
 int avif_decoder_get_pixel_type(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -365,6 +440,11 @@ int avif_decoder_get_pixel_type(const avif_decoder d)
     return d->has_alpha ? CV_8UC4 : CV_8UC3;
 }
 
+/**
+ * Checks if the AVIF image is animated.
+ * @param d The AVIF decoder.
+ * @return True if the AVIF image is animated, false otherwise.
+ */
 bool avif_decoder_is_animated(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -373,6 +453,11 @@ bool avif_decoder_is_animated(const avif_decoder d)
     return d->frame_count > 1;
 }
 
+/**
+ * Gets the frame count of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The frame count of the AVIF image.
+ */
 int avif_decoder_get_frame_count(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -381,6 +466,11 @@ int avif_decoder_get_frame_count(const avif_decoder d)
     return d->frame_count;
 }
 
+/**
+ * Gets the number of frames in the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The number of frames in the AVIF image.
+ */
 int avif_decoder_get_num_frames(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -389,6 +479,11 @@ int avif_decoder_get_num_frames(const avif_decoder d)
     return d->frame_count;
 }
 
+/**
+ * Gets the duration of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The duration of the AVIF image.
+ */
 uint32_t avif_decoder_get_duration(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -398,6 +493,11 @@ uint32_t avif_decoder_get_duration(const avif_decoder d)
     return (uint32_t)(d->decoder->duration * 1000.0f);
 }
 
+/**
+ * Gets the loop count of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The loop count of the AVIF image.
+ */
 uint32_t avif_decoder_get_loop_count(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -412,6 +512,13 @@ uint32_t avif_decoder_get_loop_count(const avif_decoder d)
     }
 }
 
+/**
+ * Gets the ICC profile of the AVIF image.
+ * @param d The AVIF decoder.
+ * @param buf The buffer to store the ICC profile.
+ * @param buf_len The length of the buffer.
+ * @return The ICC profile of the AVIF image.
+ */
 size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len)
 {
     if (!d || !d->decoder) {
@@ -435,6 +542,11 @@ size_t avif_decoder_get_icc(const avif_decoder d, void* buf, size_t buf_len)
     return 0;
 }
 
+/**
+ * Gets the background color of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The background color of the AVIF image.
+ */
 uint32_t avif_decoder_get_bg_color(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -443,6 +555,11 @@ uint32_t avif_decoder_get_bg_color(const avif_decoder d)
     return d->bgcolor;
 }
 
+/**
+ * Gets the total duration of the AVIF image.
+ * @param d The AVIF decoder.
+ * @return The total duration of the AVIF image.
+ */
 int avif_decoder_get_total_duration(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -454,6 +571,12 @@ int avif_decoder_get_total_duration(const avif_decoder d)
 //----------------------
 // Frame Properties
 //----------------------
+
+/**
+ * Gets the duration of the current frame.
+ * @param d The AVIF decoder.
+ * @return The duration of the current frame.
+ */
 int avif_decoder_get_frame_duration(const avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -463,6 +586,11 @@ int avif_decoder_get_frame_duration(const avif_decoder d)
     return (int)(d->decoder->imageTiming.duration * 1000.0f);
 }
 
+/**
+ * Gets the disposal method for the current frame.
+ * @param d The AVIF decoder.
+ * @return The disposal method for the current frame.
+ */
 int avif_decoder_get_frame_dispose(const avif_decoder d)
 {
     if (!d || !d->decoder || !d->decoder->image) {
@@ -480,6 +608,11 @@ int avif_decoder_get_frame_dispose(const avif_decoder d)
     return d->decoder->image->imageOwnsYUVPlanes ? AVIF_DISPOSE_BACKGROUND : AVIF_DISPOSE_NONE;
 }
 
+/**
+ * Gets the blend method for the current frame.
+ * @param d The AVIF decoder.
+ * @return The blend method for the current frame.
+ */
 int avif_decoder_get_frame_blend(const avif_decoder d)
 {
     if (!d || !d->decoder || !d->decoder->image) {
@@ -497,6 +630,11 @@ int avif_decoder_get_frame_blend(const avif_decoder d)
     return d->has_alpha ? AVIF_BLEND_ALPHA : AVIF_BLEND_NONE;
 }
 
+/**
+ * Gets the horizontal offset of the current frame.
+ * @param d The AVIF decoder.
+ * @return The horizontal offset of the current frame.
+ */
 int avif_decoder_get_frame_x_offset(const avif_decoder d)
 {
     if (!d || !d->decoder || !d->decoder->image) {
@@ -509,6 +647,11 @@ int avif_decoder_get_frame_x_offset(const avif_decoder d)
     return 0;
 }
 
+/**
+ * Gets the vertical offset of the current frame.
+ * @param d The AVIF decoder.
+ * @return The vertical offset of the current frame.
+ */
 int avif_decoder_get_frame_y_offset(const avif_decoder d)
 {
     if (!d || !d->decoder || !d->decoder->image) {
@@ -524,6 +667,13 @@ int avif_decoder_get_frame_y_offset(const avif_decoder d)
 //----------------------
 // Frame Operations
 //----------------------
+
+/**
+ * Decodes the AVIF image.
+ * @param d The AVIF decoder.
+ * @param mat The OpenCV matrix to copy the frame to.
+ * @return True if the decode operation was successful, false otherwise.
+ */
 bool avif_decoder_decode(avif_decoder d, opencv_mat mat)
 {
     if (!d || !d->decoder) {
@@ -600,6 +750,11 @@ bool avif_decoder_decode(avif_decoder d, opencv_mat mat)
     return true;
 }
 
+/**
+ * Checks if there are more frames to decode.
+ * @param d The AVIF decoder.
+ * @return True if there are more frames to decode, false otherwise.
+ */
 int avif_decoder_has_more_frames(avif_decoder d)
 {
     if (!d || !d->decoder) {
@@ -611,6 +766,16 @@ int avif_decoder_has_more_frames(avif_decoder d)
 //----------------------
 // Encoder Management
 //----------------------
+
+/**
+ * Creates an AVIF encoder.
+ * @param buf The output buffer.
+ * @param buf_len The length of the output buffer.
+ * @param icc The ICC profile.
+ * @param icc_len The length of the ICC profile.
+ * @param loop_count The loop count.
+ * @return The AVIF encoder.
+ */
 avif_encoder avif_encoder_create(void* buf,
                                  size_t buf_len,
                                  const void* icc,
@@ -647,6 +812,10 @@ avif_encoder avif_encoder_create(void* buf,
     return e;
 }
 
+/**
+ * Releases the AVIF encoder.
+ * @param e The AVIF encoder.
+ */
 void avif_encoder_release(avif_encoder e)
 {
     if (e) {
@@ -660,6 +829,18 @@ void avif_encoder_release(avif_encoder e)
 //----------------------
 // Encoder Operations
 //----------------------
+
+/**
+ * Writes an AVIF image to the output buffer.
+ * @param e The AVIF encoder.
+ * @param src The source image.
+ * @param opt The options.
+ * @param opt_len The length of the options.
+ * @param delay_ms The delay in milliseconds.
+ * @param blend The blend mode.
+ * @param dispose The dispose mode.
+ * @return The number of bytes written to the output buffer.
+ */
 size_t avif_encoder_write(avif_encoder e,
                           const opencv_mat src,
                           const int* opt,
@@ -775,6 +956,11 @@ size_t avif_encoder_write(avif_encoder e,
     return 1; // Return success without actual data (data comes in flush)
 }
 
+/**
+ * Flushes the AVIF encoder.
+ * @param e The AVIF encoder.
+ * @return The number of bytes written to the output buffer.
+ */
 size_t avif_encoder_flush(avif_encoder e)
 {
     return avif_encoder_write(e, nullptr, nullptr, 0, 0, 0, 0);
