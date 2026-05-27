@@ -94,7 +94,7 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     memset(d, 0, sizeof(webp_decoder_struct));
     d->mux = mux;
     d->current_frame_index = 1;
-    d->has_alpha = (flags & ALPHA_FLAG);
+    d->has_alpha = (flags & ALPHA_FLAG) || features.has_alpha;
 
     // Get the canvas size
     if (WebPMuxGetCanvasSize(mux, &d->width, &d->height) != WEBP_MUX_OK) {
@@ -102,12 +102,23 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
         return nullptr;
     }
 
-    // Calculate total frame count and duration
+    // Calculate total frame count and duration. Also probe each frame's
+    // bitstream features so we treat the WebP as having alpha if *any*
+    // frame carries an alpha channel, even when the VP8X header lies.
     d->total_frame_count = 0;
     d->total_duration = 0;
     do {
         d->total_frame_count++;
         d->total_duration += frame.duration;
+        if (!d->has_alpha) {
+            WebPBitstreamFeatures frame_features;
+            if (WebPGetFeatures(frame.bitstream.bytes,
+                                frame.bitstream.size,
+                                &frame_features) == VP8_STATUS_OK &&
+                frame_features.has_alpha) {
+                d->has_alpha = true;
+            }
+        }
         WebPDataClear(&frame.bitstream);
     } while (WebPMuxGetFrame(mux, d->total_frame_count + 1, &frame) == WEBP_MUX_OK);
 
