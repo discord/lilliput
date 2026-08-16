@@ -179,6 +179,21 @@ static void avif_tonemap_rgb(uint16_t* src,
           1.0440f, -0.0440f, 0.0000f, -0.0000f, 1.0000f, 0.0000f, 0.0000f, 0.0000f, 1.0000f);
         cv::transform(tonemapped, converted, bt601_to_bt709);
     }
+    else if (primaries == AVIF_COLOR_PRIMARIES_XYZ) {
+        // CIE 1931 XYZ (SMPTE ST 428-1) to BT.709, D65 white point. The buffer is
+        // channel-ordered B,G,R (Z,Y,X here), so rows and columns are reversed
+        // relative to the textbook row-major XYZ->RGB matrix.
+        cv::Matx33f xyz_to_bt709(1.0569715f,
+                                 -0.2039770f,
+                                 0.0556301f,
+                                 0.0415551f,
+                                 1.8759675f,
+                                 -0.9692436f,
+                                 -0.4986108f,
+                                 -1.5373832f,
+                                 3.2409699f);
+        cv::transform(tonemapped, converted, xyz_to_bt709);
+    }
     else {
         // For unknown colorspaces, default to assuming BT709
         converted = tonemapped;
