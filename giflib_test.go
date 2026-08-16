@@ -1,6 +1,8 @@
 package lilliput
 
 import (
+	"bytes"
+	"image/gif"
 	"io"
 	"os"
 	"testing"
@@ -10,6 +12,58 @@ import (
 func TestGIFOperations(t *testing.T) {
 	t.Run("GIFDuration", testGIFDuration)
 	t.Run("GIFDisposalMethods", testGIFDisposalMethods)
+	t.Run("GIFNoGCEFirstFrame", testGIFNoGCEFirstFrame)
+}
+
+// A first frame with no Graphic Control Extension declares no transparent
+// color, so every palette entry (including index 0) must survive re-encode.
+// See discord/lilliput#267.
+func testGIFNoGCEFirstFrame(t *testing.T) {
+	buf, err := os.ReadFile("testdata/no_gce_first_frame.gif")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	dec, err := NewDecoder(buf)
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+	defer dec.Close()
+
+	hdr, err := dec.Header()
+	if err != nil {
+		t.Fatalf("header: %v", err)
+	}
+
+	ops := NewImageOps(8192)
+	defer ops.Close()
+
+	out, err := ops.Transform(dec, &ImageOptions{
+		FileType:      ".gif",
+		Width:         hdr.Width(),
+		Height:        hdr.Height(),
+		ResizeMethod:  ImageOpsNoResize,
+		EncodeTimeout: 30 * time.Second,
+	}, make([]byte, 10*1024*1024))
+	if err != nil {
+		t.Fatalf("transform: %v", err)
+	}
+
+	// Palette index 0 is opaque yellow and covers the left half of frame 0.
+	// The bug replaced it with the frame-1 transparent index, so that region
+	// composited as red instead.
+	g, err := gif.DecodeAll(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("decode output gif: %v", err)
+	}
+	if len(g.Image) == 0 {
+		t.Fatal("output gif has no frames")
+	}
+	r, gr, b, a := g.Image[0].At(4, 4).RGBA()
+	if r>>8 != 0xFF || gr>>8 != 0xFF || b>>8 != 0x00 || a>>8 != 0xFF {
+		t.Errorf("first frame pixel (4,4) = (%d,%d,%d,%d), want (255,255,0,255)",
+			r>>8, gr>>8, b>>8, a>>8)
+	}
 }
 
 func testGIFDisposalMethods(t *testing.T) {

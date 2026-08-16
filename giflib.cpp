@@ -254,6 +254,11 @@ static bool giflib_get_frame_gcb(GifFileType* gif, GraphicsControlBlock* gcb)
     gcb->DisposalMode = DISPOSAL_UNSPECIFIED;
     gcb->UserInputFlag = false;
     gcb->DelayTime = 0;
+    // A frame with no Graphic Control Extension has no transparent color
+    // (GIF89a 23.c). Leaving this field alone reads whatever the caller's
+    // uninitialized stack slot held, which lands on a real palette index and
+    // makes the encoder treat that color as transparent.
+    gcb->TransparentColor = NO_TRANSPARENT_COLOR;
 
     bool success = true;
     for (int i = 0; i < gif->ExtensionBlockCount; i++) {
