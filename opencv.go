@@ -170,6 +170,16 @@ func (h *ImageHeader) PixelType() PixelType {
 	return h.pixelType
 }
 
+// SwapsAxes reports whether applying this orientation exchanges the image's
+// width and height, i.e. it encodes a 90 or 270 degree rotation.
+func (o ImageOrientation) SwapsAxes() bool {
+	switch o {
+	case OrientationLeftTop, OrientationRightTop, OrientationRightBottom, OrientationLeftBottom:
+		return true
+	}
+	return false
+}
+
 // Orientation returns the metadata-based image orientation.
 func (h *ImageHeader) Orientation() ImageOrientation {
 	return h.orientation
