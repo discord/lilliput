@@ -613,3 +613,87 @@ func ensureOutputDir(t *testing.T) {
 func almostEqual(a, b, tolerance float64) bool {
 	return math.Abs(a-b) <= tolerance
 }
+
+// TestAvifIrotOrientation covers the AVIF `irot`/`imir` transform boxes: the
+// decoder must report them as an EXIF-equivalent orientation, and a transform
+// with NormalizeOrientation must rotate the pixels and swap the output
+// dimensions for the 90/270 degree cases. Fixtures are 64x32 with a green
+// stripe along the source top edge and a red/blue left/right split.
+func TestAvifIrotOrientation(t *testing.T) {
+	testCases := []struct {
+		name       string
+		filename   string
+		wantOrient ImageOrientation
+		wantWidth  int
+		wantHeight int
+		animated   bool
+	}{
+		{"NoTransform", "testdata/rotation-none.avif", OrientationTopLeft, 64, 32, false},
+		{"Irot90", "testdata/rotation-irot90.avif", OrientationLeftBottom, 32, 64, false},
+		{"Irot180", "testdata/rotation-irot180.avif", OrientationBottomRight, 64, 32, false},
+		{"Irot270", "testdata/rotation-irot270.avif", OrientationRightTop, 32, 64, false},
+		{"Irot90Imir1", "testdata/rotation-irot90-imir1.avif", OrientationRightBottom, 32, 64, false},
+		{"AnimatedIrot90", "testdata/rotation-animated-irot90.avif", OrientationLeftBottom, 32, 64, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := os.ReadFile(tc.filename)
+			if err != nil {
+				t.Fatalf("Failed to read %s: %v", tc.filename, err)
+			}
+
+			decoder, err := newAvifDecoder(buf, true)
+			if err != nil {
+				t.Fatalf("Failed to create decoder: %v", err)
+			}
+			defer decoder.Close()
+
+			header, err := decoder.Header()
+			if err != nil {
+				t.Fatalf("Failed to read header: %v", err)
+			}
+			if header.Orientation() != tc.wantOrient {
+				t.Errorf("Orientation = %d, want %d", header.Orientation(), tc.wantOrient)
+			}
+			if header.Width() != 64 || header.Height() != 32 {
+				t.Errorf("Header dimensions = %dx%d, want 64x32", header.Width(), header.Height())
+			}
+
+			options := &ImageOptions{
+				FileType:             ".png",
+				NormalizeOrientation: true,
+				ResizeMethod:         ImageOpsNoResize,
+				EncodeOptions:        map[int]int{PngCompression: 6},
+				EncodeTimeout:        time.Second * 30,
+			}
+			if tc.animated {
+				options.FileType = ".webp"
+				options.EncodeOptions = map[int]int{WebpQuality: 80}
+			}
+
+			ops := NewImageOps(8192)
+			defer ops.Close()
+
+			out, err := ops.Transform(decoder, options, make([]byte, destinationBufferSize))
+			if err != nil {
+				t.Fatalf("Transform failed: %v", err)
+			}
+
+			outDecoder, err := NewDecoder(out)
+			if err != nil {
+				t.Fatalf("Failed to decode transform output: %v", err)
+			}
+			defer outDecoder.Close()
+
+			outHeader, err := outDecoder.Header()
+			if err != nil {
+				t.Fatalf("Failed to read output header: %v", err)
+			}
+			if outHeader.Width() != tc.wantWidth || outHeader.Height() != tc.wantHeight {
+				t.Errorf("Output dimensions = %dx%d, want %dx%d",
+					outHeader.Width(), outHeader.Height(), tc.wantWidth, tc.wantHeight)
+			}
+		})
+	}
+}

@@ -382,19 +382,31 @@ func (o *ImageOps) transformCurrentFrame(d Decoder, opt *ImageOptions, inputHead
 		return false, nil
 	}
 
+	inputWidth, inputHeight := inputCanvasSize(opt, inputHeader)
+
 	outputWidth, outputHeight := opt.Width, opt.Height
 	if opt.ResizeMethod == ImageOpsNoResize {
-		outputWidth, outputHeight = inputHeader.Width(), inputHeader.Height()
+		outputWidth, outputHeight = inputWidth, inputHeight
 	}
 
 	switch opt.ResizeMethod {
 	case ImageOpsFit, ImageOpsNoResize:
-		return o.fit(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, inputHeader.IsAnimated(), inputHeader.HasAlpha())
+		return o.fit(d, inputWidth, inputHeight, outputWidth, outputHeight, inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	case ImageOpsResize:
-		return o.resize(d, inputHeader.Width(), inputHeader.Height(), outputWidth, outputHeight, frameCount, inputHeader.IsAnimated(), inputHeader.HasAlpha())
+		return o.resize(d, inputWidth, inputHeight, outputWidth, outputHeight, frameCount, inputHeader.IsAnimated(), inputHeader.HasAlpha())
 	default:
 		return false, fmt.Errorf("unknown resize method: %v", opt.ResizeMethod)
 	}
+}
+
+// inputCanvasSize returns the canvas dimensions the decoded frames actually
+// occupy. normalizeOrientation runs before the frames are fitted or composited,
+// so a 90/270 degree orientation has already swapped their axes by that point.
+func inputCanvasSize(opt *ImageOptions, inputHeader *ImageHeader) (int, int) {
+	if opt.NormalizeOrientation && inputHeader.Orientation().SwapsAxes() {
+		return inputHeader.Height(), inputHeader.Width()
+	}
+	return inputHeader.Width(), inputHeader.Height()
 }
 
 // initializeTransform prepares for image transformation by reading the input header

@@ -380,6 +380,52 @@ int avif_decoder_get_pixel_type(const avif_decoder d)
     return d->has_alpha ? CV_8UC4 : CV_8UC3;
 }
 
+int avif_decoder_get_orientation(const avif_decoder d)
+{
+    if (!d || !d->decoder || !d->decoder->image) {
+        return CV_IMAGE_ORIENTATION_TL;
+    }
+
+    const avifImage* image = d->decoder->image;
+
+    // 'irot' (ISO/IEC 23008-12:2017 6.5.10) stores an anti-clockwise angle in
+    // 90-degree units; 'imir' (ISO/IEC 23008-12:2022 6.5.12) stores a mirror
+    // axis, 0 = top/bottom exchanged, 1 = left/right exchanged. libavif only
+    // populates each box when the matching transformFlags bit is set, and
+    // avifDecoderParse() folds any Exif orientation tag into the same fields,
+    // so this covers both signalling paths.
+    const uint8_t angle = (image->transformFlags & AVIF_TRANSFORM_IROT) ? (image->irot.angle & 3) : 0;
+    const bool mirrored = (image->transformFlags & AVIF_TRANSFORM_IMIR) != 0;
+    const uint8_t axis = mirrored ? (image->imir.axis & 1) : 0;
+
+    if (!mirrored) {
+        switch (angle) {
+        case 1:
+            return CV_IMAGE_ORIENTATION_LB;
+        case 2:
+            return CV_IMAGE_ORIENTATION_BR;
+        case 3:
+            return CV_IMAGE_ORIENTATION_RT;
+        default:
+            return CV_IMAGE_ORIENTATION_TL;
+        }
+    }
+
+    // Mirror is applied before rotation.
+    switch (angle) {
+    case 0:
+        return axis == 0 ? CV_IMAGE_ORIENTATION_BL : CV_IMAGE_ORIENTATION_TR;
+    case 1:
+        return axis == 0 ? CV_IMAGE_ORIENTATION_LT : CV_IMAGE_ORIENTATION_RB;
+    case 2:
+        return axis == 0 ? CV_IMAGE_ORIENTATION_TR : CV_IMAGE_ORIENTATION_BL;
+    case 3:
+        return axis == 0 ? CV_IMAGE_ORIENTATION_RB : CV_IMAGE_ORIENTATION_LT;
+    default:
+        return CV_IMAGE_ORIENTATION_TL;
+    }
+}
+
 bool avif_decoder_is_animated(const avif_decoder d)
 {
     if (!d || !d->decoder) {
