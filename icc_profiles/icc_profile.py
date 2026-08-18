@@ -11,6 +11,7 @@ profiles = [
     'rec2020_profile',
     'rec601_pal_profile',
     'rec601_ntsc_profile',
+    'displayp3_profile',
 ]
 
 for profile_name in profiles:

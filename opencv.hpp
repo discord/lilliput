@@ -117,6 +117,19 @@ void opencv_encoder_release(opencv_encoder e);
 bool opencv_encoder_write(opencv_encoder e, const opencv_mat src, const int* opt, size_t opt_len);
 int opencv_decoder_get_jpeg_icc(void* src, size_t src_len, void* dest, size_t dest_len);
 int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t dest_len);
+int opencv_decoder_get_png_cicp(void* src,
+                                size_t src_len,
+                                uint8_t* primaries,
+                                uint8_t* transfer,
+                                uint8_t* matrix,
+                                uint8_t* full_range);
+size_t opencv_png_insert_cicp(void* png,
+                              size_t png_len,
+                              size_t png_cap,
+                              uint8_t primaries,
+                              uint8_t transfer,
+                              uint8_t matrix,
+                              uint8_t full_range);
 
 // Error codes
 #define OPENCV_SUCCESS 0

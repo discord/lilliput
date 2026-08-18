@@ -4,7 +4,13 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <jpeglib.h>
-#include <png.h>
+// Include the vendored libpng explicitly by its versioned path. A bare
+// <png.h> resolves to the system libpng, which on many build hosts predates
+// PNG 3rd edition and so lacks png_get_cICP, while the library we actually
+// link is the vendored 1.6.47. Pinning the include keeps the header and the
+// linked implementation on the same version.
+#include <libpng16/png.h>
+#include <zlib.h>
 #include <setjmp.h>
 #include <iostream>
 
@@ -337,6 +343,124 @@ int opencv_decoder_get_png_icc(void* src, size_t src_len, void* dest, size_t des
 
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return 0;
+}
+
+/**
+ * Read the top-level cICP chunk (PNG 3rd edition, W3C CR-png-3-20250313) from a
+ * PNG buffer.
+ *
+ * cICP is the highest-priority colour descriptor in PNG: when present it takes
+ * precedence over iCCP, sRGB and cHRM+gAMA. Unlike an ICC profile it is not a
+ * blob to pass through but four H.273 code points, so it is reported via
+ * out-params rather than copied into a buffer.
+ *
+ * Returns 1 when a cICP chunk was found, 0 otherwise.
+ */
+int opencv_decoder_get_png_cicp(void* src,
+                                size_t src_len,
+                                uint8_t* primaries,
+                                uint8_t* transfer,
+                                uint8_t* matrix,
+                                uint8_t* full_range)
+{
+    const char* buffer = reinterpret_cast<const char*>(src);
+    size_t buffer_size = src_len;
+    std::pair<const char**, size_t*> buffer_info(&buffer, &buffer_size);
+
+    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+        return 0;
+    }
+    png_set_read_fn(png_ptr, &buffer_info, opencv_decoder_png_read);
+    png_read_info(png_ptr, info_ptr);
+
+    png_byte cicp_primaries = 0;
+    png_byte cicp_transfer = 0;
+    png_byte cicp_matrix = 0;
+    png_byte cicp_range = 0;
+    int found = 0;
+    if (png_get_cICP(
+          png_ptr, info_ptr, &cicp_primaries, &cicp_transfer, &cicp_matrix, &cicp_range)) {
+        *primaries = static_cast<uint8_t>(cicp_primaries);
+        *transfer = static_cast<uint8_t>(cicp_transfer);
+        *matrix = static_cast<uint8_t>(cicp_matrix);
+        *full_range = static_cast<uint8_t>(cicp_range);
+        found = 1;
+    }
+
+    png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+    return found;
+}
+
+/**
+ * Insert a cICP chunk into an already-encoded PNG buffer, in place.
+ *
+ * cv::imencode cannot emit ancillary chunks, and swapping the PNG encode for a
+ * hand-rolled libpng write path would mean re-implementing (and diverging from)
+ * OpenCV's encoder for the sake of four bytes of metadata. Injecting the chunk
+ * into the finished stream keeps the pixel encoder exactly as it is today; the
+ * tradeoff is that this function has to know PNG's container framing, which is
+ * a fixed 8-byte signature followed by length/type/data/CRC records.
+ *
+ * The chunk is placed immediately after IHDR, as the spec requires for colour
+ * chunks. `png_cap` is the capacity of the caller's buffer; the insert is
+ * skipped (returning the original length) if the 16 extra bytes would not fit.
+ *
+ * Returns the new buffer length, or the original length if nothing was written.
+ */
+size_t opencv_png_insert_cicp(void* png,
+                              size_t png_len,
+                              size_t png_cap,
+                              uint8_t primaries,
+                              uint8_t transfer,
+                              uint8_t matrix,
+                              uint8_t full_range)
+{
+    static const uint8_t kSignature[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+    const size_t kChunkLen = 12 + 4; // length + type + 4-byte body + CRC
+
+    uint8_t* buf = reinterpret_cast<uint8_t*>(png);
+    if (!buf || png_len < sizeof(kSignature) + 12 || png_len + kChunkLen > png_cap) {
+        return png_len;
+    }
+    if (memcmp(buf, kSignature, sizeof(kSignature)) != 0) {
+        return png_len;
+    }
+
+    // IHDR is required to be the first chunk; bail rather than guess if it isn't.
+    size_t ihdr_off = sizeof(kSignature);
+    uint32_t ihdr_data_len = ((uint32_t)buf[ihdr_off] << 24) | ((uint32_t)buf[ihdr_off + 1] << 16) |
+                             ((uint32_t)buf[ihdr_off + 2] << 8) | (uint32_t)buf[ihdr_off + 3];
+    if (memcmp(buf + ihdr_off + 4, "IHDR", 4) != 0) {
+        return png_len;
+    }
+    size_t insert_at = ihdr_off + 12 + ihdr_data_len;
+    if (insert_at > png_len) {
+        return png_len;
+    }
+
+    uint8_t chunk[16];
+    chunk[0] = 0;
+    chunk[1] = 0;
+    chunk[2] = 0;
+    chunk[3] = 4; // data length
+    memcpy(chunk + 4, "cICP", 4);
+    chunk[8] = primaries;
+    chunk[9] = transfer;
+    chunk[10] = matrix;
+    chunk[11] = full_range;
+    // CRC covers the type and data, not the length field.
+    uint32_t crc = (uint32_t)crc32(0, chunk + 4, 8);
+    chunk[12] = (uint8_t)((crc >> 24) & 0xFF);
+    chunk[13] = (uint8_t)((crc >> 16) & 0xFF);
+    chunk[14] = (uint8_t)((crc >> 8) & 0xFF);
+    chunk[15] = (uint8_t)(crc & 0xFF);
+
+    memmove(buf + insert_at + kChunkLen, buf + insert_at, png_len - insert_at);
+    memcpy(buf + insert_at, chunk, kChunkLen);
+    return png_len + kChunkLen;
 }
 
 /**

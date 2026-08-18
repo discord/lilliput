@@ -184,6 +184,15 @@ func newWebpEncoder(decodedBy Decoder, dstBuf []byte, config *EncodeConfig) (*we
 		icc = decodedBy.ICC()
 	}
 
+	// A profile whose declared size disagrees with its actual length is
+	// structurally unusable. Muxing it produces output that decoders either
+	// reject or silently render with the wrong colour, so drop it and emit
+	// untagged instead: untagged is read as sRGB, which is wrong for a
+	// wide-gamut source but still renders.
+	if len(icc) > 0 && !ICCHeaderIsSane(icc) {
+		icc = nil
+	}
+
 	bgColor := decodedBy.BackgroundColor()
 	loopCount := decodedBy.LoopCount()
 

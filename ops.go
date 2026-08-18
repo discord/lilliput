@@ -1,10 +1,16 @@
 package lilliput
 
+// #include "opencv.hpp"
+import "C"
+
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"io"
+	"strings"
 	"time"
+	"unsafe"
 )
 
 type ImageOpsSizeMethod int
@@ -63,6 +69,12 @@ type ImageOps struct {
 	frames                  []*Framebuffer
 	frameIndex              int
 	animatedCompositeBuffer *Framebuffer
+	// Colour signalling resolved from the source container (PNG cICP).
+	// `tonemapCICP` is set for an HDR source whose frames must be tone-mapped
+	// on the way through; `outputCICP` is an SDR descriptor to re-emit on the
+	// output. At most one is ever set.
+	tonemapCICP *CICP
+	outputCICP  *CICP
 }
 
 // NewImageOps creates a new ImageOps object that will operate
@@ -141,7 +153,15 @@ func (o *ImageOps) setupAnimatedFrameBuffers(d Decoder, inputCanvasWidth, inputC
 // Returns an error if decoding fails.
 func (o *ImageOps) decode(d Decoder) error {
 	active := o.active()
-	return d.DecodeTo(active)
+	if err := d.DecodeTo(active); err != nil {
+		return err
+	}
+	// Tone-map HDR pixels immediately after decode, before any resize or
+	// composite, so every later stage operates on SDR data.
+	if o.tonemapCICP != nil {
+		active.TonemapToSDR(*o.tonemapCICP)
+	}
+	return nil
 }
 
 // fit resizes the active frame to fit within the specified dimensions while maintaining aspect ratio.
@@ -253,13 +273,62 @@ func (o *ImageOps) normalizeOrientation(orientation ImageOrientation) {
 // and encoding options. Returns the encoded bytes or an error.
 func (o *ImageOps) encode(e Encoder, opt map[int]int) ([]byte, error) {
 	active := o.active()
-	return e.Encode(active, opt)
+	content, err := e.Encode(active, opt)
+	if err != nil {
+		return nil, err
+	}
+	return o.applyOutputCICP(content), nil
 }
 
 // encodeEmpty signals the encoder to finalize the encoding process without
 // additional frame data. Used for handling animation termination.
 func (o *ImageOps) encodeEmpty(e Encoder, opt map[int]int) ([]byte, error) {
-	return e.Encode(nil, opt)
+	content, err := e.Encode(nil, opt)
+	if err != nil {
+		return nil, err
+	}
+	return o.applyOutputCICP(content), nil
+}
+
+// outputTagsICC reports whether an output format embeds an ICC profile at all.
+// WebP and AVIF do; JPEG, PNG and GIF outputs carry none through the OpenCV
+// encoder, and PNG has its own cICP channel so it never needs a synthesized
+// profile.
+func outputTagsICC(fileType string) bool {
+	switch strings.ToLower(fileType) {
+	case ".webp", ".avif":
+		return true
+	default:
+		return false
+	}
+}
+
+// applyOutputCICP re-attaches an SDR cICP chunk to a finished PNG so the
+// source's colour signalling survives the transform. No-op for any other
+// output format, and for HDR sources (whose pixels have been tone-mapped, so
+// the source descriptor no longer applies).
+func (o *ImageOps) applyOutputCICP(content []byte) []byte {
+	if o.outputCICP == nil || len(content) == 0 {
+		return content
+	}
+	if !bytes.HasPrefix(content, pngMagic) {
+		return content
+	}
+	c := o.outputCICP
+	var fullRange uint8
+	if c.FullRange {
+		fullRange = 1
+	}
+	newLen := C.opencv_png_insert_cicp(
+		unsafe.Pointer(&content[0]),
+		C.size_t(len(content)),
+		C.size_t(cap(content)),
+		C.uint8_t(c.Primaries),
+		C.uint8_t(c.Transfer),
+		C.uint8_t(c.Matrix),
+		C.uint8_t(fullRange),
+	)
+	return content[:int(newLen)]
 }
 
 // skipToEnd advances the decoder to the final frame of an animation.
@@ -424,6 +493,46 @@ func (o *ImageOps) initializeTransform(d Decoder, opt *ImageOptions, dst []byte)
 		if len(icc) > 0 && IsHDRICCProfile(icc) {
 			encodeConfig = &EncodeConfig{
 				ICCOverride: SRGBICCProfile,
+			}
+		}
+	}
+
+	// Container-signalled colour (PNG cICP). Per PNG 3rd edition this takes
+	// precedence over an embedded ICC profile, so it is resolved separately
+	// from the ICC check above rather than folded into it: a source can carry
+	// a cICP chunk with no ICC at all, which is exactly the HDR screenshot
+	// case that previously fell through untouched and was rendered as sRGB.
+	//
+	// HDR sources are tone-mapped unconditionally rather than only under
+	// ForceSdr, mirroring the AVIF decoder, which tone-maps HDR whenever
+	// tone-mapping is enabled on the decoder. An SDR cICP is signalling only:
+	// the pixels are already displayable, so the chunk is carried through to
+	// the output untouched.
+	if cicpSource, ok := d.(interface{ CICP() (CICP, bool) }); ok {
+		if cicp, present := cicpSource.CICP(); present {
+			if cicp.IsHDR() {
+				o.tonemapCICP = &cicp
+			} else {
+				o.outputCICP = &cicp
+			}
+
+			// PNG is the only output format with a cICP channel of its own.
+			// For every other sink the signalling would simply be dropped, so
+			// carry it as a synthesized ICC profile instead. This also resolves
+			// the PNG 3rd edition precedence rule: when a source carries both
+			// cICP and iCCP, cICP wins, so the source profile is *replaced*
+			// rather than merged, which is what discards a malformed source
+			// iCCP blob.
+			//
+			// Restricted to the formats that embed a profile at all: JPEG and
+			// GIF output carry none (cv::imencode drops it), so populating an
+			// override for them would be inert at best. An HDR source is
+			// excluded because its pixels have been tone-mapped to BT.709 and
+			// the source primaries no longer describe them.
+			if !cicp.IsHDR() && outputTagsICC(opt.FileType) {
+				if synthesized := cicp.SynthesizeICC(); ICCHeaderIsSane(synthesized) {
+					encodeConfig = &EncodeConfig{ICCOverride: synthesized}
+				}
 			}
 		}
 	}
