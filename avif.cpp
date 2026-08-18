@@ -4,6 +4,7 @@
 #include <avif/avif.h>
 #include <lcms2.h>
 #include <cstring>
+#include "color_info.hpp"
 #include "icc_profiles/rec709_profile.h"
 #define DEFAULT_BACKGROUND_COLOR 0xFFFFFFFF
 
@@ -85,39 +86,10 @@ static bool avif_is_hdr_source(const avifImage* image)
     return high_bit_depth && (hdr_primaries || hdr_transfer);
 }
 
-// Convert PQ (SMPTE ST.2084) to linear
-static float avif_pq_to_linear(float x)
-{
-    const float m1 = 0.1593017578125;
-    const float m2 = 78.84375;
-    const float c1 = 0.8359375;
-    const float c2 = 18.8515625;
-    const float c3 = 18.6875;
-
-    float xpow = std::pow(x, 1.0f / m2);
-    float num = std::max(xpow - c1, 0.0f);
-    float den = c2 - c3 * xpow;
-    float linear = std::pow(num / den, 1.0f / m1);
-
-    return linear;
-}
-
-// Convert HLG to linear
-static float avif_hlg_to_linear(float x)
-{
-    const float a = 0.17883277;
-    const float b = 0.28466892;
-    const float c = 0.55991073;
-
-    if (x <= 0.5f) {
-        return x * x / 3.0f;
-    }
-    else {
-        return (std::exp((x - c) / a) + b) / 12.0f;
-    }
-}
-
-// Convert HDR RGB values to SDR using OpenCV's tone-mapping
+// PQ/HLG transfer decoding, the Reinhard tone-map and the colour-primaries
+// conversion now live in color_info.cpp so the still-image decoder can apply
+// the identical transform to container-signalled HDR (PNG cICP). This is a
+// pure move: the arithmetic is unchanged.
 static void avif_tonemap_rgb(uint16_t* src,
                              uint8_t* dst,
                              int width,
@@ -126,91 +98,13 @@ static void avif_tonemap_rgb(uint16_t* src,
                              avifTransferCharacteristics transfer,
                              avifColorPrimaries primaries)
 {
-    float scale = 1.0f / ((1 << src_depth) - 1);
-
-    // Create OpenCV matrices for processing
-    cv::Mat hdrMat(height, width, CV_32FC3);
-    cv::Mat sdrMat(height, width, CV_8UC3);
-
-    // Convert to linear RGB
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int idx = (y * width + x) * 3;
-            float r = src[idx] * scale;
-            float g = src[idx + 1] * scale;
-            float b = src[idx + 2] * scale;
-
-            // Convert to linear
-            if (transfer == AVIF_TRANSFER_CHARACTERISTICS_PQ) {
-                r = avif_pq_to_linear(r);
-                g = avif_pq_to_linear(g);
-                b = avif_pq_to_linear(b);
-            }
-            else if (transfer == AVIF_TRANSFER_CHARACTERISTICS_HLG) {
-                r = avif_hlg_to_linear(r);
-                g = avif_hlg_to_linear(g);
-                b = avif_hlg_to_linear(b);
-            }
-
-            hdrMat.at<cv::Vec3f>(y, x) = cv::Vec3f(r, g, b);
-        }
-    }
-
-    // Create a Reinhard tonemap with typical parameters for HDR content
-    cv::Ptr<cv::TonemapReinhard> tonemap = cv::createTonemapReinhard(1.0f, 0.6f, 0.2f, 0.3f);
-    cv::Mat tonemapped;
-    tonemap->process(hdrMat, tonemapped);
-
-    // Convert colorspace if needed
-    cv::Mat converted;
-    if (primaries == AVIF_COLOR_PRIMARIES_BT2020) {
-        cv::Matx33f bt2020_to_bt709(
-          1.6605f, -0.5876f, -0.0728f, -0.1246f, 1.1329f, -0.0083f, -0.0182f, -0.1006f, 1.1187f);
-        cv::transform(tonemapped, converted, bt2020_to_bt709);
-    }
-    else if (primaries == AVIF_COLOR_PRIMARIES_SMPTE432 ||
-             primaries == AVIF_COLOR_PRIMARIES_DCI_P3) {
-        cv::Matx33f p3_to_bt709(
-          1.2249f, -0.2247f, -0.0002f, -0.0420f, 1.0419f, 0.0001f, -0.0197f, 0.0754f, 0.9443f);
-        cv::transform(tonemapped, converted, p3_to_bt709);
-    }
-    else if (primaries == AVIF_COLOR_PRIMARIES_BT601) {
-        cv::Matx33f bt601_to_bt709(
-          1.0440f, -0.0440f, 0.0000f, -0.0000f, 1.0000f, 0.0000f, 0.0000f, 0.0000f, 1.0000f);
-        cv::transform(tonemapped, converted, bt601_to_bt709);
-    }
-    else if (primaries == AVIF_COLOR_PRIMARIES_XYZ) {
-        // CIE 1931 XYZ (SMPTE ST 428-1) to BT.709, D65 white point. The buffer is
-        // channel-ordered B,G,R (Z,Y,X here), so rows and columns are reversed
-        // relative to the textbook row-major XYZ->RGB matrix.
-        cv::Matx33f xyz_to_bt709(1.0569715f,
-                                 -0.2039770f,
-                                 0.0556301f,
-                                 0.0415551f,
-                                 1.8759675f,
-                                 -0.9692436f,
-                                 -0.4986108f,
-                                 -1.5373832f,
-                                 3.2409699f);
-        cv::transform(tonemapped, converted, xyz_to_bt709);
-    }
-    else {
-        // For unknown colorspaces, default to assuming BT709
-        converted = tonemapped;
-    }
-
-    // Convert to 8-bit with proper gamma correction
-    cv::Mat gamma_corrected;
-    if (transfer == AVIF_TRANSFER_CHARACTERISTICS_LINEAR) {
-        cv::pow(converted, 1.0f / 2.2f, gamma_corrected);
-    }
-    else {
-        // PQ and HLG already include transfer function
-        gamma_corrected = converted;
-    }
-    gamma_corrected.convertTo(sdrMat, CV_8UC3, 255.0f);
-
-    memcpy(dst, sdrMat.data, width * height * 3);
+    tonemap_rgb_to_sdr(src,
+                       dst,
+                       width,
+                       height,
+                       src_depth,
+                       static_cast<uint8_t>(transfer),
+                       static_cast<uint8_t>(primaries));
 }
 
 // Convert YUV to RGB with optional HDR tone-mapping

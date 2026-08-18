@@ -716,6 +716,99 @@ func (d *openCVDecoder) iccPNG() []byte {
 	return iccDst[:iccLength]
 }
 
+// CICP describes the colour space of an image using ITU-T H.273 code points,
+// as carried by a PNG cICP chunk (PNG 3rd edition, W3C CR-png-3-20250313).
+//
+// This is signalling, not a profile: it is four small integers rather than a
+// blob, and per the PNG spec it takes precedence over an embedded ICC profile
+// when both are present.
+type CICP struct {
+	Primaries uint8
+	Transfer  uint8
+	Matrix    uint8
+	FullRange bool
+}
+
+// IsHDR reports whether the transfer characteristic denotes HDR content that
+// must be tone-mapped before it can be shown on an SDR surface.
+//
+// Note this deliberately does not consider bit depth, unlike the AVIF decoder's
+// HDR test: an 8-bit PNG carrying a PQ transfer is legal and common, so a depth
+// requirement would miss it. Primaries alone are also not sufficient, since a
+// BT.2020 image with an SDR transfer is wide-gamut rather than HDR.
+func (c CICP) IsHDR() bool {
+	return bool(C.cicp_is_hdr_transfer(C.uint8_t(c.Transfer)))
+}
+
+// CICP returns the colour signalling carried by the source's cICP chunk, and
+// whether such a chunk was present. Only PNG sources can carry one.
+func (d *openCVDecoder) CICP() (CICP, bool) {
+	if d.Description() != "PNG" || len(d.buf) == 0 {
+		return CICP{}, false
+	}
+	var primaries, transfer, matrix, fullRange C.uint8_t
+	found := C.opencv_decoder_get_png_cicp(
+		unsafe.Pointer(&d.buf[0]),
+		C.size_t(len(d.buf)),
+		&primaries,
+		&transfer,
+		&matrix,
+		&fullRange,
+	)
+	if found == 0 {
+		return CICP{}, false
+	}
+	return CICP{
+		Primaries: uint8(primaries),
+		Transfer:  uint8(transfer),
+		Matrix:    uint8(matrix),
+		FullRange: fullRange != 0,
+	}, true
+}
+
+// SynthesizeICC returns a canned ICC profile matching this signalling's colour
+// primaries, for carrying the cICP information into an output format that has
+// no cICP channel of its own.
+func (c CICP) SynthesizeICC() []byte {
+	var size C.size_t
+	data := C.cicp_get_icc_profile(C.uint8_t(c.Primaries), &size)
+	if data == nil || size == 0 {
+		return nil
+	}
+	return C.GoBytes(unsafe.Pointer(data), C.int(size))
+}
+
+// ICCHeaderIsSane reports whether an ICC blob's declared size field matches its
+// actual length and it is at least a full header long. A blob that fails this is
+// structurally unusable and must not be muxed into an output container.
+func ICCHeaderIsSane(icc []byte) bool {
+	if len(icc) == 0 {
+		return false
+	}
+	return bool(C.icc_header_is_sane((*C.uint8_t)(unsafe.Pointer(&icc[0])), C.size_t(len(icc))))
+}
+
+// TonemapToSDR converts HDR pixels in the framebuffer to SDR BT.709 in place,
+// using the same Reinhard tone-map and primaries conversion the AVIF decoder
+// applies to HDR AVIF sources.
+func (f *Framebuffer) TonemapToSDR(c CICP) {
+	if f.mat == nil || f.width <= 0 || f.height <= 0 {
+		return
+	}
+	channels := f.pixelType.Channels()
+	if channels != 3 && channels != 4 {
+		return
+	}
+	C.tonemap_rgb_8u_inplace(
+		(*C.uint8_t)(unsafe.Pointer(&f.buf[0])),
+		C.int(f.width),
+		C.int(f.height),
+		C.int(channels),
+		C.uint8_t(c.Transfer),
+		C.uint8_t(c.Primaries),
+	)
+}
+
 func (d *openCVDecoder) Duration() time.Duration {
 	return time.Duration(0)
 }
