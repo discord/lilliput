@@ -8,7 +8,7 @@
 #include <stdbool.h>
 
 struct webp_decoder_struct {
-    WebPMux* mux;
+    WebPDemuxer* demuxer;
     int total_frame_count;
     uint32_t bgcolor;
     uint32_t loop_count;
@@ -62,64 +62,60 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
 {
     auto cvMat = static_cast<const cv::Mat*>(buf);
     WebPData src = {cvMat->data, cvMat->total()};
-    WebPMux* mux = WebPMuxCreate(&src, 0);
 
-    if (!mux) {
+    // The demuxer is used in place of the mux because libwebpmux refuses
+    // sources whose VP8X header disagrees with the underlying chunks (for
+    // example a VP8X frame missing the alpha flag but holding a VP8L
+    // payload). The demuxer is permissive about that mismatch and lets us
+    // recover the real alpha state from the per-frame bitstream.
+    WebPDemuxer* demuxer = WebPDemux(&src);
+    if (!demuxer) {
         return nullptr;
     }
 
-    // Get features at the container level
-    uint32_t flags;
-    if (WebPMuxGetFeatures(mux, &flags) != WEBP_MUX_OK) {
-        WebPMuxDelete(mux);
+    uint32_t flags = WebPDemuxGetI(demuxer, WEBP_FF_FORMAT_FLAGS);
+    int canvas_w = (int)WebPDemuxGetI(demuxer, WEBP_FF_CANVAS_WIDTH);
+    int canvas_h = (int)WebPDemuxGetI(demuxer, WEBP_FF_CANVAS_HEIGHT);
+    uint32_t frame_count = WebPDemuxGetI(demuxer, WEBP_FF_FRAME_COUNT);
+
+    if (canvas_w <= 0 || canvas_h <= 0 || frame_count == 0) {
+        WebPDemuxDelete(demuxer);
         return nullptr;
     }
 
-    // Get the first frame to retrieve the image dimensions
-    WebPMuxFrameInfo frame;
-    if (WebPMuxGetFrame(mux, 1, &frame) != WEBP_MUX_OK) {
-        WebPMuxDelete(mux);
+    // Walk every frame so we can sum the total duration and detect alpha
+    // even when the VP8X flag lies. WebPIterator.has_alpha already reflects
+    // the per-frame bitstream so no extra probe is required.
+    bool has_alpha = (flags & ALPHA_FLAG) != 0;
+    int total_duration = 0;
+    WebPIterator iter;
+    if (!WebPDemuxGetFrame(demuxer, 1, &iter)) {
+        WebPDemuxDelete(demuxer);
         return nullptr;
     }
-
-    WebPBitstreamFeatures features;
-    if (WebPGetFeatures(frame.bitstream.bytes, frame.bitstream.size, &features) != VP8_STATUS_OK) {
-        WebPDataClear(&frame.bitstream);
-        WebPMuxDelete(mux);
-        return nullptr;
-    }
-    WebPDataClear(&frame.bitstream);
+    do {
+        total_duration += iter.duration;
+        if (iter.has_alpha) {
+            has_alpha = true;
+        }
+    } while (WebPDemuxNextFrame(&iter));
+    WebPDemuxReleaseIterator(&iter);
 
     webp_decoder d = new webp_decoder_struct();
     memset(d, 0, sizeof(webp_decoder_struct));
-    d->mux = mux;
+    d->demuxer = demuxer;
     d->current_frame_index = 1;
-    d->has_alpha = (flags & ALPHA_FLAG);
+    d->has_alpha = has_alpha;
+    d->width = canvas_w;
+    d->height = canvas_h;
+    d->total_frame_count = (int)frame_count;
 
-    // Get the canvas size
-    if (WebPMuxGetCanvasSize(mux, &d->width, &d->height) != WEBP_MUX_OK) {
-        WebPMuxDelete(mux);
-        return nullptr;
-    }
-
-    // Calculate total frame count and duration
-    d->total_frame_count = 0;
-    d->total_duration = 0;
-    do {
-        d->total_frame_count++;
-        d->total_duration += frame.duration;
-        WebPDataClear(&frame.bitstream);
-    } while (WebPMuxGetFrame(mux, d->total_frame_count + 1, &frame) == WEBP_MUX_OK);
-
-    // Get animation parameters
     d->bgcolor = 0xFFFFFFFF; // Default to white background
     if (flags & ANIMATION_FLAG) {
-        WebPMuxAnimParams anim_params;
-        if (WebPMuxGetAnimationParams(mux, &anim_params) == WEBP_MUX_OK) {
-            d->bgcolor = anim_params.bgcolor;
-            d->loop_count = anim_params.loop_count;
-        }
+        d->bgcolor = WebPDemuxGetI(demuxer, WEBP_FF_BACKGROUND_COLOR);
+        d->loop_count = WebPDemuxGetI(demuxer, WEBP_FF_LOOP_COUNT);
         d->has_animation = true;
+        d->total_duration = total_duration;
     }
     else {
         // For static images, ensure duration is 0
@@ -127,7 +123,7 @@ webp_decoder webp_decoder_create(const opencv_mat buf)
     }
 
     // Pre-allocate decode buffer
-    d->decode_buffer_size = d->width * d->height * 4; // 4 channels for RGBA
+    d->decode_buffer_size = (size_t)d->width * (size_t)d->height * 4; // 4 channels for RGBA
     d->decode_buffer = new uint8_t[d->decode_buffer_size];
 
     return d;
@@ -262,15 +258,17 @@ int webp_decoder_get_total_duration(const webp_decoder d)
  */
 size_t webp_decoder_get_icc(const webp_decoder d, void* dst, size_t dst_len)
 {
-    WebPData icc = {nullptr, 0};
-    auto res = WebPMuxGetChunk(d->mux, "ICCP", &icc);
-    if (icc.size > 0 && res == WEBP_MUX_OK) {
-        if (icc.size <= dst_len) {
-            memcpy(dst, icc.bytes, icc.size);
-            return icc.size;
-        }
+    WebPChunkIterator chunk_iter;
+    if (!WebPDemuxGetChunk(d->demuxer, "ICCP", 1, &chunk_iter)) {
+        return 0;
     }
-    return 0;
+    size_t copied = 0;
+    if (chunk_iter.chunk.size > 0 && chunk_iter.chunk.size <= dst_len) {
+        memcpy(dst, chunk_iter.chunk.bytes, chunk_iter.chunk.size);
+        copied = chunk_iter.chunk.size;
+    }
+    WebPDemuxReleaseChunkIterator(&chunk_iter);
+    return copied;
 }
 
 /**
@@ -305,16 +303,14 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
         return false;
     }
 
-    WebPMuxFrameInfo frame;
-    WebPMuxError mux_error = WebPMuxGetFrame(d->mux, d->current_frame_index, &frame);
-
-    if (mux_error != WEBP_MUX_OK) {
+    WebPIterator iter;
+    if (!WebPDemuxGetFrame(d->demuxer, d->current_frame_index, &iter)) {
         return false;
     }
 
     WebPBitstreamFeatures features;
-    if (WebPGetFeatures(frame.bitstream.bytes, frame.bitstream.size, &features) != VP8_STATUS_OK) {
-        WebPDataClear(&frame.bitstream);
+    if (WebPGetFeatures(iter.fragment.bytes, iter.fragment.size, &features) != VP8_STATUS_OK) {
+        WebPDemuxReleaseIterator(&iter);
         return false;
     }
 
@@ -326,30 +322,31 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
     int row_size = cvMat->cols * cvMat->elemSize();
 
     // Store frame properties for future use
-    d->prev_frame_delay_time = frame.duration;
-    d->prev_frame_x_offset = frame.x_offset;
-    d->prev_frame_y_offset = frame.y_offset;
-    d->prev_frame_dispose = frame.dispose_method;
-    d->prev_frame_blend = frame.blend_method;
+    d->prev_frame_delay_time = iter.duration;
+    d->prev_frame_x_offset = iter.x_offset;
+    d->prev_frame_y_offset = iter.y_offset;
+    d->prev_frame_dispose = iter.dispose_method;
+    d->prev_frame_blend = iter.blend_method;
 
     // Decode the frame
     uint8_t* res = nullptr;
     switch (webp_decoder_get_pixel_type(d)) {
     case CV_8UC4:
-        res = WebPDecodeBGRAInto(frame.bitstream.bytes,
-                                 frame.bitstream.size,
+        res = WebPDecodeBGRAInto(iter.fragment.bytes,
+                                 iter.fragment.size,
                                  d->decode_buffer,
                                  d->decode_buffer_size,
                                  row_size);
         break;
     case CV_8UC3:
-        res = WebPDecodeBGRInto(frame.bitstream.bytes,
-                                frame.bitstream.size,
+        res = WebPDecodeBGRInto(iter.fragment.bytes,
+                                iter.fragment.size,
                                 d->decode_buffer,
                                 d->decode_buffer_size,
                                 row_size);
         break;
     default:
+        WebPDemuxReleaseIterator(&iter);
         return false;
     }
 
@@ -357,7 +354,7 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
         memcpy(cvMat->data, d->decode_buffer, cvMat->total() * cvMat->elemSize());
     }
 
-    WebPDataClear(&frame.bitstream);
+    WebPDemuxReleaseIterator(&iter);
     return res != nullptr;
 }
 
@@ -368,8 +365,8 @@ bool webp_decoder_decode(const webp_decoder d, opencv_mat mat)
 void webp_decoder_release(webp_decoder d)
 {
     if (d) {
-        if (d->mux)
-            WebPMuxDelete(d->mux);
+        if (d->demuxer)
+            WebPDemuxDelete(d->demuxer);
         delete[] d->decode_buffer;
         delete d;
     }
