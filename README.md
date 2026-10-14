@@ -1,5 +1,24 @@
 # lilliput
 
+> [!CAUTION]
+>
+> ## Unmaintained
+>
+> As of October 2026, `discord/lilliput` is no longer used at Discord and is
+> unmaintained. There will be no further releases, including for security
+> vulnerabilities. Issues and pull requests are not being reviewed.
+>
+> We are working on a Rust implementation and will link it here when it is
+> public. We are not committing to a date, and this notice does not depend on
+> it.
+>
+> This repository is not in scope for Discord's security bug bounty program.
+> See [SECURITY.md](SECURITY.md) for how to report a vulnerability in this code.
+>
+> The code remains under the MIT license. Forking is encouraged, and we are
+> happy to link a community-maintained fork from this README. See
+> [#303](https://github.com/discord/lilliput/issues/303) for details.
+
 [lilliput](https://en.wiktionary.org/wiki/lilliputian#Adjective) resizes images in Go.
 
 Lilliput relies on mature, high-performance C libraries to do most of the work of
@@ -14,6 +33,7 @@ videos.
 **Lilliput presently only supports OSX ARM64 and Linux.**
 
 ## Example
+
 Lilliput comes with a [fully working example](examples/main.go) that runs on the command line. The
 example takes a user supplied filename and prints some basic info about the file.
 It then resizes and transcodes the image (if flags are supplied) and saves the
@@ -33,12 +53,14 @@ more info.
 First, `import "github.com/discord/lilliput"`.
 
 ### Decoder
+
 Lilliput is concerned with in-memory images, so the decoder requires image
 data to be in a []byte buffer.
 
 ```go
 func lilliput.NewDecoder([]byte buf) (lilliput.Decoder, error)
 ```
+
 Create a new `Decoder` object from the compressed image contained by `buf`.
 This will return an error when the magic bytes of the buffer don't match
 one of the supported image types.
@@ -46,6 +68,7 @@ one of the supported image types.
 ```go
 func (d lilliput.Decoder) Header() (lilliput.ImageHeader, error)
 ```
+
 Read and return the image's header. The header contains the image's metadata.
 Returns error if the image has a malformed header. An image with a malformed
 header cannot be decoded.
@@ -53,17 +76,20 @@ header cannot be decoded.
 ```go
 func (d lilliput.Decoder) Description() string
 ```
+
 Returns a string describing the image's type, e.g. `"JPEG"` or `"PNG"`.
 
 ```go
 func (h lilliput.Decoder) Duration() time.Duration
 ```
+
 Returns the length of the content. Returns 0 for static images and
 animated GIFs.
 
 ```go
 func (d lilliput.Decoder) DecodeTo(f *lilliput.Framebuffer) error
 ```
+
 Fully decodes the image and writes its pixel data to `f`. Returns an error
 if the decoding process fails. If the image contains multiple frames,
 then each call returns a subsequent frame. `io.EOF` is returned when the image
@@ -75,10 +101,12 @@ use an ImageOps object.**
 ```go
 func (d lilliput.Decoder) Close()
 ```
+
 Closes the decoder and releases resources. The Decoder object must have
 `.Close()` called when it is no longer in use.
 
 ### ImageOps
+
 Lilliput provides a convenience object to handle image resizing and encoding from an
 open Decoder object. The ImageOps object can be created and then reused, which reduces memory
 allocations. Generally, users should prefer the ImageOps object over manually controlling
@@ -87,12 +115,14 @@ the resize and encode process.
 ```go
 func lilliput.NewImageOps(dimension int) *lilliput.ImageOps
 ```
+
 Create an ImageOps object that can operate on images up to `dimension x dimension` pixels in size.
 This object can be reused for multiple operations.
 
 ```go
 func (o *lilliput.ImageOps) Transform(decoder lilliput.Decoder, opts *lilliput.ImageOptions, dst []byte) ([]byte, error)
 ```
+
 Transform the compressed image contained in a Decoder object into the desired output type. **The decoder must not
 have DecodeTo() called on it already.** However, it is ok to call `decoder.Header()` if you would like to check
 image properties before transforming the image. Returns an error if the resize or encoding process fails.
@@ -121,6 +151,7 @@ controls output encode quality.
 ```go
 func (o *lilliput.ImageOps) Clear()
 ```
+
 Clear out all pixel data contained in ImageOps object from any previous operations.
 This function does not need to be called between Transform() calls. The user may choose
 to do this if they want to remove image data from memory.
@@ -128,30 +159,36 @@ to do this if they want to remove image data from memory.
 ```go
 func (o *lilliput.ImageOps) Close()
 ```
+
 Close the ImageOps object and release resources. The ImageOps object must have `.Close()` called when it is no longer in use.
 
 ### ImageHeader
+
 This interface returns basic metadata about an image. It is created by
 calling `Decoder.Header()`.
 
 ```go
 func (h lilliput.ImageHeader) Width() int
 ```
+
 Returns the image's width in number of pixels.
 
 ```go
 func (h lilliput.ImageHeader) Height() int
 ```
+
 Returns the image's height in number of pixels.
 
 ```go
 func (h lilliput.ImageHeader) PixelType() lilliput.PixelType
 ```
+
 Returns the basic pixel type for the image's pixels.
 
 ```go
 func (h lilliput.ImageHeader) Orientation() lilliput.ImageOrientation
 ```
+
 Returns the metadata-based orientation of the image. This function can
 be called on all image types but presently only detects orientation in
 JPEG images. An orientation value of 1 indicates default orientation.
@@ -162,14 +199,17 @@ All other values indicate some kind of rotation or mirroring.
 ```go
 func (p lilliput.PixelType) Depth() int
 ```
+
 Returns the number of bits per pixel.
 
 ```go
 func (p lilliput.PixelType) Channels() int
 ```
+
 Returns the number of channels per pixel, e.g. 3 for RGB or 4 for RGBA.
 
 ### Framebuffer
+
 This type contains a raw array of pixels, decompressed from an image.
 In general, you will want to use the ImageOps object instead of operating on
 Framebuffers manually.
@@ -177,33 +217,39 @@ Framebuffers manually.
 ```go
 func lilliput.NewFramebuffer(width, height int) *lilliput.Framebuffer
 ```
+
 Create a new Framebuffer with given dimensions without any pixel data.
 
 ```go
 func (f *lilliput.Framebuffer) Clear()
 ```
+
 Set contents of framebuffer to 0, clearing out any previous pixel data.
 
 ```go
 func (f *lilliput.Framebuffer) Width() int
 ```
+
 Returns the width in number of pixels of the contained pixel data, if any.
 This does not return the capacity of the buffer.
 
 ```go
 func (f *lilliput.Framebuffer) Height() int
 ```
+
 Returns the height in number of pixels of the contained pixel data, if any.
 This does not return the capacity of the buffer.
 
 ```go
 func (f *lilliput.Framebuffer) PixelType() lilliput.PixelType
 ```
+
 Returns the `PixelType` of the contained pixel data, if any.
 
 ```go
 func (f *lilliput.Framebuffer) OrientationTransform(orientation lilliput.ImageOrientation)
 ```
+
 Rotate and/or mirror framebuffer according to orientation value. If you
 pass the `orientation` value given by the image's `ImageHeader`, then the
 resulting image has its orientation normalized to the
@@ -212,6 +258,7 @@ default orientation.
 ```go
 func (f *lilliput.Framebuffer) ResizeTo(width, height int, dst *lilliput.Framebuffer) error
 ```
+
 Perform a resize into `dst` of `f` according to given dimensions. This function does not
 preserve the source's aspect ratio if the new dimensions have a different ratio. The
 resize can fail if the destination is not large enough to hold the new image.
@@ -219,6 +266,7 @@ resize can fail if the destination is not large enough to hold the new image.
 ```go
 func (f *lilliput.Framebuffer) Fit(width, height int, dst *lilliput.Framebuffer) error
 ```
+
 Perform a cropping resize into `dst` of `f` according to given dimensions. This function
 does preserve the source's aspect ratio. The image will be cropped along one axis if
 the new dimensions have a different ratio than the source. The cropping will occur equally
@@ -229,14 +277,17 @@ not large enough to contain the resized image.
 ```go
 func (f *lilliput.Framebuffer) Close()
 ```
+
 Closes the framebuffer and releases resources. The `Framebuffer` object must have `.Close()` called when it is no longer in use.
 
 ### Encoder
+
 The Encoder takes a Framebuffer and writes the pixels into a compressed format.
 
 ```go
 func lilliput.NewEncoder(extension string, decodedBy lilliput.Decoder, dst []byte) (lilliput.Encoder, error)
 ```
+
 Create a new Encoder object that writes to `dst`. `extension` should be a file extension-like string,
 e.g. `".jpeg"` or `".png"`. `decodedBy` should be the `Decoder` used to decompress the image, if any.
 `decodedBy` may be left as `nil` in most cases but is required when creating a `.gif` encoder. That is,
@@ -245,6 +296,7 @@ e.g. `".jpeg"` or `".png"`. `decodedBy` should be the `Decoder` used to decompre
 ```go
 func (e lilliput.Encoder) Encode(buffer lilliput.Framebuffer, opts map[int]int) ([]byte, error)
 ```
+
 Encodes the Framebuffer supplied into the output `dst` given when the `Encoder` was created. The
 returned []byte will point to the same buffer as `dst` but can be a shorter slice, so that if `dst`
 has 50MB of capacity but the image only occupies 30KB, you can tell where the image data ends. This
@@ -263,6 +315,7 @@ Valid keys/values for `opts` are
 ```go
 func (e lilliput.Encoder) Close()
 ```
+
 Close the Encoder and release resources. The `Encoder` object must have `.Close()` called when it is no longer in use.
 
 ## Building Dependencies
@@ -273,4 +326,3 @@ static libraries have been provided for all of lilliput's dependencies on Linux 
 OSX. In order to automate this process, lilliput ships with build scripts alongside
 compressed archives of the sources of its dependencies. These build scripts are provided
 for [OSX](deps/build-deps-osx.sh) and [Linux](deps/build-deps-linux.sh).
-

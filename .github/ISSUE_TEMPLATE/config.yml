@@ -1,0 +1,19 @@
+blank_issues_enabled: true
+contact_links:
+  - name: This repository is unmaintained
+    url: https://github.com/discord/lilliput/issues/303
+    about: >-
+      discord/lilliput is unmaintained as of October 2026. No further
+      releases, bug fixes, or security fixes. Issues and pull requests are not
+      reviewed. Please read this before filing.
+  - name: Reporting a vulnerability in this code
+    url: https://github.com/discord/lilliput/blob/master/SECURITY.md
+    about: >-
+      This repository is out of scope for Discord's bug bounty. We are not
+      shipping fixes, so please file security findings as public issues here so
+      forks can act on them.
+  - name: Reporting a vulnerability in Discord itself
+    url: https://discord.com/security
+    about: >-
+      Discord's products and services remain in scope for the bug bounty
+      program. This policy does not affect them.
