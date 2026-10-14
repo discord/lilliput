@@ -17,7 +17,7 @@
 >
 > The code remains under the MIT license. Forking is encouraged, and we are
 > happy to link a community-maintained fork from this README. See
-> [#302](https://github.com/discord/lilliput/issues/302) for details.
+> [#303](https://github.com/discord/lilliput/issues/303) for details.
 
 [lilliput](https://en.wiktionary.org/wiki/lilliputian#Adjective) resizes images in Go.
 

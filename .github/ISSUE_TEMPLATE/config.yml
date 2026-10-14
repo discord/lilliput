@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: This repository is unmaintained
-    url: https://github.com/discord/lilliput/issues/302
+    url: https://github.com/discord/lilliput/issues/303
     about: >-
       discord/lilliput is unmaintained as of October 2026. No further
       releases, bug fixes, or security fixes. Issues and pull requests are not

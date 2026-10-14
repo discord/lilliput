@@ -4,7 +4,7 @@
 
 None. This repository is unmaintained as of October 2026 and no version
 receives security fixes. See
-[#302](https://github.com/discord/lilliput/issues/302).
+[#303](https://github.com/discord/lilliput/issues/303).
 
 ## Reporting a vulnerability in this code
 
