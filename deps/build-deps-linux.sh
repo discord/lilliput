@@ -161,7 +161,7 @@ rm -rf dav1d
 rm -rf libavif
 
 if [ ! -d "$SRCDIR" ]; then
-    git clone --depth 1 --branch 1.5.3 https://github.com/discord/lilliput-dep-source "$SRCDIR"
+    git clone --depth 1 --branch 1.5.4 https://github.com/discord/lilliput-dep-source "$SRCDIR"
 fi
 
 echo '\n--------------------'
@@ -407,6 +407,8 @@ echo 'Building ffmpeg'
 echo '--------------------\n'
 mkdir -p $BASEDIR/ffmpeg
 tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
+cd $BASEDIR/ffmpeg
+patch -p1 < $SRCDIR/0004-ffmpeg-mov-read-trun-ctts-shift.patch
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
