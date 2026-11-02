@@ -314,6 +314,11 @@ mkdir -p $BASEDIR/ffmpeg
 tar -xJf $SRCDIR/ffmpeg-7.0.2.orig.tar.xz -C $BASEDIR/ffmpeg --strip-components 1
 cd $BASEDIR/ffmpeg
 patch -p1 < $SRCDIR/0004-ffmpeg-mov-read-trun-ctts-shift.patch
+patch -p1 < $SRCDIR/0005-ffmpeg-mov-frag-index-current.patch
+patch -p1 < $SRCDIR/0006-ffmpeg-mov-ipma-property-index-0.patch
+patch -p1 < $SRCDIR/0007-ffmpeg-mov-ipco-seekback.patch
+patch -p1 < $SRCDIR/0008-ffmpeg-mov-bound-ipco-ipma-by-iprp.patch
+patch -p1 < $SRCDIR/0009-ffmpeg-mov-zero-ctts-gap.patch
 mkdir -p $BUILDDIR/ffmpeg
 cd $BUILDDIR/ffmpeg
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
